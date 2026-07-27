@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Follower Goal Overlay</title>
+  <title>Follower Goal Auto-Level Overlay</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,9 +67,14 @@
       box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
     }
 
-    /* Animation bei neuem Follower */
+    /* Normaler Follower Effekt */
     .pulse-effect {
       animation: hypePulse 0.8s ease-in-out 2;
+    }
+
+    /* Ziel-Erreicht Spezial-Effekt (Gold/Neon) */
+    .level-up-effect {
+      animation: levelUp 1.5s ease-in-out 3;
     }
 
     @keyframes hypePulse {
@@ -77,13 +82,19 @@
       50% { transform: scale(1.08); box-shadow: 0 0 30px rgba(56, 189, 248, 0.8); border-color: #38bdf8; }
       100% { transform: scale(1); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); }
     }
+
+    @keyframes levelUp {
+      0% { transform: scale(1); border-color: #38bdf8; }
+      50% { transform: scale(1.12); box-shadow: 0 0 40px rgba(251, 191, 36, 1); border-color: #fbbf24; }
+      100% { transform: scale(1); border-color: #38bdf8; }
+    }
   </style>
 </head>
 <body>
 
   <div class="goal-container" id="goalContainer">
     <div class="goal-header">
-      <span class="goal-title">Ziel: 210 Follower</span>
+      <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
       <span class="goal-stats" id="goalText">209 / 210</span>
     </div>
 
@@ -94,61 +105,108 @@
 
   <script>
     // ==========================================
-    // EINSTELLUNGEN
+    // EINSTELLUNGEN & AUTO-LEVEL LOGIK
     // ==========================================
-    let currentFollowers = 209;
-    const targetFollowers = 210;
-    
+    let currentFollowers = 209; // Startwert
+    const STEP_SIZE = 10;        // Schritte (210, 220, 230...)
+
+    // Berechnet automatisch das nächste Ziel basierend auf aktuellen Followern
+    function calculateTarget(followers) {
+      return Math.ceil((followers + 1) / STEP_SIZE) * STEP_SIZE;
+    }
+
+    let targetFollowers = calculateTarget(currentFollowers);
+
     // Deinen Streamlabs Socket Token hier eintragen:
-    // (Findest du unter: streamlabs.com/dashboard/settings/api-settings -> Socket API Token)
     const STREAMLABS_SOCKET_TOKEN = "DEIN_STREAMLABS_SOCKET_TOKEN"; 
     // ==========================================
 
     function updateUI() {
-      const pct = Math.min(100, Math.round((currentFollowers / targetFollowers) * 100));
-      document.getElementById('barFill').style.width = pct + '%';
+      // Berechne Prozentwert für den Ladebalken relativ zum aktuellen Ziel
+      const previousTarget = targetFollowers - STEP_SIZE;
+      const progressInStep = currentFollowers - previousTarget;
+      const pct = Math.min(100, Math.max(0, Math.round((progressInStep / STEP_SIZE) * 100)));
+
+      document.getElementById('goalTitle').innerText = `Ziel: ${targetFollowers} Follower`;
       document.getElementById('goalText').innerText = `${currentFollowers} / ${targetFollowers}`;
+      document.getElementById('barFill').style.width = pct + '%';
     }
 
-    // Sound-Synthesizer für den Stream (keine externen MP3s nötig!)
-    function playHypeSound() {
+    // Sound 1: Normaler Follower Sound
+    function playFollowSound() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (Level-Up Fanfare)
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'triangle';
           osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.1);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.35);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.25);
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + idx * 0.1);
-          osc.stop(ctx.currentTime + idx * 0.1 + 0.35);
+          osc.start(ctx.currentTime + idx * 0.08);
+          osc.stop(ctx.currentTime + idx * 0.08 + 0.25);
         });
       } catch (e) { console.log(e); }
     }
 
-    function triggerAlert() {
-      playHypeSound();
+    // Sound 2: Epische Fanfare bei Erreichen des Ziels!
+    function playLevelUpSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.25, ctx.currentTime + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.45);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.1);
+          osc.stop(ctx.currentTime + idx * 0.1 + 0.45);
+        });
+      } catch (e) { console.log(e); }
+    }
+
+    function triggerFollowAlert() {
+      playFollowSound();
       const container = document.getElementById('goalContainer');
-      container.classList.remove('pulse-effect');
-      void container.offsetWidth; // Trigger reflow
+      container.classList.remove('pulse-effect', 'level-up-effect');
+      void container.offsetWidth;
       container.classList.add('pulse-effect');
+    }
+
+    function triggerGoalReachedAlert() {
+      playLevelUpSound();
+      const container = document.getElementById('goalContainer');
+      container.classList.remove('pulse-effect', 'level-up-effect');
+      void container.offsetWidth;
+      container.classList.add('level-up-effect');
     }
 
     updateUI();
 
-    // Live WebSockets Anbindung an Streamlabs
+    // WebSockets Live Anbindung
     if (STREAMLABS_SOCKET_TOKEN && STREAMLABS_SOCKET_TOKEN !== "DEIN_STREAMLABS_SOCKET_TOKEN") {
       const socket = io(`https://sockets.streamlabs.com?token=${STREAMLABS_SOCKET_TOKEN}`, { transports: ['websocket'] });
 
       socket.on('event', (eventData) => {
         if (eventData.type === 'follow') {
           currentFollowers += 1;
+
+          // Prüfen, ob das Ziel erreicht wurde
+          if (currentFollowers >= targetFollowers) {
+            triggerGoalReachedAlert(); // Spezial-Sound & Effekt
+            targetFollowers = calculateTarget(currentFollowers); // Ziel automatisch hochschrauben!
+          } else {
+            triggerFollowAlert(); // Standard-Effekt
+          }
+
           updateUI();
-          triggerAlert();
         }
       });
     }
