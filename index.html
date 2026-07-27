@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RL Session Overlay</title>
-  <!-- Korrigierter & zuverlässiger CDN-Link für tmi.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,21 +12,19 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #ffffff;
       padding: 10px;
-      user-select: none;
     }
 
     .rl-container {
       display: inline-flex;
       align-items: center;
-      gap: 18px;
-      background: rgba(15, 23, 42, 0.90);
+      gap: 16px;
+      background: rgba(15, 23, 42, 0.92);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-left: 4px solid #f97316;
       border-radius: 12px;
-      padding: 12px 20px;
+      padding: 12px 18px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
-      cursor: pointer;
     }
 
     .brand-section {
@@ -36,20 +33,25 @@
     }
 
     .tag {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 800;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.2px;
       color: #94a3b8;
       text-transform: uppercase;
     }
 
     .title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 900;
       color: #38bdf8;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .status-text {
+      font-size: 8px;
+      color: #e2e8f0;
+      margin-top: 2px;
+      font-weight: 700;
     }
 
     .divider {
@@ -60,12 +62,12 @@
 
     .stats-group {
       display: flex;
-      gap: 16px;
+      gap: 14px;
     }
 
     .stat-box {
       text-align: center;
-      min-width: 45px;
+      min-width: 40px;
     }
 
     .stat-val {
@@ -80,28 +82,20 @@
       color: #cbd5e1;
       text-transform: uppercase;
       font-weight: 700;
-      letter-spacing: 0.5px;
     }
 
     .val-win { color: #22c55e; }
     .val-loss { color: #ef4444; }
     .val-rate { color: #fbbf24; }
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #22c55e;
-      display: inline-block;
-      margin-left: 4px;
-    }
   </style>
 </head>
 <body>
 
-  <div class="rl-container" onclick="testClick()">
+  <div class="rl-container">
     <div class="brand-section">
-      <span class="tag">Live Stream <span class="status-dot" id="statusDot"></span></span>
+      <span class="tag">Live Stream</span>
       <span class="title">Session Stats</span>
+      <span class="status-text" id="statusLabel">Chat: Verbinde...</span>
     </div>
 
     <div class="divider"></div>
@@ -124,7 +118,6 @@
 
   <script>
     const CHANNEL_NAME = "dangsxr1000"; 
-    const PLAYER_NAME = "DaNgsxR"; 
 
     let sessionWins = 0;
     let sessionLosses = 0;
@@ -141,84 +134,40 @@
       document.getElementById('winrate').innerText = rate + '%';
     }
 
-    // Touch/Klick Test-Funktion für Streamlabs Editor
-    function testClick() {
-      sessionWins++;
-      updateUI();
-    }
+    const statusLbl = document.getElementById('statusLabel');
 
-    // TWITCH CHAT ANBINDUNG
-    try {
-      if (window.tmi) {
-        const client = new tmi.Client({
-          connection: { secure: true, reconnect: true },
-          channels: [ CHANNEL_NAME.toLowerCase().trim() ]
-        });
+    // TWITCH CHAT ANBINDUNG (Verlässlich & Leichtgewichtig)
+    const client = new tmi.Client({
+      options: { debug: false },
+      connection: { secure: true, reconnect: true },
+      channels: [ CHANNEL_NAME.toLowerCase().trim() ]
+    });
 
-        client.connect().catch(console.error);
+    client.connect().then(() => {
+      statusLbl.innerText = "Chat: Online 🟢";
+      statusLbl.style.color = "#22c55e";
+    }).catch((err) => {
+      statusLbl.innerText = "Chat: Fehler 🔴";
+      statusLbl.style.color = "#ef4444";
+    });
 
-        client.on('message', (channel, tags, message, self) => {
-          const cmd = message.trim().toLowerCase();
+    client.on('message', (channel, tags, message, self) => {
+      const cmd = message.trim().toLowerCase();
 
-          if (cmd === '!win' || cmd === '!w') {
-            sessionWins++;
-            updateUI();
-          } 
-          if (cmd === '!loss' || cmd === '!l') {
-            sessionLosses++;
-            updateUI();
-          } 
-          if (cmd === '!reset') {
-            sessionWins = 0;
-            sessionLosses = 0;
-            updateUI();
-          }
-        });
+      if (cmd === '!win' || cmd === '!w') {
+        sessionWins++;
+        updateUI();
+      } 
+      else if (cmd === '!loss' || cmd === '!l') {
+        sessionLosses++;
+        updateUI();
+      } 
+      else if (cmd === '!reset') {
+        sessionWins = 0;
+        sessionLosses = 0;
+        updateUI();
       }
-    } catch (e) {
-      console.log("Chat-Verbindung Standby", e);
-    }
-
-    // TRACKER.GG AUTOMATISCHER FETCH
-    let startWins = null;
-    let startMatches = null;
-
-    async function fetchStats() {
-      try {
-        const url = `https://corsproxy.io/?https://api.tracker.gg/api/v2/rocket-league/standard/profile/epic/${encodeURIComponent(PLAYER_NAME)}`;
-        const res = await fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
-
-        if (data && data.data && data.data.segments) {
-          const overview = data.data.segments.find(s => s.type === 'overview');
-          if (overview && overview.stats) {
-            const currentWins = overview.stats.wins ? overview.stats.wins.value : 0;
-            const currentMatches = overview.stats.matchesPlayed ? overview.stats.matchesPlayed.value : 0;
-
-            if (startWins === null) {
-              startWins = currentWins;
-              startMatches = currentMatches;
-            } else {
-              const apiWins = Math.max(0, currentWins - startWins);
-              const apiMatches = Math.max(0, currentMatches - startMatches);
-              const apiLosses = Math.max(0, apiMatches - apiWins);
-
-              if (apiWins > sessionWins || apiLosses > sessionLosses) {
-                sessionWins = apiWins;
-                sessionLosses = apiLosses;
-                updateUI();
-              }
-            }
-          }
-        }
-      } catch (err) {
-        // Stille Fehlertoleranz
-      }
-    }
-
-    fetchStats();
-    setInterval(fetchStats, 30000);
+    });
   </script>
 
 </body>
