@@ -117,8 +117,10 @@
 
     let targetFollowers = calculateTarget(currentFollowers);
 
-    // Deinen Streamlabs Socket Token hier eintragen:
-    const STREAMLABS_SOCKET_TOKEN = "DEIN_STREAMLABS_SOCKET_TOKEN"; 
+    // ==========================================
+    // HIER DEINEN KOPIERTEN SOCKET-TOKEN EINFÜGEN:
+    // ==========================================
+    const STREAMLABS_SOCKET_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbiI6IjIxQTMzN0NEMzEzQkNEQTE5MzU4MzVDNDIzM0EzMDQ0ODJEQzY5MjFDQzgwMTU4OUVDMzgzRUEwMzMwM0M2NTMyODVDOEI3MTIxQzQ0MEVGQkMwMjM3N0Y1Q0Q1QUUxRDRFQ0FBRjQ5QzFERkU4OUQyOTk0OUVDNDU5NjQxODA4RTRFNkNBMzQ1MkIwNkQwMzFFMDZEOThGQkEzRjZEMUI2MDBEOEI1NDBDRjlBNEMzNTRFQ0ZGQUJFQ0Y1RTkwRTdCMEI3MjFFRkJEQkU4REUxNDZBNkE2NURCNDc0ODQyMjhGRDcxQzIzNkYxRTAxQkFFRDJEQTlENUQiLCJyZWFkX29ubHkiOnRydWUsInByZXZlbnRfbWFzdGVyIjp0cnVlLCJ0d2l0Y2hfaWQiOiI3ODU4ODc3MzUifQ.TnmJmgYgJ3RxNuxibF2SsTGkeChRxbTxfYsiZGbc9gk"; 
     // ==========================================
 
     function updateUI() {
@@ -191,7 +193,7 @@
     updateUI();
 
     // WebSockets Live Anbindung
-    if (STREAMLABS_SOCKET_TOKEN && STREAMLABS_SOCKET_TOKEN !== "DEIN_STREAMLABS_SOCKET_TOKEN") {
+    if (STREAMLABS_SOCKET_TOKEN && STREAMLABS_SOCKET_TOKEN !== "DEIN_TOKEN_HIER_EINFÜGEN") {
       const socket = io(`https://sockets.streamlabs.com?token=${STREAMLABS_SOCKET_TOKEN}`, { transports: ['websocket'] });
 
       socket.on('event', (eventData) => {
