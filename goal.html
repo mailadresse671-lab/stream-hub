@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Follower Goal & Alerts</title>
+  <title>Stream Party Overlay</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,24 +13,25 @@
       color: #ffffff;
       padding: 10px;
       overflow: hidden;
+      height: 100vh;
     }
 
-    /* Das Ziel-Widget oben rechts */
+    /* Das Ziel-Widget dezent oben rechts */
     .goal-container {
       position: fixed;
       top: 15px;
       right: 15px;
       display: inline-flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       background: rgba(15, 23, 42, 0.90);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-right: 4px solid #38bdf8;
       border-radius: 12px;
-      padding: 12px 18px;
+      padding: 10px 16px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
-      min-width: 260px;
+      min-width: 240px;
       z-index: 10;
     }
 
@@ -41,7 +42,7 @@
     }
 
     .goal-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       letter-spacing: 1.2px;
       color: #38bdf8;
@@ -49,16 +50,16 @@
     }
 
     .goal-stats {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 900;
       color: #ffffff;
     }
 
     .bar-bg {
       width: 100%;
-      height: 12px;
+      height: 10px;
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
+      border-radius: 5px;
       overflow: hidden;
       position: relative;
     }
@@ -67,84 +68,102 @@
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, #f97316, #fbbf24);
-      border-radius: 6px;
+      border-radius: 5px;
       transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
     }
 
-    /* Pop-up Alarm für neuen Follower (Mitte des Bildschirms) */
-    #alert-box {
+    /* Party Pop-up in der MITTE des Bildschirms */
+    #party-popup {
       position: fixed;
-      top: 25%;
+      top: 35%;
       left: 50%;
-      transform: translate(-50%, -50%) scale(0.8);
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
-      border: 2px solid #38bdf8;
-      border-radius: 16px;
-      padding: 20px 40px;
+      transform: translate(-50%, -50%) scale(0.5);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+      border: 3px solid #fbbf24;
+      border-radius: 20px;
+      padding: 30px 60px;
       text-align: center;
-      box-shadow: 0 0 50px rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 80px rgba(251, 191, 36, 0.7);
       opacity: 0;
       pointer-events: none;
       transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
       z-index: 100;
     }
 
-    #alert-box.show {
+    #party-popup.show {
       opacity: 1;
       transform: translate(-50%, -50%) scale(1);
     }
 
-    .alert-tag {
-      font-size: 12px;
-      font-weight: 800;
-      color: #fbbf24;
-      letter-spacing: 2px;
+    .party-tag {
+      font-size: 14px;
+      font-weight: 900;
+      color: #38bdf8;
+      letter-spacing: 3px;
       text-transform: uppercase;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
 
-    .alert-name {
-      font-size: 26px;
+    .party-name {
+      font-size: 42px;
       font-weight: 900;
       color: #ffffff;
-      text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+      text-shadow: 0 0 25px rgba(251, 191, 36, 0.8);
+      margin: 5px 0;
+      word-break: break-all;
     }
 
-    .alert-sub {
-      font-size: 13px;
-      color: #94a3b8;
-      margin-top: 4px;
+    .party-thanks {
+      font-size: 16px;
+      color: #cbd5e1;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    /* Konfetti Partikel */
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -20px;
+      z-index: 99;
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(105vh) rotate(720deg);
+        opacity: 0;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- Ziel-Balken oben rechts -->
+  <!-- Ziel oben rechts -->
   <div class="goal-container" id="goalContainer">
     <div class="goal-header">
       <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
       <span class="goal-stats" id="goalText">209 / 210</span>
     </div>
-
     <div class="bar-bg">
       <div class="bar-fill" id="barFill"></div>
     </div>
   </div>
 
-  <!-- Großes Pop-up in der Mitte für neue Follower & Ziel-Erreichung -->
-  <div id="alert-box">
-    <div class="alert-tag" id="alertTag">NEUER FOLLOWER! 🔥</div>
-    <div class="alert-name" id="alertName">SpielerName</div>
-    <div class="alert-sub" id="alertSub">Willkommen im Team!</div>
+  <!-- Riesiges Party Pop-up in der Mitte -->
+  <div id="party-popup">
+    <div class="party-tag" id="partyTag">🎉 NEUER FOLLOWER! 🎉</div>
+    <div class="party-name" id="partyName">Name</div>
+    <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
   </div>
 
   <script>
     // ==========================================
-    // EINSTELLUNGEN & AUTO-LEVEL LOGIK
+    // EINSTELLUNGEN & AUTO-LEVEL
     // ==========================================
-    let currentFollowers = 209; // Startwert
-    const STEP_SIZE = 10;        // Schritte (210, 220, 230...)
+    let currentFollowers = 209; 
+    const STEP_SIZE = 10;        
 
     function calculateTarget(followers) {
       return Math.ceil((followers + 1) / STEP_SIZE) * STEP_SIZE;
@@ -166,58 +185,70 @@
       document.getElementById('barFill').style.width = pct + '%';
     }
 
-    // Audio-Synthesizer (Keine externen Dateien nötig)
-    function playSound(type) {
+    // Fetter Party-Sound (Synthesizer Fanfare)
+    function playPartySound() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = type === 'goal' 
-          ? [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98] // Epische Fanfare
-          : [523.25, 659.25, 783.99]; // Standard Follower Hype
-
+        const notes = [440, 554.37, 659.25, 880, 1108.73, 1318.51]; // A-Dur Akkord Fanfare
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.type = type === 'goal' ? 'sawtooth' : 'triangle';
+          osc.type = 'sawtooth';
           osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.09 + 0.4);
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + idx * 0.08);
-          osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+          osc.start(ctx.currentTime + idx * 0.09);
+          osc.stop(ctx.currentTime + idx * 0.09 + 0.4);
         });
       } catch (e) { console.log(e); }
     }
 
-    // Zeigt das große Pop-up in der Mitte an
-    function showPopup(name, isGoalReached, newTarget) {
-      const box = document.getElementById('alert-box');
-      const tag = document.getElementById('alertTag');
-      const nameElem = document.getElementById('alertName');
-      const sub = document.getElementById('alertSub');
+    // Konfetti-Regen auslösen
+    function triggerConfetti() {
+      const colors = ['#38bdf8', '#fbbf24', '#f97316', '#22c55e', '#ec4899', '#a855f7'];
+      for (let i = 0; i < 70; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.width = Math.random() * 10 + 6 + 'px';
+        confetti.style.height = Math.random() * 10 + 6 + 'px';
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%`' : '0%';
+        confetti.style.animationDuration = Math.random() * 2 + 1.5 + 's';
+        confetti.style.animationDelay = Math.random() * 0.5 + 's';
+        document.body.appendChild(confetti);
 
-      if (isGoalReached) {
-        tag.innerText = "🚀 ZIEL ERREICHT! HYPE! 🚀";
-        nameElem.innerText = `${name}`;
-        sub.innerText = `Nächstes Ziel: ${newTarget} Follower! Stark!`;
-        box.style.borderColor = "#fbbf24";
-        box.style.boxShadow = "0 0 60px rgba(251, 191, 36, 0.8)";
-        playSound('goal');
-      } else {
-        tag.innerText = "NEUER FOLLOWER! 🔥";
+        setTimeout(() => { confetti.remove(); }, 3500);
+      }
+    }
+
+    // Party-Alarm auf dem Bildschirm anzeigen
+    function showPartyPopup(name, isGoal) {
+      const popup = document.getElementById('party-popup');
+      const tag = document.getElementById('partyTag');
+      const nameElem = document.getElementById('partyName');
+      const thanks = document.getElementById('partyThanks');
+
+      if (isGoal) {
+        tag.innerText = "🚀 ZIEL GECRACHTT! HYPE! 🚀";
         nameElem.innerText = name;
-        sub.innerText = "Willkommen im Stream!";
-        box.style.borderColor = "#38bdf8";
-        box.style.boxShadow = "0 0 50px rgba(56, 189, 248, 0.5)";
-        playSound('normal');
+        thanks.innerText = `Mega! Nächstes Ziel: ${targetFollowers} Follower!`;
+      } else {
+        tag.innerText = "🎉 NEUER FOLLOWER! 🎉";
+        nameElem.innerText = name;
+        thanks.innerText = "Vielen Dank für deinen Support & Willkommen im Stream!";
       }
 
-      box.classList.add('show');
+      popup.classList.add('show');
+      playPartySound();
+      triggerConfetti();
 
-      // Nach 5 Sekunden wieder ausblenden
+      // Nach 6 Sekunden wieder ausblenden
       setTimeout(() => {
-        box.classList.remove('show');
-      }, 5000);
+        popup.classList.remove('show');
+      }, 6000);
     }
 
     updateUI();
@@ -228,8 +259,7 @@
 
       socket.on('event', (eventData) => {
         if (eventData.type === 'follow') {
-          // Name des Followers sicher auslesen
-          let followerName = "Ein Zuschauer";
+          let followerName = "Zuschauer";
           if (eventData.message && eventData.message[0] && eventData.message[0].name) {
             followerName = eventData.message[0].name;
           } else if (eventData.name) {
@@ -238,13 +268,11 @@
 
           currentFollowers += 1;
 
-          // Prüfen, ob das Ziel erreicht wurde
           if (currentFollowers >= targetFollowers) {
-            const oldTarget = targetFollowers;
-            targetFollowers = calculateTarget(currentFollowers); // Neues Ziel berechnen (z.B. 220)
-            showPopup(followerName, true, targetFollowers);
+            showPartyPopup(followerName, true);
+            targetFollowers = calculateTarget(currentFollowers); // Nächstes Ziel (z.B. 220)
           } else {
-            showPopup(followerName, false, targetFollowers);
+            showPartyPopup(followerName, false);
           }
 
           updateUI();
