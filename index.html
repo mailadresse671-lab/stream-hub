@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RL Session Overlay Hybrid</title>
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <title>RL Session Overlay</title>
+  <!-- Korrigierter & zuverlässiger CDN-Link für tmi.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -12,19 +13,21 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #ffffff;
       padding: 10px;
+      user-select: none;
     }
 
     .rl-container {
       display: inline-flex;
       align-items: center;
       gap: 18px;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.90);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-left: 4px solid #f97316;
       border-radius: 12px;
       padding: 12px 20px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
+      cursor: pointer;
     }
 
     .brand-section {
@@ -95,9 +98,9 @@
 </head>
 <body>
 
-  <div class="rl-container">
+  <div class="rl-container" onclick="testClick()">
     <div class="brand-section">
-      <span class="tag">Live Stream <span class="status-dot" title="Live Aktiv"></span></span>
+      <span class="tag">Live Stream <span class="status-dot" id="statusDot"></span></span>
       <span class="title">Session Stats</span>
     </div>
 
@@ -120,13 +123,8 @@
   </div>
 
   <script>
-    // ==========================================
-    // DEIN TWITCH KANALNAME & RL SPIELERNAME
-    // ==========================================
     const CHANNEL_NAME = "dangsxr1000"; 
     const PLAYER_NAME = "DaNgsxR"; 
-    const PLATFORM = "epic"; 
-    // ==========================================
 
     let sessionWins = 0;
     let sessionLosses = 0;
@@ -143,43 +141,53 @@
       document.getElementById('winrate').innerText = rate + '%';
     }
 
-    // 1. CHAT-BEFEHLE ANBINDUNG (Twitch Chat Steuerung)
-    const client = new tmi.Client({
-      connection: { secure: true, reconnect: true },
-      channels: [ CHANNEL_NAME.toLowerCase().trim() ]
-    });
+    // Touch/Klick Test-Funktion für Streamlabs Editor
+    function testClick() {
+      sessionWins++;
+      updateUI();
+    }
 
-    client.connect();
+    // TWITCH CHAT ANBINDUNG
+    try {
+      if (window.tmi) {
+        const client = new tmi.Client({
+          connection: { secure: true, reconnect: true },
+          channels: [ CHANNEL_NAME.toLowerCase().trim() ]
+        });
 
-    client.on('message', (channel, tags, message, self) => {
-      const cmd = message.trim().toLowerCase();
+        client.connect().catch(console.error);
 
-      // Befehl: Sieg eintragen (!win oder !w)
-      if (cmd === '!win' || cmd === '!w') {
-        sessionWins++;
-        updateUI();
-      } 
-      // Befehl: Niederlage eintragen (!loss oder !l)
-      if (cmd === '!loss' || cmd === '!l') {
-        sessionLosses++;
-        updateUI();
-      } 
-      // Befehl: Session zurücksetzen (!reset)
-      if (cmd === '!reset') {
-        sessionWins = 0;
-        sessionLosses = 0;
-        updateUI();
+        client.on('message', (channel, tags, message, self) => {
+          const cmd = message.trim().toLowerCase();
+
+          if (cmd === '!win' || cmd === '!w') {
+            sessionWins++;
+            updateUI();
+          } 
+          if (cmd === '!loss' || cmd === '!l') {
+            sessionLosses++;
+            updateUI();
+          } 
+          if (cmd === '!reset') {
+            sessionWins = 0;
+            sessionLosses = 0;
+            updateUI();
+          }
+        });
       }
-    });
+    } catch (e) {
+      console.log("Chat-Verbindung Standby", e);
+    }
 
-    // 2. OPTIONALER API-AUTO-FETCH (Falls Tracker.gg antwortet)
+    // TRACKER.GG AUTOMATISCHER FETCH
     let startWins = null;
     let startMatches = null;
 
     async function fetchStats() {
       try {
-        const url = `https://corsproxy.io/?https://api.tracker.gg/api/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`;
+        const url = `https://corsproxy.io/?https://api.tracker.gg/api/v2/rocket-league/standard/profile/epic/${encodeURIComponent(PLAYER_NAME)}`;
         const res = await fetch(url);
+        if (!res.ok) return;
         const data = await res.json();
 
         if (data && data.data && data.data.segments) {
@@ -205,12 +213,12 @@
           }
         }
       } catch (err) {
-        console.log("Tracker API im Standby...");
+        // Stille Fehlertoleranz
       }
     }
 
     fetchStats();
-    setInterval(fetchStats, 45000);
+    setInterval(fetchStats, 30000);
   </script>
 
 </body>
