@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Follower Goal Auto-Level Overlay</title>
+  <title>Follower Goal & Alerts</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,13 +12,18 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #ffffff;
       padding: 10px;
+      overflow: hidden;
     }
 
+    /* Das Ziel-Widget oben rechts */
     .goal-container {
+      position: fixed;
+      top: 15px;
+      right: 15px;
       display: inline-flex;
       flex-direction: column;
       gap: 8px;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.90);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-right: 4px solid #38bdf8;
       border-radius: 12px;
@@ -26,7 +31,7 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
       min-width: 260px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      z-index: 10;
     }
 
     .goal-header {
@@ -67,31 +72,55 @@
       box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
     }
 
-    /* Normaler Follower Effekt */
-    .pulse-effect {
-      animation: hypePulse 0.8s ease-in-out 2;
+    /* Pop-up Alarm für neuen Follower (Mitte des Bildschirms) */
+    #alert-box {
+      position: fixed;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+      border: 2px solid #38bdf8;
+      border-radius: 16px;
+      padding: 20px 40px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(56, 189, 248, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 100;
     }
 
-    /* Ziel-Erreicht Spezial-Effekt (Gold/Neon) */
-    .level-up-effect {
-      animation: levelUp 1.5s ease-in-out 3;
+    #alert-box.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
 
-    @keyframes hypePulse {
-      0% { transform: scale(1); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); }
-      50% { transform: scale(1.08); box-shadow: 0 0 30px rgba(56, 189, 248, 0.8); border-color: #38bdf8; }
-      100% { transform: scale(1); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); }
+    .alert-tag {
+      font-size: 12px;
+      font-weight: 800;
+      color: #fbbf24;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
     }
 
-    @keyframes levelUp {
-      0% { transform: scale(1); border-color: #38bdf8; }
-      50% { transform: scale(1.12); box-shadow: 0 0 40px rgba(251, 191, 36, 1); border-color: #fbbf24; }
-      100% { transform: scale(1); border-color: #38bdf8; }
+    .alert-name {
+      font-size: 26px;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+    }
+
+    .alert-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
 
+  <!-- Ziel-Balken oben rechts -->
   <div class="goal-container" id="goalContainer">
     <div class="goal-header">
       <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
@@ -103,6 +132,13 @@
     </div>
   </div>
 
+  <!-- Großes Pop-up in der Mitte für neue Follower & Ziel-Erreichung -->
+  <div id="alert-box">
+    <div class="alert-tag" id="alertTag">NEUER FOLLOWER! 🔥</div>
+    <div class="alert-name" id="alertName">SpielerName</div>
+    <div class="alert-sub" id="alertSub">Willkommen im Team!</div>
+  </div>
+
   <script>
     // ==========================================
     // EINSTELLUNGEN & AUTO-LEVEL LOGIK
@@ -110,21 +146,17 @@
     let currentFollowers = 209; // Startwert
     const STEP_SIZE = 10;        // Schritte (210, 220, 230...)
 
-    // Berechnet automatisch das nächste Ziel basierend auf aktuellen Followern
     function calculateTarget(followers) {
       return Math.ceil((followers + 1) / STEP_SIZE) * STEP_SIZE;
     }
 
     let targetFollowers = calculateTarget(currentFollowers);
 
-    // ==========================================
-    // HIER DEINEN KOPIERTEN SOCKET-TOKEN EINFÜGEN:
-    // ==========================================
+    // HIER DEINEN SOCKET-TOKEN EINFÜGEN:
     const STREAMLABS_SOCKET_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbiI6IjIxQTMzN0NEMzEzQkNEQTE5MzU4MzVDNDIzM0EzMDQ0ODJEQzY5MjFDQzgwMTU4OUVDMzgzRUEwMzMwM0M2NTMyODVDOEI3MTIxQzQ0MEVGQkMwMjM3N0Y1Q0Q1QUUxRDRFQ0FBRjQ5QzFERkU4OUQyOTk0OUVDNDU5NjQxODA4RTRFNkNBMzQ1MkIwNkQwMzFFMDZEOThGQkEzRjZEMUI2MDBEOEI1NDBDRjlBNEMzNTRFQ0ZGQUJFQ0Y1RTkwRTdCMEI3MjFFRkJEQkU4REUxNDZBNkE2NURCNDc0ODQyMjhGRDcxQzIzNkYxRTAxQkFFRDJEQTlENUQiLCJyZWFkX29ubHkiOnRydWUsInByZXZlbnRfbWFzdGVyIjp0cnVlLCJ0d2l0Y2hfaWQiOiI3ODU4ODc3MzUifQ.TnmJmgYgJ3RxNuxibF2SsTGkeChRxbTxfYsiZGbc9gk"; 
     // ==========================================
 
     function updateUI() {
-      // Berechne Prozentwert für den Ladebalken relativ zum aktuellen Ziel
       const previousTarget = targetFollowers - STEP_SIZE;
       const progressInStep = currentFollowers - previousTarget;
       const pct = Math.min(100, Math.max(0, Math.round((progressInStep / STEP_SIZE) * 100)));
@@ -134,78 +166,85 @@
       document.getElementById('barFill').style.width = pct + '%';
     }
 
-    // Sound 1: Normaler Follower Sound
-    function playFollowSound() {
+    // Audio-Synthesizer (Keine externen Dateien nötig)
+    function playSound(type) {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        const notes = type === 'goal' 
+          ? [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98] // Epische Fanfare
+          : [523.25, 659.25, 783.99]; // Standard Follower Hype
+
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.type = 'triangle';
+          osc.type = type === 'goal' ? 'sawtooth' : 'triangle';
           osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.25);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.start(ctx.currentTime + idx * 0.08);
-          osc.stop(ctx.currentTime + idx * 0.08 + 0.25);
+          osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
         });
       } catch (e) { console.log(e); }
     }
 
-    // Sound 2: Epische Fanfare bei Erreichen des Ziels!
-    function playLevelUpSound() {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
-        notes.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.25, ctx.currentTime + idx * 0.1);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.45);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + idx * 0.1);
-          osc.stop(ctx.currentTime + idx * 0.1 + 0.45);
-        });
-      } catch (e) { console.log(e); }
-    }
+    // Zeigt das große Pop-up in der Mitte an
+    function showPopup(name, isGoalReached, newTarget) {
+      const box = document.getElementById('alert-box');
+      const tag = document.getElementById('alertTag');
+      const nameElem = document.getElementById('alertName');
+      const sub = document.getElementById('alertSub');
 
-    function triggerFollowAlert() {
-      playFollowSound();
-      const container = document.getElementById('goalContainer');
-      container.classList.remove('pulse-effect', 'level-up-effect');
-      void container.offsetWidth;
-      container.classList.add('pulse-effect');
-    }
+      if (isGoalReached) {
+        tag.innerText = "🚀 ZIEL ERREICHT! HYPE! 🚀";
+        nameElem.innerText = `${name}`;
+        sub.innerText = `Nächstes Ziel: ${newTarget} Follower! Stark!`;
+        box.style.borderColor = "#fbbf24";
+        box.style.boxShadow = "0 0 60px rgba(251, 191, 36, 0.8)";
+        playSound('goal');
+      } else {
+        tag.innerText = "NEUER FOLLOWER! 🔥";
+        nameElem.innerText = name;
+        sub.innerText = "Willkommen im Stream!";
+        box.style.borderColor = "#38bdf8";
+        box.style.boxShadow = "0 0 50px rgba(56, 189, 248, 0.5)";
+        playSound('normal');
+      }
 
-    function triggerGoalReachedAlert() {
-      playLevelUpSound();
-      const container = document.getElementById('goalContainer');
-      container.classList.remove('pulse-effect', 'level-up-effect');
-      void container.offsetWidth;
-      container.classList.add('level-up-effect');
+      box.classList.add('show');
+
+      // Nach 5 Sekunden wieder ausblenden
+      setTimeout(() => {
+        box.classList.remove('show');
+      }, 5000);
     }
 
     updateUI();
 
-    // WebSockets Live Anbindung
+    // Streamlabs WebSockets Live Verbindung
     if (STREAMLABS_SOCKET_TOKEN && STREAMLABS_SOCKET_TOKEN !== "DEIN_TOKEN_HIER_EINFÜGEN") {
       const socket = io(`https://sockets.streamlabs.com?token=${STREAMLABS_SOCKET_TOKEN}`, { transports: ['websocket'] });
 
       socket.on('event', (eventData) => {
         if (eventData.type === 'follow') {
+          // Name des Followers sicher auslesen
+          let followerName = "Ein Zuschauer";
+          if (eventData.message && eventData.message[0] && eventData.message[0].name) {
+            followerName = eventData.message[0].name;
+          } else if (eventData.name) {
+            followerName = eventData.name;
+          }
+
           currentFollowers += 1;
 
           // Prüfen, ob das Ziel erreicht wurde
           if (currentFollowers >= targetFollowers) {
-            triggerGoalReachedAlert(); // Spezial-Sound & Effekt
-            targetFollowers = calculateTarget(currentFollowers); // Ziel automatisch hochschrauben!
+            const oldTarget = targetFollowers;
+            targetFollowers = calculateTarget(currentFollowers); // Neues Ziel berechnen (z.B. 220)
+            showPopup(followerName, true, targetFollowers);
           } else {
-            triggerFollowAlert(); // Standard-Effekt
+            showPopup(followerName, false, targetFollowers);
           }
 
           updateUI();
