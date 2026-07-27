@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RL Session Overlay</title>
+  <title>RL Session Overlay Auto</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -82,13 +82,21 @@
     .val-win { color: #22c55e; }
     .val-loss { color: #ef4444; }
     .val-rate { color: #fbbf24; }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-left: 4px;
+    }
   </style>
 </head>
 <body>
 
   <div class="rl-container">
     <div class="brand-section">
-      <span class="tag">Live Stream</span>
+      <span class="tag">Live Stream <span class="status-dot" title="Auto-Tracking Aktiv"></span></span>
       <span class="title">Session Stats</span>
     </div>
 
@@ -108,8 +116,67 @@
         <div class="stat-lbl">Win Rate</div>
       </div>
     </div>
-
   </div>
+
+  <script>
+    // ==========================================
+    // KONFIGURATION: DEIN SPIELERNAME HIER EINTRAGEN
+    // ==========================================
+    const PLAYER_NAME = "DEIN_EPIC_ODER_PSN_NAME"; 
+    const PLATFORM = "epic"; // Option: "epic", "psn", "xbl"
+    // ==========================================
+
+    let startWins = null;
+    let startMatches = null;
+
+    async function fetchStats() {
+      if (PLAYER_NAME === "DEIN_EPIC_ODER_PSN_NAME") return;
+
+      try {
+        // Öffentliche RL-Tracker Schnittstelle abfragen
+        const url = `https://corsproxy.io/?https://api.tracker.gg/api/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data && data.data && data.data.segments) {
+          const overview = data.data.segments.find(s => s.type === 'overview');
+          if (overview && overview.stats) {
+            const currentWins = overview.stats.wins ? overview.stats.wins.value : 0;
+            const currentMatches = overview.stats.matchesPlayed ? overview.stats.matchesPlayed.value : 0;
+
+            // Startwerte der Session festhalten
+            if (startWins === null) {
+              startWins = currentWins;
+              startMatches = currentMatches;
+            }
+
+            // Session-Stats berechnen
+            const sessionWins = Math.max(0, currentWins - startWins);
+            const totalSessionMatches = Math.max(0, currentMatches - startMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+
+            let rate = 0;
+            if (sessionWins + sessionLosses > 0) {
+              rate = Math.round((sessionWins / (sessionWins + sessionLosses)) * 100);
+            }
+
+            // UI Aktualisieren
+            document.getElementById('wins').innerText = sessionWins;
+            document.getElementById('losses').innerText = sessionLosses;
+            document.getElementById('winrate').innerText = rate + '%';
+          }
+        }
+      } catch (err) {
+        console.log("Tracker Fetch-Intervall aktiv...", err);
+      }
+    }
+
+    // Erstes Mal laden
+    fetchStats();
+
+    // Alle 60 Sekunden automatisch im Hintergrund aktualisieren
+    setInterval(fetchStats, 60000);
+  </script>
 
 </body>
 </html>
