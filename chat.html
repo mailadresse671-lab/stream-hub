@@ -13,24 +13,29 @@
       color: #ffffff;
       padding: 15px;
       overflow: hidden;
+      height: 100vh;
     }
 
     #chat-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
       display: flex;
       flex-direction: column;
       gap: 10px;
       justify-content: flex-end;
       max-width: 380px;
-      height: 300px;
+      width: 100%;
+      z-index: 100;
     }
 
     .chat-msg {
-      background: rgba(15, 23, 42, 0.90);
+      background: rgba(15, 23, 42, 0.92);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-left: 4px solid #38bdf8;
       border-radius: 10px;
       padding: 10px 14px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
       animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
       font-size: 13px;
@@ -66,34 +71,27 @@
   <div id="chat-container"></div>
 
   <script>
+    // ==========================================
     // DEIN TWITCH KANALNAME
+    // ==========================================
     const CHANNEL_NAME = "dangsxr1000"; 
+    // ==========================================
 
     const container = document.getElementById('chat-container');
 
-    const client = new tmi.Client({
-      channels: [ CHANNEL_NAME ]
-    });
-
-    client.connect();
-
-    client.on('message', (channel, tags, message, self) => {
+    function addMessage(username, text, color = '#38bdf8', isSystem = false) {
       const msgDiv = document.createElement('div');
       msgDiv.className = 'chat-msg';
+      msgDiv.style.borderLeftColor = isSystem ? '#fbbf24' : color;
 
-      const userColor = tags.color || '#38bdf8';
-      const displayName = tags['display-name'] || tags.username;
-
-      msgDiv.innerHTML = `<span class="username" style="color: ${userColor}">${displayName}:</span><span class="text">${escapeHtml(message)}</span>`;
+      msgDiv.innerHTML = `<span class="username" style="color: ${color}">${username}:</span><span class="text">${escapeHtml(text)}</span>`;
 
       container.appendChild(msgDiv);
 
-      // Maximal 5 Nachrichten gleichzeitig anzeigen
       if (container.children.length > 5) {
         container.removeChild(container.firstChild);
       }
 
-      // Nach 12 Sekunden sanft ausblenden
       setTimeout(() => {
         msgDiv.classList.add('fade-out');
         setTimeout(() => {
@@ -101,12 +99,36 @@
             container.removeChild(msgDiv);
           }
         }, 800);
-      }, 12000);
-    });
+      }, isSystem ? 6000 : 12000);
+    }
 
     function escapeHtml(str) {
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
+
+    // 1. Sofortige Start-Testnachricht beim Laden
+    addMessage("SYSTEM", "Chat-Overlay geladen! Warte auf Nachrichten...", "#fbbf24", true);
+
+    // 2. Gesicherte Verbindung zu Twitch herstellen
+    const client = new tmi.Client({
+      options: { debug: false },
+      connection: {
+        secure: true,
+        reconnect: true
+      },
+      channels: [ CHANNEL_NAME.toLowerCase().trim() ]
+    });
+
+    client.connect().catch(err => {
+      console.error("Verbindungsfehler:", err);
+      addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#ef4444", true);
+    });
+
+    client.on('message', (channel, tags, message, self) => {
+      const userColor = tags.color || '#38bdf8';
+      const displayName = tags['display-name'] || tags.username;
+      addMessage(displayName, message, userColor);
+    });
   </script>
 
 </body>
