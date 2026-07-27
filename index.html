@@ -120,20 +120,17 @@
 
   <script>
     // ==========================================
-    // KONFIGURATION: DEIN SPIELERNAME HIER EINTRAGEN
+    // DEIN SPIELERNAME DURCH DASHBOARD BESTÄTIGT
     // ==========================================
-    const PLAYER_NAME = "DEIN_EPIC_ODER_PSN_NAME"; 
-    const PLATFORM = "epic"; // Option: "epic", "psn", "xbl"
+    const PLAYER_NAME = "DaNgsxR"; 
+    const PLATFORM = "epic"; 
     // ==========================================
 
     let startWins = null;
     let startMatches = null;
 
     async function fetchStats() {
-      if (PLAYER_NAME === "DEIN_EPIC_ODER_PSN_NAME") return;
-
       try {
-        // Öffentliche RL-Tracker Schnittstelle abfragen
         const url = `https://corsproxy.io/?https://api.tracker.gg/api/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`;
         const res = await fetch(url);
         const data = await res.json();
@@ -144,7 +141,7 @@
             const currentWins = overview.stats.wins ? overview.stats.wins.value : 0;
             const currentMatches = overview.stats.matchesPlayed ? overview.stats.matchesPlayed.value : 0;
 
-            // Startwerte der Session festhalten
+            // Startwerte festhalten
             if (startWins === null) {
               startWins = currentWins;
               startMatches = currentMatches;
@@ -167,15 +164,15 @@
           }
         }
       } catch (err) {
-        console.log("Tracker Fetch-Intervall aktiv...", err);
+        console.log("Tracker Abfrage läuft...", err);
       }
     }
 
-    // Erstes Mal laden
+    // Erstes Mal beim Laden abfragen
     fetchStats();
 
-    // Alle 60 Sekunden automatisch im Hintergrund aktualisieren
-    setInterval(fetchStats, 60000);
+    // Alle 30 Sekunden im Hintergrund aktualisieren
+    setInterval(fetchStats, 30000);
   </script>
 
 </body>
