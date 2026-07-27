@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Chat Overlay</title>
+  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: transparent;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #ffffff;
+      padding: 15px;
+      overflow: hidden;
+    }
+
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: flex-end;
+      max-width: 380px;
+      height: 300px;
+    }
+
+    .chat-msg {
+      background: rgba(15, 23, 42, 0.90);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-left: 4px solid #38bdf8;
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .username {
+      font-weight: 900;
+      color: #fbbf24;
+      margin-right: 6px;
+      display: inline-block;
+    }
+
+    .text {
+      color: #f8fafc;
+      word-break: break-word;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(-30px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .fade-out {
+      transition: opacity 0.8s ease, transform 0.8s ease;
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chat-container"></div>
+
+  <script>
+    // DEIN TWITCH KANALNAME
+    const CHANNEL_NAME = "dangsxr1000"; 
+
+    const container = document.getElementById('chat-container');
+
+    const client = new tmi.Client({
+      channels: [ CHANNEL_NAME ]
+    });
+
+    client.connect();
+
+    client.on('message', (channel, tags, message, self) => {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-msg';
+
+      const userColor = tags.color || '#38bdf8';
+      const displayName = tags['display-name'] || tags.username;
+
+      msgDiv.innerHTML = `<span class="username" style="color: ${userColor}">${displayName}:</span><span class="text">${escapeHtml(message)}</span>`;
+
+      container.appendChild(msgDiv);
+
+      // Maximal 5 Nachrichten gleichzeitig anzeigen
+      if (container.children.length > 5) {
+        container.removeChild(container.firstChild);
+      }
+
+      // Nach 12 Sekunden sanft ausblenden
+      setTimeout(() => {
+        msgDiv.classList.add('fade-out');
+        setTimeout(() => {
+          if (msgDiv.parentNode === container) {
+            container.removeChild(msgDiv);
+          }
+        }, 800);
+      }, 12000);
+    });
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+
+</body>
+</html>
