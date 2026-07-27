@@ -16,7 +16,7 @@
       height: 100vh;
     }
 
-    /* Das Ziel-Widget dezent oben rechts */
+    /* Das Ziel-Widget oben rechts */
     .goal-container {
       position: fixed;
       top: 15px;
@@ -159,9 +159,6 @@
   </div>
 
   <script>
-    // ==========================================
-    // EINSTELLUNGEN & AUTO-LEVEL
-    // ==========================================
     let currentFollowers = 209; 
     const STEP_SIZE = 10;        
 
@@ -171,9 +168,8 @@
 
     let targetFollowers = calculateTarget(currentFollowers);
 
-    // HIER DEINEN SOCKET-TOKEN EINFÜGEN:
+    // STREAMLABS SOCKET TOKEN (FEST EINGEBAUT)
     const STREAMLABS_SOCKET_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbiI6IjIxQTMzN0NEMzEzQkNEQTE5MzU4MzVDNDIzM0EzMDQ0ODJEQzY5MjFDQzgwMTU4OUVDMzgzRUEwMzMwM0M2NTMyODVDOEI3MTIxQzQ0MEVGQkMwMjM3N0Y1Q0Q1QUUxRDRFQ0FBRjQ5QzFERkU4OUQyOTk0OUVDNDU5NjQxODA4RTRFNkNBMzQ1MkIwNkQwMzFFMDZEOThGQkEzRjZEMUI2MDBEOEI1NDBDRjlBNEMzNTRFQ0ZGQUJFQ0Y1RTkwRTdCMEI3MjFFRkJEQkU4REUxNDZBNkE2NURCNDc0ODQyMjhGRDcxQzIzNkYxRTAxQkFFRDJEQTlENUQiLCJyZWFkX29ubHkiOnRydWUsInByZXZlbnRfbWFzdGVyIjp0cnVlLCJ0d2l0Y2hfaWQiOiI3ODU4ODc3MzUifQ.TnmJmgYgJ3RxNuxibF2SsTGkeChRxbTxfYsiZGbc9gk"; 
-    // ==========================================
 
     function updateUI() {
       const previousTarget = targetFollowers - STEP_SIZE;
@@ -185,12 +181,11 @@
       document.getElementById('barFill').style.width = pct + '%';
     }
 
-    // 1. Hochwertiger Sound für normale Follower (Angenehmer Akkord-Chime)
     function playFollowSound() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const now = ctx.currentTime;
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C-Dur Akkord
+        const notes = [523.25, 659.25, 783.99, 1046.50];
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -206,13 +201,11 @@
       } catch (e) { console.log(e); }
     }
 
-    // 2. Epische, satte Fanfare für ZIEL ERREICHT!
     function playGoalSound() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const now = ctx.currentTime;
-        // Fetter Brass-Akkord-Aufbau
-        const chord = [261.63, 329.63, 392.00, 523.25, 659.25]; // C-Dur fett
+        const chord = [261.63, 329.63, 392.00, 523.25, 659.25];
         chord.forEach(freq => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -226,7 +219,6 @@
           osc.stop(now + 1.2);
         });
 
-        // Zweiter Teil der Fanfare (höhere Noten)
         setTimeout(() => {
           const notes = [523.25, 659.25, 783.99, 1046.50];
           notes.forEach((freq, idx) => {
@@ -246,7 +238,6 @@
       } catch (e) { console.log(e); }
     }
 
-    // Konfetti-Regen auslösen
     function triggerConfetti(isGoal) {
       const colors = isGoal ? ['#fbbf24', '#f97316', '#ffffff', '#38bdf8'] : ['#38bdf8', '#22c55e', '#a855f7', '#fbbf24'];
       const count = isGoal ? 120 : 70;
@@ -267,7 +258,6 @@
       }
     }
 
-    // Party-Alarm auf dem Bildschirm anzeigen
     function showPartyPopup(name, isGoal) {
       const popup = document.getElementById('party-popup');
       const tag = document.getElementById('partyTag');
@@ -275,7 +265,6 @@
       const thanks = document.getElementById('partyThanks');
 
       if (isGoal) {
-        // --- DESIGN FÜR ERREICHTES ZIEL ---
         tag.innerText = "🚀 ZIEL KRACHER! HYPE! 🚀";
         tag.style.color = "#fbbf24";
         nameElem.innerText = name;
@@ -287,7 +276,6 @@
         playGoalSound();
         triggerConfetti(true);
       } else {
-        // --- DESIGN FÜR NORMALEN FOLLOWER ---
         tag.innerText = "🎉 NEUER FOLLOWER! 🎉";
         tag.style.color = "#38bdf8";
         nameElem.innerText = name;
@@ -302,7 +290,6 @@
 
       popup.classList.add('show');
 
-      // Nach 6 Sekunden wieder ausblenden
       setTimeout(() => {
         popup.classList.remove('show');
       }, 6000);
@@ -310,8 +297,7 @@
 
     updateUI();
 
-    // Streamlabs WebSockets Live Verbindung
-    if (STREAMLABS_SOCKET_TOKEN && STREAMLABS_SOCKET_TOKEN !== "DEIN_TOKEN_HIER_EINFÜGEN") {
+    if (STREAMLABS_SOCKET_TOKEN) {
       const socket = io(`https://sockets.streamlabs.com?token=${STREAMLABS_SOCKET_TOKEN}`, { transports: ['websocket'] });
 
       socket.on('event', (eventData) => {
@@ -325,12 +311,11 @@
 
           currentFollowers += 1;
 
-          // Prüfen, ob durch diesen Follow ein Ziel geknackt wurde!
           if (currentFollowers >= targetFollowers) {
-            showPartyPopup(followerName, true); // Ist ein Ziel-Erfolg!
-            targetFollowers = calculateTarget(currentFollowers); // Nächstes Ziel (z.B. 220) setzen
+            showPartyPopup(followerName, true);
+            targetFollowers = calculateTarget(currentFollowers);
           } else {
-            showPartyPopup(followerName, false); // Ist ein normaler Follower
+            showPartyPopup(followerName, false);
           }
 
           updateUI();
