@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RL Session Overlay Auto</title>
+  <title>RL Session Overlay Hybrid</title>
+  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -96,7 +97,7 @@
 
   <div class="rl-container">
     <div class="brand-section">
-      <span class="tag">Live Stream <span class="status-dot" title="Auto-Tracking Aktiv"></span></span>
+      <span class="tag">Live Stream <span class="status-dot" title="Live Aktiv"></span></span>
       <span class="title">Session Stats</span>
     </div>
 
@@ -120,12 +121,58 @@
 
   <script>
     // ==========================================
-    // DEIN SPIELERNAME DURCH DASHBOARD BESTÄTIGT
+    // DEIN TWITCH KANALNAME & RL SPIELERNAME
     // ==========================================
+    const CHANNEL_NAME = "dangsxr1000"; 
     const PLAYER_NAME = "DaNgsxR"; 
     const PLATFORM = "epic"; 
     // ==========================================
 
+    let sessionWins = 0;
+    let sessionLosses = 0;
+
+    function updateUI() {
+      document.getElementById('wins').innerText = sessionWins;
+      document.getElementById('losses').innerText = sessionLosses;
+
+      let rate = 0;
+      const total = sessionWins + sessionLosses;
+      if (total > 0) {
+        rate = Math.round((sessionWins / total) * 100);
+      }
+      document.getElementById('winrate').innerText = rate + '%';
+    }
+
+    // 1. CHAT-BEFEHLE ANBINDUNG (Twitch Chat Steuerung)
+    const client = new tmi.Client({
+      connection: { secure: true, reconnect: true },
+      channels: [ CHANNEL_NAME.toLowerCase().trim() ]
+    });
+
+    client.connect();
+
+    client.on('message', (channel, tags, message, self) => {
+      const cmd = message.trim().toLowerCase();
+
+      // Befehl: Sieg eintragen (!win oder !w)
+      if (cmd === '!win' || cmd === '!w') {
+        sessionWins++;
+        updateUI();
+      } 
+      // Befehl: Niederlage eintragen (!loss oder !l)
+      if (cmd === '!loss' || cmd === '!l') {
+        sessionLosses++;
+        updateUI();
+      } 
+      // Befehl: Session zurücksetzen (!reset)
+      if (cmd === '!reset') {
+        sessionWins = 0;
+        sessionLosses = 0;
+        updateUI();
+      }
+    });
+
+    // 2. OPTIONALER API-AUTO-FETCH (Falls Tracker.gg antwortet)
     let startWins = null;
     let startMatches = null;
 
@@ -141,38 +188,29 @@
             const currentWins = overview.stats.wins ? overview.stats.wins.value : 0;
             const currentMatches = overview.stats.matchesPlayed ? overview.stats.matchesPlayed.value : 0;
 
-            // Startwerte festhalten
             if (startWins === null) {
               startWins = currentWins;
               startMatches = currentMatches;
+            } else {
+              const apiWins = Math.max(0, currentWins - startWins);
+              const apiMatches = Math.max(0, currentMatches - startMatches);
+              const apiLosses = Math.max(0, apiMatches - apiWins);
+
+              if (apiWins > sessionWins || apiLosses > sessionLosses) {
+                sessionWins = apiWins;
+                sessionLosses = apiLosses;
+                updateUI();
+              }
             }
-
-            // Session-Stats berechnen
-            const sessionWins = Math.max(0, currentWins - startWins);
-            const totalSessionMatches = Math.max(0, currentMatches - startMatches);
-            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
-
-            let rate = 0;
-            if (sessionWins + sessionLosses > 0) {
-              rate = Math.round((sessionWins / (sessionWins + sessionLosses)) * 100);
-            }
-
-            // UI Aktualisieren
-            document.getElementById('wins').innerText = sessionWins;
-            document.getElementById('losses').innerText = sessionLosses;
-            document.getElementById('winrate').innerText = rate + '%';
           }
         }
       } catch (err) {
-        console.log("Tracker Abfrage läuft...", err);
+        console.log("Tracker API im Standby...");
       }
     }
 
-    // Erstes Mal beim Laden abfragen
     fetchStats();
-
-    // Alle 30 Sekunden im Hintergrund aktualisieren
-    setInterval(fetchStats, 30000);
+    setInterval(fetchStats, 45000);
   </script>
 
 </body>
