@@ -38,6 +38,12 @@
       --success: #22c55e;
       --danger: #ef4444;
       --cut: 15px;
+      /* Globaler Schrumpf-Faktor fuer alle Eck-verankerten HUD-Widgets.
+         Streamlabs Mobile meldet dem iframe offenbar eine sehr geringe
+         interne Aufloesung, wodurch die (an sich korrekt vw/vh-verankerten)
+         Widgets riesig wirken - ein einzelner Regler hier, statt jede
+         Innen-Groesse (Fonts/Paddings/Canvas) einzeln umzurechnen. */
+      --ui-scale: 0.55;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -182,6 +188,8 @@
       top: 2.2vh;
       left: 1.25vw;
       z-index: 10;
+      transform: scale(var(--ui-scale));
+      transform-origin: top left;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -310,7 +318,14 @@
     .rank-mmr { font-size: 8px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
 
     /* ---------- Oben rechts: Follower-Goal ---------- */
-    .goal-position { position: absolute; top: 2.2vh; right: 1.25vw; z-index: 10; }
+    .goal-position {
+      position: absolute;
+      top: 2.2vh;
+      right: 1.25vw;
+      z-index: 10;
+      transform: scale(var(--ui-scale));
+      transform-origin: top right;
+    }
 
     /* ---------- Unten links: Bild-Avatar (Baer) ---------- */
     .avatar-position {
@@ -318,6 +333,8 @@
       bottom: 2.2vh;
       left: 1.25vw;
       z-index: 10;
+      transform: scale(var(--ui-scale));
+      transform-origin: bottom left;
       /* vw-basierte Breite mit Klammern nach oben/unten statt starrer
          210px (die bei kleinen/verzerrten Viewports den Baeren aus dem
          Bild schieben wuerde) - bleibt proportional zum Viewport, ohne
@@ -386,6 +403,8 @@
       bottom: 10.2vh;
       width: 20.8vw;
       height: 44.4vh;
+      transform: scale(var(--ui-scale));
+      transform-origin: bottom right;
       overflow: hidden;
       pointer-events: none;
       z-index: 10;
@@ -439,7 +458,14 @@
     .text { color: var(--text-primary); word-break: break-word; }
     .chat-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -2px 1px; }
 
-    .branding-position { position: absolute; right: 1.25vw; bottom: 2.2vh; z-index: 11; }
+    .branding-position {
+      position: absolute;
+      right: 1.25vw;
+      bottom: 2.2vh;
+      z-index: 11;
+      transform: scale(var(--ui-scale));
+      transform-origin: bottom right;
+    }
     .branding-tag {
       display: flex;
       align-items: center;
@@ -468,7 +494,8 @@
       position: absolute;
       bottom: 2.2vh;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translateX(-50%) scale(var(--ui-scale));
+      transform-origin: center bottom;
       z-index: 8;
       max-width: 33vw;
     }
