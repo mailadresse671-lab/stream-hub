@@ -280,10 +280,18 @@
       }
       console.warn(`[Audio] AudioContext ist "suspended" (Auslöser: ${reason}), versuche resume()...`);
       try {
-        await ctx.resume();
+        // ctx.resume() kann bei blockiertem Autoplay auf manchen Browsern/
+        // WebViews unbegrenzt haengen bleiben (loest sich weder auf noch
+        // wird es abgelehnt) - ohne Timeout wuerde playFileSound() hier
+        // ewig warten und nie zum HTML5-Fallback kommen. Nach 500ms geben
+        // wir auf und behandeln den Context weiterhin als blockiert.
+        await Promise.race([
+          ctx.resume(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('resume() Timeout nach 500ms')), 500))
+        ]);
         console.log(`[Audio] resume() erfolgreich (Auslöser: ${reason}), neuer state: "${ctx.state}".`);
       } catch (err) {
-        console.warn(`[Audio] resume() fehlgeschlagen (Auslöser: ${reason}) - Browser blockiert Web Audio vermutlich ohne Nutzer-Geste:`, err);
+        console.warn(`[Audio] resume() fehlgeschlagen/blockiert (Auslöser: ${reason}) - Browser blockiert Web Audio vermutlich ohne Nutzer-Geste:`, err);
       }
       return ctx;
     }
@@ -750,8 +758,51 @@
       };
     }
 
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid|goal) ----------
+    // Loest einen Alert manuell aus, z.B. um Sounds/Popups zu pruefen, ohne
+    // auf ein echtes Twitch-Event warten zu muessen. Laeuft unabhaengig von
+    // der Twitch-Verbindung, wartet aber auf preloadSounds(), damit der Test
+    // wirklich den Web-Audio-Pfad prueft statt eine leere Buffer-Kiste.
+    const TEST_KIND_MAP = {
+      follow: 'follow',
+      goal: 'goal',
+      sub: 'sub',
+      resub: 'resub',
+      bits: 'cheer',
+      cheer: 'cheer',
+      raid: 'raid'
+    };
+
+    const TEST_SOUND_KEY_BY_KIND = { follow: 'follow', sub: 'sub', resub: 'sub', cheer: 'bits', raid: 'raid' };
+
+    const TEST_PAYLOADS = {
+      follow: { name: 'TestFollower' },
+      goal: { name: 'TestFollower', nextTarget: calculateTarget(currentFollowers) },
+      sub: { name: 'TestSubscriber' },
+      resub: { name: 'TestSubscriber', months: 6 },
+      cheer: { name: 'TestCheerer', amount: 100 },
+      raid: { name: 'TestRaider', viewers: 25 }
+    };
+
+    function runTestMode() {
+      const testParam = new URLSearchParams(location.search).get('test');
+      if (!testParam) return;
+
+      const kind = TEST_KIND_MAP[testParam.toLowerCase()];
+      if (!kind) {
+        console.warn(`[Test] Unbekannter ?test=${testParam}-Wert. Erlaubt: ${Object.keys(TEST_KIND_MAP).join(', ')}`);
+        return;
+      }
+
+      const soundKey = TEST_SOUND_KEY_BY_KIND[kind];
+      const soundFile = soundKey ? SOUND_FILES[soundKey] : null;
+      console.log(`[Test] ?test=${testParam} erkannt -> löse Alert "${kind}" manuell aus. Sound-Datei: ${soundFile ? '/assets/audio/' + soundFile : '(synthetisierte Ziel-Fanfare, keine Datei)'}`);
+
+      queuePopup(kind, TEST_PAYLOADS[kind]);
+    }
+
     updateUI();
-    preloadSounds();
+    preloadSounds().then(runTestMode);
     connectTwitchEventSub();
   </script>
 
