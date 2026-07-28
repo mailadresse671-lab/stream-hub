@@ -121,7 +121,9 @@
       color: var(--text-muted);
       letter-spacing: 0.3px;
       font-variant-numeric: tabular-nums;
-      white-space: nowrap;
+      white-space: normal;
+      word-break: break-word;
+      line-height: 1.4;
     }
 
     /* ---------- Party Pop-up (Bildschirmmitte) ---------- */
@@ -526,18 +528,25 @@
     }
 
     // 3. Sichtbarer Verbindungsstatus - direkt im Widget, damit man auf dem
-    // Tablet ohne Inspector sieht, ob Token/Socket stehen.
-    function setDebugStatus(tokenState, socketState) {
+    // Tablet ohne Inspector sieht, ob Token/Socket stehen. "detail" ist die
+    // konkrete Fehlermeldung von Streamlabs (z.B. bei connect_error) und wird
+    // 1:1 mit angezeigt, statt nur ein generisches "Fehler".
+    function setDebugStatus(tokenState, socketState, detail) {
       const el = document.getElementById('debugLine');
       if (!el) return;
       const tokenLabel = { pending: '…', ok: '✓', failed: '✗' }[tokenState] || tokenState;
-      const socketLabel = {
-        idle: '–',
-        connecting: '… verbindet',
-        connected: '✓ verbunden',
-        disconnected: '✗ getrennt',
-        error: '✗ Fehler'
-      }[socketState] || socketState;
+      let socketLabel;
+      if (socketState === 'error') {
+        socketLabel = `✗ ${detail || 'Fehler'}`;
+      } else if (socketState === 'disconnected') {
+        socketLabel = `✗ getrennt${detail ? ' (' + detail + ')' : ''}`;
+      } else {
+        socketLabel = {
+          idle: '–',
+          connecting: '… verbindet',
+          connected: '✓ verbunden'
+        }[socketState] || socketState;
+      }
       el.innerText = `Token: ${tokenLabel} | Socket: ${socketLabel}`;
     }
 
@@ -568,16 +577,13 @@
         return;
       }
 
-      // 2. Verbindungsaufbau: Server-URL und Event-Name ('event') sind laut
-      // Streamlabs-Doku korrekt. Wichtig ist der Client: Streamlabs' Socket-
-      // Server spricht Socket.IO v2 - ein v4-Client verbindet sich damit
-      // nicht zuverlässig, siehe Script-Tag im <head>. Token wird bewusst
-      // über die "query"-Option übergeben statt in die URL eingebettet
-      // (offizielles Streamlabs-Beispiel-Pattern).
+      // 2. Verbindungsaufbau: Token direkt als Query-Parameter in der URL
+      // (nicht ueber die "query"-Option) und nur "websocket" als Transport -
+      // Streamlabs blockiert Polling-Requests, ein Fallback auf 'polling'
+      // fuehrt dort ins Leere statt zu helfen.
       try {
-        const socket = io('https://sockets.streamlabs.com', {
-          query: { token },
-          transports: ['websocket', 'polling']
+        const socket = io(`https://sockets.streamlabs.com?token=${token}`, {
+          transports: ['websocket']
         });
 
         socket.on('connect', () => {
@@ -587,12 +593,13 @@
 
         socket.on('disconnect', (reason) => {
           console.warn('[Streamlabs] Socket getrennt. Grund:', reason);
-          setDebugStatus('ok', 'disconnected');
+          setDebugStatus('ok', 'disconnected', reason);
         });
 
         socket.on('connect_error', (err) => {
-          console.error('[Streamlabs] Verbindungsfehler:', err && err.message ? err.message : err);
-          setDebugStatus('ok', 'error');
+          const detail = (err && err.message) ? err.message : String(err);
+          console.error('[Streamlabs] Verbindungsfehler:', detail, err);
+          setDebugStatus('ok', 'error', detail);
         });
 
         socket.on('event', (eventData) => {
