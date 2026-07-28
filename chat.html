@@ -90,6 +90,13 @@
       word-break: break-word;
     }
 
+    .chat-emote {
+      height: 1.6em;
+      width: auto;
+      vertical-align: middle;
+      margin: -2px 1px;
+    }
+
     .fade-out {
       transition: opacity 0.7s ease, transform 0.7s ease;
       opacity: 0;
@@ -114,7 +121,7 @@
 
     const container = document.getElementById('chat-container');
 
-    function addMessage(username, text, color = '#38bdf8', isSystem = false) {
+    function addMessage(username, text, color = '#38bdf8', isSystem = false, emotesTag = null) {
       const msgDiv = document.createElement('div');
       msgDiv.className = 'chat-msg';
       const accentColor = isSystem ? '#fbbf24' : color;
@@ -124,7 +131,7 @@
         <span class="avatar-dot" style="color: ${accentColor}"></span>
         <span class="msg-body">
           <span class="username" style="color: ${accentColor}">${username}:</span>
-          <span class="text">${escapeHtml(text)}</span>
+          <span class="text">${renderMessageHtml(text, emotesTag)}</span>
         </span>
       `;
 
@@ -148,6 +155,43 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    // Ersetzt Twitch-Emote-Bereiche in der Nachricht (laut tags.emotes von tmi.js)
+    // durch <img>-Tags vom Twitch-CDN, der restliche Text bleibt escaped.
+    function renderMessageHtml(message, emotesTag) {
+      if (!emotesTag || Object.keys(emotesTag).length === 0) {
+        return escapeHtml(message);
+      }
+
+      const ranges = [];
+      for (const id in emotesTag) {
+        emotesTag[id].forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          ranges.push({ id, start, end });
+        });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+
+      let html = '';
+      let cursor = 0;
+
+      ranges.forEach(({ id, start, end }) => {
+        if (start < cursor) return; // überlappende/kaputte Range überspringen
+        if (start > cursor) {
+          html += escapeHtml(message.slice(cursor, start));
+        }
+        const code = message.slice(start, end + 1);
+        const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        html += `<img class="chat-emote" src="${src}" alt="${escapeHtml(code)}" title="${escapeHtml(code)}" draggable="false">`;
+        cursor = end + 1;
+      });
+
+      if (cursor < message.length) {
+        html += escapeHtml(message.slice(cursor));
+      }
+
+      return html;
+    }
+
     // 1. Sofortige Start-Testnachricht beim Laden
     addMessage("SYSTEM", "Chat-Overlay geladen! Warte auf Nachrichten...", "#fbbf24", true);
 
@@ -169,7 +213,7 @@
     client.on('message', (channel, tags, message, self) => {
       const userColor = tags.color || '#38bdf8';
       const displayName = tags['display-name'] || tags.username;
-      addMessage(displayName, message, userColor);
+      addMessage(displayName, message, userColor, false, tags.emotes);
     });
   </script>
 
