@@ -6,7 +6,9 @@
   <title>Stream Follower Goal</title>
   <!-- Events kommen direkt von Twitch EventSub per nativem Browser-
        WebSocket (kein Drittanbieter-Socket, keine externe Client-Library
-       noetig). -->
+       noetig). tmi.js wird nur fuer die separate Chat-Commands-Verbindung
+       gebraucht (!shoot/!siren/!tor/!fail), unabhaengig von chat.html. -->
+  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
@@ -194,6 +196,66 @@
       white-space: normal;
       word-break: break-word;
       line-height: 1.4;
+    }
+
+    /* ---------- Top-Left GTA-Wanted-Level-Widget (Sub/Bits-Fortschritt) ----------
+       Spiegelt bewusst die Geometrie/Position des Follower-Widgets (oben
+       rechts), nur oben links, damit der Screen ausbalanciert wirkt. */
+    .wanted-position {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      z-index: 10;
+    }
+
+    .wanted-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: linear-gradient(155deg, var(--asphalt-mid), rgba(58, 35, 23, 0.5));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
+      padding: 16px 24px 14px;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .wanted-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.08) 0 2px, transparent 2.4px);
+      background-size: 26px 26px;
+      pointer-events: none;
+    }
+
+    .wanted-title {
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: 13px;
+      letter-spacing: 1.6px;
+      color: var(--gold);
+      text-transform: uppercase;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+
+    .wanted-stars {
+      display: flex;
+      gap: 6px;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .wanted-star {
+      color: #4a453d;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+      transition: color 0.3s ease, text-shadow 0.3s ease;
+    }
+
+    .wanted-star.filled {
+      color: var(--gold);
+      text-shadow: 0 0 8px var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85);
     }
 
     /* ---------- Party Pop-up (Bildschirmmitte) ----------
@@ -479,6 +541,24 @@
       </div>
     </div>
 
+    <!-- GTA-Wanted-Level-Widget oben links: 5 Sterne, fuellen sich ueber
+         Subs/Bits (siehe reportWantedProgress), Server-Zustand via
+         /api/goal-state und /api/goal-progress (Vercel KV). -->
+    <div class="wanted-position">
+      <div class="shimmer-frame">
+        <div class="wanted-card" id="wantedContainer">
+          <div class="wanted-title">Wanted Level</div>
+          <div class="wanted-stars" id="wantedStars">
+            <span class="wanted-star">★</span>
+            <span class="wanted-star">★</span>
+            <span class="wanted-star">★</span>
+            <span class="wanted-star">★</span>
+            <span class="wanted-star">★</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Party Pop-up in der Mitte: #party-popup (aeussere Huelle, Transform/
          Opacity) + #party-panel (geclippte Panzerplatte) + ueberhaengende
          Badges/Tape als Geschwister von #party-panel -->
@@ -517,6 +597,10 @@
   <script>
     // DEINE FESTE VERCEL-CLOUD ADRESSE
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+
+    // Spam-Deterrent fuer POST /api/goal-progress (siehe Kommentar dort) -
+    // muss 1:1 mit der Vercel-Umgebungsvariable GOAL_API_SECRET uebereinstimmen.
+    const GOAL_CLIENT_SECRET = "62e2c9eaaf558e73669725a002b175952252b998";
 
     // Cache-Busting: einmal pro Seitenaufruf neu, damit die Audio-Assets
     // nicht aus einem veralteten Cache (Tablet/WebView) ausgeliefert werden.
@@ -825,6 +909,32 @@
           });
         }, 300);
 
+      } catch (e) { console.log(e); }
+    }
+
+    // Kurzer absteigender Synth-Ton fuer den "!fail"-Chat-Command - gleiches
+    // Prinzip wie playGoalSound() (Oszillator statt Datei), damit "!tor"/
+    // "!fail" ohne neue Audio-Assets einen klar unterscheidbaren Sound haben.
+    async function playFailSound() {
+      try {
+        const ctx = await resumeAudioContext('Wiedergabe "fail"');
+        if (ctx.state !== 'running') {
+          console.warn(`[Audio] Web Audio blockiert (state: "${ctx.state}") - Fail-Sound basiert auf Synthese und hat keinen HTML5-Fallback, bleibt stumm.`);
+          return;
+        }
+        const rig = getAudioRig();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.8);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.connect(gain);
+        rig.connectSource(gain);
+        osc.start(now);
+        osc.stop(now + 0.9);
       } catch (e) { console.log(e); }
     }
 
@@ -1192,6 +1302,38 @@
         sprayCount: 120,
         thanks: p => `Willkommen, ${p.name}, mit ${p.viewers} Zuschauern!`,
         sound: () => playFileSound('raid')
+      },
+      // Manuelle Chat-Command-Trigger (!tor/!fail, siehe handleChatCommand) -
+      // Ersatz fuer den technisch nicht moeglichen automatischen Rocket-
+      // League-Tor-Detektor (Cloud-Gaming-Overlay hat keinen Zugriff auf
+      // Spiel-Bild/-Sound, siehe Machbarkeits-Review).
+      tor: {
+        tag: '⚽ TOOOOR! ⚽',
+        color: '#ffd700',
+        glow: 'rgba(255, 215, 0, 0.85)',
+        spray: ['#ffd700', '#fff3b0', '#e8e6e1'],
+        sprayCount: 100,
+        thanks: () => `Eingelocht! Weiter geht's!`,
+        sound: () => playGoalSound()
+      },
+      fail: {
+        tag: '💀 VERKACKT! 💀',
+        color: '#b30000',
+        glow: 'rgba(179, 0, 0, 0.85)',
+        spray: ['#b30000', '#7a0000', '#e8e6e1'],
+        sprayCount: 90,
+        thanks: () => `Naechste Runde wird's besser...`,
+        sound: () => playFailSound()
+      },
+      // GTA-Wanted-Level bei 5/5 Sternen (siehe reportWantedProgress)
+      wanted: {
+        tag: '🚨 WANTED LEVEL: BUSTED! 🚨',
+        color: '#b30000',
+        glow: 'rgba(179, 0, 0, 0.85)',
+        spray: ['#b30000', '#ffd700', '#e8e6e1'],
+        sprayCount: 140,
+        thanks: () => `5 Sterne voll! Die Cops sind da - danke fuer den Support!`,
+        sound: () => playFileSound('raid')
       }
     };
 
@@ -1423,6 +1565,59 @@
       showPartyPopup(next.kind, next.payload);
     }
 
+    // =====================================================================
+    // GTA-Wanted-Level: 5 Sterne fuellen sich ueber Subs/Bits (1 Sub = 1
+    // Stern, 100 Bits = 1 Stern), Zustand liegt persistent in Vercel KV
+    // (api/goal-state.js + api/goal-progress.js), damit ein Reload von
+    // goal.html waehrend des Streams nicht wieder bei 0 startet. Bei 5/5
+    // feuert der bestehende Alert-Mechanismus (showPartyPopup) mit dem
+    // "wanted"-Eintrag aus ALERT_CONFIG.
+    // =====================================================================
+    const WANTED_STARS_MAX = 5;
+
+    function renderWantedStars(stars) {
+      document.querySelectorAll('.wanted-star').forEach((el, idx) => {
+        el.classList.toggle('filled', idx < stars);
+      });
+    }
+
+    async function loadWantedState() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/goal-state`);
+        const data = await res.json();
+        renderWantedStars(data.stars || 0);
+      } catch (e) {
+        console.warn('[Wanted] Zustand konnte nicht geladen werden:', e.message);
+      }
+    }
+
+    async function reportWantedProgress(type, amount) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/goal-progress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Goal-Secret': GOAL_CLIENT_SECRET },
+          body: JSON.stringify({ type, amount })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          console.warn('[Wanted] Fortschritt fehlgeschlagen:', data.message);
+          return;
+        }
+        // Server hat bei triggered:true bereits auf 0 zurueckgesetzt und
+        // liefert stars entsprechend - direkt uebernehmen, kein eigener
+        // Reset-Timer noetig (der wanted-Alert selbst traegt die
+        // Celebration, nicht der Stern-Zustand im Eck-Widget).
+        renderWantedStars(data.stars);
+        if (data.triggered) {
+          queuePopup('wanted', { name: 'BUSTED!' });
+        }
+      } catch (e) {
+        console.warn('[Wanted] Fortschritt-Request fehlgeschlagen:', e.message);
+      }
+    }
+
     // Sichtbarer Verbindungsstatus - direkt im Widget, damit man auf dem
     // Tablet ohne Inspector sieht, ob Twitch EventSub steht. "detail" ist
     // eine konkrete Fehlermeldung und wird 1:1 mit angezeigt statt nur
@@ -1532,6 +1727,7 @@
 
       if (type === 'channel.subscribe') {
         queuePopup('sub', { name: event.user_name || 'Zuschauer' });
+        reportWantedProgress('sub');
         return;
       }
 
@@ -1540,6 +1736,7 @@
           name: event.user_name || 'Zuschauer',
           months: event.cumulative_months || event.streak_months || '?'
         });
+        reportWantedProgress('sub');
         return;
       }
 
@@ -1548,6 +1745,7 @@
           name: event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer'),
           amount: event.bits || 0
         });
+        reportWantedProgress('bits', event.bits || 0);
         return;
       }
 
@@ -1687,7 +1885,88 @@
       queuePopup(kind, TEST_PAYLOADS[kind]);
     }
 
+    // ---------- Chat-Commands (!shoot, !siren, !tor, !fail) ----------
+    // Eigene, unabhaengige tmi.js-Verbindung - bewusst getrennt von
+    // chat.html (keine Zustands-Bruecke zwischen den beiden Browser-
+    // Quellen, siehe Roadmap-Review). "!shoot" ist bewusst fuer alle
+    // Zuschauer offen (Engagement-Feature), "!siren"/"!tor"/"!fail"
+    // reprasentieren ein tatsaechliches Spiel-Ereignis und bleiben daher
+    // Broadcaster/Mods vorbehalten. Ein gemeinsamer Cooldown verhindert,
+    // dass Chat-Spam die FX-Engine (und die Tablet-Performance neben dem
+    // Cloud-Gaming) ueberlastet.
+    const CHAT_COMMANDS_CHANNEL = 'dangsxr1000';
+    const COMMAND_COOLDOWN_MS = 2500;
+    let lastCommandAt = 0;
+
+    function isModOrBroadcaster(tags) {
+      const badges = tags.badges || {};
+      return !!(badges.broadcaster || badges.moderator);
+    }
+
+    function handleChatCommand(tags, message) {
+      const text = message.trim().toLowerCase();
+      const now = performance.now();
+      if (now - lastCommandAt < COMMAND_COOLDOWN_MS) return;
+
+      if (text === '!shoot') {
+        lastCommandAt = now;
+        const rect = document.getElementById('party-panel').getBoundingClientRect();
+        spraySystem.spawnBulletHole(
+          rect.left + Math.random() * rect.width,
+          rect.top + Math.random() * rect.height
+        );
+        return;
+      }
+
+      if (!isModOrBroadcaster(tags)) return;
+
+      if (text === '!siren') {
+        lastCommandAt = now;
+        const siren = document.getElementById('cop-siren');
+        siren.classList.add('active');
+        setTimeout(() => siren.classList.remove('active'), 3000);
+        return;
+      }
+
+      if (text === '!tor') {
+        lastCommandAt = now;
+        queuePopup('tor', { name: 'TOOOOR!' });
+        return;
+      }
+
+      if (text === '!fail') {
+        lastCommandAt = now;
+        queuePopup('fail', { name: 'VERKACKT' });
+        return;
+      }
+    }
+
+    // In try/catch gekapselt: schlaegt das Laden von tmi.js fehl (CDN
+    // blockiert/offline), darf das den Rest des Bootstraps (Wanted-State,
+    // Sound-Preload, Twitch-EventSub-Verbindung) NICHT mitreissen - ohne
+    // diese Kapselung wuerde ein einzelner ReferenceError hier die
+    // restlichen synchronen Top-Level-Statements dieses Scripts abbrechen.
+    try {
+      const commandChatClient = new tmi.Client({
+        options: { debug: false },
+        connection: { secure: true, reconnect: true },
+        channels: [CHAT_COMMANDS_CHANNEL]
+      });
+
+      commandChatClient.connect().catch(err => {
+        console.warn('[Chat-Commands] Verbindung fehlgeschlagen:', err.message || err);
+      });
+
+      commandChatClient.on('message', (channel, tags, message, self) => {
+        if (self) return;
+        handleChatCommand(tags, message);
+      });
+    } catch (e) {
+      console.warn('[Chat-Commands] tmi.js nicht verfuegbar, Chat-Commands deaktiviert:', e.message);
+    }
+
     updateUI();
+    loadWantedState();
     preloadSounds().then(runTestMode);
     connectTwitchEventSub();
   </script>
