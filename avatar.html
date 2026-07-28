@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Avatar (Mikro-Spike)</title>
+  <!-- MINI-SPIKE (Modul 3, Schritt 1): testet ausschliesslich, ob
+       getUserMedia()/Mikrofon-Berechtigungen in der Streamlabs-Mobile-
+       Android-WebView ueberhaupt durchgereicht werden. Noch KEIN fertiges
+       Maskendesign - das kommt erst, wenn dieser Spike auf dem echten
+       Tablet bestaetigt ist. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --asphalt: #17130f;
+      --chrome-2: #9a958a;
+      --blood: #b30000;
+      --gold: #ffd700;
+      --gold-glow: rgba(255, 215, 0, 0.55);
+      --text-muted: #b7ac9c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .avatar-position {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Aeussere Huelle traegt das Idle-Wippen (CSS-Animation) - getrennt von
+       der inneren Form, die per JS skaliert wird, damit sich die beiden
+       Transform-Quellen nicht gegenseitig ueberschreiben (gleiches Prinzip
+       wie #party-popup/#party-panel in goal.html). */
+    .avatar-bob {
+      animation: avatarIdleBob 2.4s ease-in-out infinite;
+    }
+
+    @keyframes avatarIdleBob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .avatar-shape {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, rgba(58, 35, 23, 0.9), var(--asphalt) 70%);
+      border: 3px solid var(--chrome-2);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+      transition: border-color 0.15s ease;
+      transform-origin: center center;
+    }
+
+    .avatar-shape.speaking {
+      border-color: var(--gold);
+    }
+
+    .avatar-glow {
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+      opacity: 0;
+    }
+
+    .avatar-debug {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      color: var(--text-muted);
+      background: rgba(23, 19, 15, 0.75);
+      padding: 5px 12px;
+      border-radius: 4px;
+      max-width: 260px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .avatar-level {
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      letter-spacing: 1px;
+      color: var(--gold);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="avatar-position">
+    <div class="avatar-bob">
+      <div class="avatar-shape" id="avatarShape">
+        <div class="avatar-glow" id="avatarGlow"></div>
+      </div>
+    </div>
+    <div class="avatar-debug" id="avatarDebug">Mikrofon: wird angefragt&hellip;</div>
+  </div>
+
+  <script>
+    // ?test=speak simuliert einen Sprech-Pegel ohne echtes Mikro - damit
+    // laesst sich die Visual-Logik selbst schon jetzt (ohne Geraete-Test)
+    // ueberpruefen, gleiches Prinzip wie goal.html's ?test=-Parameter.
+    const TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
+
+    // Startwert - auf echten Mikro-Daten (anderer Signalpegel als Datei-
+    // Wiedergabe) noch nicht kalibriert, muss nach dem ersten Live-Test auf
+    // dem Tablet ggf. angepasst werden.
+    const SPEAK_THRESHOLD = 0.08;
+
+    let micState = 'pending'; // pending | granted | denied | unsupported | testmode
+    let rafId = null;
+
+    function setDebug(text) {
+      document.getElementById('avatarDebug').innerHTML = text;
+    }
+
+    function setSpeaking(active, level) {
+      const shape = document.getElementById('avatarShape');
+      const glow = document.getElementById('avatarGlow');
+      shape.classList.toggle('speaking', active);
+      glow.style.opacity = active ? Math.min(1, level * 3).toFixed(2) : 0;
+      const scale = active ? 1 + Math.min(0.25, level * 0.6) : 1;
+      shape.style.transform = `scale(${scale.toFixed(3)})`;
+    }
+
+    let lastDebugUpdateAt = 0;
+    function startVisualLoop(getLevel, statusLabel) {
+      function step() {
+        const level = getLevel();
+        const speaking = level > SPEAK_THRESHOLD;
+        setSpeaking(speaking, level);
+
+        // Debug-Zahl nicht jeden Frame neu schreiben (unnoetige DOM-Last),
+        // alle ~150ms reicht zum Ablesen/Kalibrieren locker.
+        const now = performance.now();
+        if (now - lastDebugUpdateAt > 150) {
+          setDebug(`${statusLabel}<br><span class="avatar-level">${level.toFixed(3)}</span> ${speaking ? '(spricht)' : '(still)'}`);
+          lastDebugUpdateAt = now;
+        }
+
+        rafId = requestAnimationFrame(step);
+      }
+      rafId = requestAnimationFrame(step);
+    }
+
+    function startTestMode() {
+      micState = 'testmode';
+      let t = 0;
+      startVisualLoop(() => {
+        t += 0.05;
+        // Simulierte Sprech-Huelle: Sinus + etwas Rauschen statt reinem
+        // Ein/Aus, wirkt naeher an echter Sprachdynamik.
+        return Math.max(0, Math.sin(t) * 0.5 + 0.5) * (0.6 + Math.random() * 0.4);
+      }, 'TEST-MODUS (?test=speak) - simulierter Pegel, kein echtes Mikro noetig.');
+    }
+
+    async function startMicMode() {
+      setDebug('Mikrofon: Berechtigung wird angefragt&hellip;');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micState = 'granted';
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        // WICHTIG: analyser wird NICHT mit audioCtx.destination verbunden -
+        // sonst waere das eigene Mikrofon im Stream als Echo/Feedback zu
+        // hoeren. Fuer reine Pegel-Analyse ist keine destination-Verbindung
+        // noetig.
+        source.connect(analyser);
+
+        startVisualLoop(() => {
+          analyser.getByteTimeDomainData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += Math.abs(dataArray[i] - 128);
+          return Math.min(1, (sum / dataArray.length) / 40);
+        }, 'Mikrofon aktiv, hoert zu.');
+      } catch (err) {
+        micState = 'denied';
+        // Kein Retry: eine einmal verweigerte/fehlgeschlagene Mikro-
+        // Berechtigung aendert sich nicht durch erneutes Anfragen - nur der
+        // Nutzer kann das in den Android-System-Einstellungen aendern.
+        // err.name (z.B. NotAllowedError/NotFoundError/SecurityError) wird
+        // bewusst 1:1 angezeigt, um auf dem Tablet ohne Inspector genau
+        // diagnostizieren zu koennen, WAS blockiert.
+        console.warn('[Avatar] Mikrofon-Zugriff fehlgeschlagen:', err.name, err.message);
+        setDebug(`Mikrofon nicht verfuegbar (${err.name || 'Fehler'}) - dauerhafter Idle-Zustand, kein Absturz.`);
+      }
+    }
+
+    if (TEST_MODE) {
+      startTestMode();
+    } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      micState = 'unsupported';
+      setDebug('getUserMedia wird von dieser WebView nicht unterstuetzt - dauerhafter Idle-Zustand, kein Absturz.');
+    } else {
+      startMicMode();
+    }
+  </script>
+
+</body>
+</html>
