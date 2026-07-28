@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <style>
     :root {
-      --bg-glass: rgba(15, 23, 42, 0.85);
+      --bg-glass: rgba(15, 23, 42, 0.88);
       --neon-blue: #38bdf8;
       --accent-orange: #f97316;
       --text-primary: #f8fafc;
@@ -26,43 +26,43 @@
       height: 100vh;
     }
 
-    body { padding: 20px; }
-
-    #chat-container {
+    /* Physik-Buehne: volle Fensterhoehe, Karten werden per transform frei
+       positioniert (Schwerkraft/Bounce), nicht per Flow-Layout gestapelt. */
+    #chat-stage {
       position: fixed;
-      bottom: 20px;
-      left: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      justify-content: flex-end;
-      max-width: 380px;
-      width: 100%;
-      z-index: 100;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
     }
 
-    .chat-msg {
+    .chat-card {
+      position: absolute;
+      top: 0;
+      left: 20px;
+      width: 340px;
       display: flex;
       align-items: flex-start;
       gap: 10px;
       background: var(--bg-glass);
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      border-left: 3px solid var(--neon-blue);
-      border-radius: 12px;
+      border: 1.5px solid rgba(248, 250, 252, 0.2);
+      border-left: 4px solid var(--neon-blue);
+      border-radius: 10px;
       padding: 10px 14px;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
       font-size: 13px;
       line-height: 1.45;
       opacity: 0;
-      transform: translateY(10px);
-      animation: fadeIn 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+      will-change: transform;
+      transition: opacity 0.35s ease;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .chat-card.visible { opacity: 1; }
+
+    .chat-card.fade-out {
+      transition: opacity 0.6s ease;
+      opacity: 0;
     }
 
     .avatar-dot {
@@ -80,7 +80,8 @@
     }
 
     .username {
-      font-weight: 800;
+      font-weight: 900;
+      letter-spacing: -0.2px;
       margin-right: 6px;
       display: inline;
     }
@@ -97,16 +98,27 @@
       margin: -2px 1px;
     }
 
-    .fade-out {
-      transition: opacity 0.7s ease, transform 0.7s ease;
-      opacity: 0;
-      transform: translateY(-8px);
+    #scanline-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.10) 0px,
+        rgba(0, 0, 0, 0.10) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      mix-blend-mode: overlay;
+      opacity: 0.5;
     }
   </style>
 </head>
 <body>
 
-  <div id="chat-container"></div>
+  <div id="chat-stage"></div>
+  <div id="scanline-overlay"></div>
 
   <script>
     // ==========================================
@@ -118,12 +130,99 @@
     const AUTO_HIDE_MS = 15000;
     const SYSTEM_HIDE_MS = 6000;
     const MAX_VISIBLE_MESSAGES = 5;
+    const BOTTOM_MARGIN = 24;
 
-    const container = document.getElementById('chat-container');
+    const stage = document.getElementById('chat-stage');
+
+    // =====================================================================
+    // Physics-Based Chat: schlanke, selbstgebaute Gravitations-/Bounce-
+    // Engine. Karten sind weiterhin echte DOM-Elemente (fuer scharfen Text
+    // und die bestehende Emote-<img>-Darstellung), aber Position/Rotation
+    // werden Frame fuer Frame von der Physik berechnet und per transform
+    // angewendet (Compositor-Thread, kein Layout-Reflow). Der rAF-Loop
+    // startet nur bei Bewegung und stoppt sich selbst, sobald alle Karten
+    // zur Ruhe gekommen sind.
+    // =====================================================================
+    const GRAVITY = 0.55;
+    const RESTITUTION = 0.36;
+    const FRICTION = 0.8;
+    const SETTLE_VELOCITY = 0.5;
+
+    const cards = [];
+    let physicsRaf = null;
+
+    function ensurePhysicsLoop() {
+      if (physicsRaf) return;
+      physicsRaf = requestAnimationFrame(physicsStep);
+    }
+
+    function physicsStep() {
+      let anyActive = false;
+      const stageWidth = stage.clientWidth;
+      const stageHeight = stage.clientHeight;
+
+      for (const card of cards) {
+        if (card.settled) continue;
+        anyActive = true;
+
+        card.vy += GRAVITY;
+        card.x += card.vx;
+        card.y += card.vy;
+        card.rot += card.angVel;
+        // Kartentext soll trotz Physik-Taumeln lesbar bleiben - Rotation
+        // auf einen moderaten "auf den Tisch geworfen"-Winkel begrenzen,
+        // statt bis zur Unlesbarkeit querzudrehen.
+        card.rot = Math.max(-32, Math.min(32, card.rot));
+
+        // Seitenwaende: sanft abprallen statt aus dem Bild zu laufen
+        if (card.x < 0) { card.x = 0; card.vx = Math.abs(card.vx) * RESTITUTION; }
+        const maxX = Math.max(0, stageWidth - card.w - 20);
+        if (card.x > maxX) { card.x = maxX; card.vx = -Math.abs(card.vx) * RESTITUTION; }
+
+        // Bodenlinie: Fensterunterkante, oder die Oberkante einer bereits
+        // ruhenden, ueberlappenden Karte darunter (Stapel-Effekt)
+        let floor = stageHeight - BOTTOM_MARGIN - card.h;
+        for (const other of cards) {
+          if (other === card || !other.settled) continue;
+          const overlapX = card.x < other.x + other.w && card.x + card.w > other.x;
+          if (overlapX && other.y < floor) floor = other.y - card.h;
+        }
+
+        if (card.y >= floor) {
+          card.y = floor;
+          card.vy = -card.vy * RESTITUTION;
+          card.vx *= FRICTION;
+          card.angVel *= FRICTION;
+
+          if (Math.abs(card.vy) < SETTLE_VELOCITY && Math.abs(card.vx) < 0.3) {
+            card.vy = 0;
+            card.vx = 0;
+            card.angVel = 0;
+            card.settled = true;
+          }
+        }
+
+        card.el.style.transform = `translate(${card.x.toFixed(1)}px, ${card.y.toFixed(1)}px) rotate(${card.rot.toFixed(1)}deg)`;
+      }
+
+      if (anyActive) {
+        physicsRaf = requestAnimationFrame(physicsStep);
+      } else {
+        physicsRaf = null; // Alles ruht - Loop stoppt sich selbst, keine Idle-Last
+      }
+    }
+
+    function removeCard(cardObj) {
+      const idx = cards.indexOf(cardObj);
+      if (idx !== -1) cards.splice(idx, 1);
+      if (cardObj.el.parentNode === stage) {
+        stage.removeChild(cardObj.el);
+      }
+    }
 
     function addMessage(username, text, color = '#38bdf8', isSystem = false, emotesTag = null) {
       const msgDiv = document.createElement('div');
-      msgDiv.className = 'chat-msg';
+      msgDiv.className = 'chat-card';
       const accentColor = isSystem ? '#fbbf24' : color;
       msgDiv.style.borderLeftColor = accentColor;
 
@@ -135,19 +234,35 @@
         </span>
       `;
 
-      container.appendChild(msgDiv);
+      stage.appendChild(msgDiv);
 
-      if (container.children.length > MAX_VISIBLE_MESSAGES) {
-        container.removeChild(container.firstChild);
+      // Ueberzaehlige Karten von unten (aelteste) entfernen, bevor die neue
+      // Physik-Karte hinzugefuegt wird
+      while (cards.length >= MAX_VISIBLE_MESSAGES) {
+        removeCard(cards[0]);
       }
+
+      const rect = msgDiv.getBoundingClientRect();
+      const cardObj = {
+        el: msgDiv,
+        x: Math.random() * Math.max(0, stage.clientWidth - rect.width - 40),
+        y: -rect.height - 20,
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: 0,
+        rot: (Math.random() - 0.5) * 8,
+        angVel: (Math.random() - 0.5) * 1.4,
+        w: rect.width,
+        h: rect.height,
+        settled: false
+      };
+      cards.push(cardObj);
+      msgDiv.style.transform = `translate(${cardObj.x}px, ${cardObj.y}px) rotate(${cardObj.rot}deg)`;
+      requestAnimationFrame(() => msgDiv.classList.add('visible'));
+      ensurePhysicsLoop();
 
       setTimeout(() => {
         msgDiv.classList.add('fade-out');
-        setTimeout(() => {
-          if (msgDiv.parentNode === container) {
-            container.removeChild(msgDiv);
-          }
-        }, 700);
+        setTimeout(() => removeCard(cardObj), 650);
       }, isSystem ? SYSTEM_HIDE_MS : AUTO_HIDE_MS);
     }
 
