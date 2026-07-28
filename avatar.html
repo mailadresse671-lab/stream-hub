@@ -4,16 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stream Avatar</title>
-  <!-- Modul 3, Kurskorrektur: das CSS-gezeichnete Sturmhauben-Design wurde
-       durch ein eigenes Bild ersetzt (assets/images/avatar.png, vom Nutzer
-       bereitgestellt) - passt besser zum gewuenschten Branding als die
-       abstrakte Maske. Verhalten bleibt gleich: dauerhafte Idle-Animation
-       als Grundzustand (kein Mikro noetig, siehe Modul-3-Historie in
-       CLAUDE.md), Reaktions-Puls bei jeder Chat-Nachricht. -->
+  <!-- Modul 3: eigenes Bild statt CSS-Maske (assets/images/avatar_idle.png /
+       avatar_action.png, vom Nutzer bereitgestellt, echte RGBA-Transparenz).
+       Zwei Bild-Zustaende statt nur einem: IDLE (Dauerzustand, leichtes
+       CSS-Wippen) wechselt bei jedem Event (Chat-Nachricht) fuer ca. 3.5s
+       auf ACTION (Bild-Swap + Neon-Rot-Glow-Puls), dann fliessend
+       (Opacity-Crossfade) zurueck auf IDLE. Kein Mikro noetig, siehe
+       Modul-3-Historie in CLAUDE.md. -->
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <style>
     :root {
-      --gold-glow: rgba(255, 215, 0, 0.55);
+      --blood: #ff1a1a;
+      --blood-glow: rgba(255, 26, 26, 0.65);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,20 +33,28 @@
       width: 210px;
     }
 
-    /* Glow-Impuls im Hintergrund bei Chat-/Mikro-Reaktion */
+    /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
+       kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
     .avatar-glow-bg {
       position: absolute;
       inset: -26px;
       border-radius: 50%;
-      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+      background: radial-gradient(circle, var(--blood-glow), transparent 70%);
       opacity: 0;
-      transition: opacity 0.18s ease;
+      transition: opacity 0.25s ease;
       pointer-events: none;
     }
-    .avatar-glow-bg.reacting { opacity: 1; }
+    .avatar-glow-bg.action {
+      opacity: 1;
+      animation: avatarGlowPulse 1s ease-in-out infinite;
+    }
+    @keyframes avatarGlowPulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.16); opacity: 1; }
+    }
 
     /* Aeussere Huelle traegt das dauerhafte Idle-Wippen (CSS-Animation) -
-       getrennt vom Bild selbst, das per JS fuer den Reaktions-Bounce
+       getrennt vom Punch-Wrapper, der per JS fuer den Reaktions-Bounce
        skaliert/verschoben wird (gleiches Trennprinzip wie ueberall sonst
        im Projekt: zwei Transform-Quellen duerfen sich nicht gegenseitig
        ueberschreiben). */
@@ -57,18 +67,30 @@
       50% { transform: translateY(-9px) rotate(-1.2deg); }
     }
 
-    .avatar-img {
+    /* Punch-Wrapper: kurzer Bounce-Impuls bei jedem Trigger, unabhaengig
+       vom darunterliegenden Idle-Wippen. Haelt die beiden gestapelten
+       Bild-Layer, die per Opacity ueberblendet werden (fliessender
+       Uebergang statt hartem src-Swap). */
+    .avatar-punch {
       position: relative;
+      transition: transform 0.12s ease-out;
+      transform-origin: 50% 100%;
+    }
+    .avatar-punch.punch {
+      transform: translateY(-16px) scale(1.05);
+    }
+
+    .avatar-layer {
       display: block;
       width: 100%;
       height: auto;
       filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.65));
-      transition: transform 0.12s ease-out;
-      transform-origin: 50% 100%;
+      transition: opacity 0.4s ease;
     }
-    .avatar-img.reacting {
-      transform: translateY(-16px) scale(1.05);
-    }
+    .avatar-layer-idle { position: relative; opacity: 1; }
+    .avatar-layer-action { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+    .avatar-punch.action .avatar-layer-idle { opacity: 0; }
+    .avatar-punch.action .avatar-layer-action { opacity: 1; }
   </style>
 </head>
 <body>
@@ -76,7 +98,10 @@
   <div class="avatar-position">
     <div class="avatar-glow-bg" id="avatarGlow"></div>
     <div class="avatar-bob">
-      <img class="avatar-img" id="avatarImg" src="assets/images/avatar.png" alt="DaN Avatar">
+      <div class="avatar-punch" id="avatarPunch">
+        <img class="avatar-layer avatar-layer-idle" src="assets/images/avatar_idle.png" alt="DaN Avatar">
+        <img class="avatar-layer avatar-layer-action" src="assets/images/avatar_action.png" alt="DaN Avatar (Action)">
+      </div>
     </div>
   </div>
 
@@ -86,21 +111,34 @@
     const TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
     const MIC_SPEAK_THRESHOLD = 0.08;
 
-    const avatarImg = document.getElementById('avatarImg');
+    const avatarPunch = document.getElementById('avatarPunch');
     const avatarGlow = document.getElementById('avatarGlow');
 
-    let lastReactionAt = 0;
-    const REACTION_COOLDOWN_MS = 350;
+    const ACTION_DURATION_MS = 3500;
+    let actionResetTimer = null;
+
+    let lastPunchAt = 0;
+    const PUNCH_COOLDOWN_MS = 350;
+
     function triggerReaction() {
       const now = performance.now();
-      if (now - lastReactionAt < REACTION_COOLDOWN_MS) return;
-      lastReactionAt = now;
-      avatarImg.classList.add('reacting');
-      avatarGlow.classList.add('reacting');
-      setTimeout(() => {
-        avatarImg.classList.remove('reacting');
-        avatarGlow.classList.remove('reacting');
-      }, 280);
+      // Kurzer Bounce-Impuls - per Cooldown gegen Nachrichten-Spam gedrosselt.
+      if (now - lastPunchAt >= PUNCH_COOLDOWN_MS) {
+        lastPunchAt = now;
+        avatarPunch.classList.add('punch');
+        setTimeout(() => avatarPunch.classList.remove('punch'), 280);
+      }
+
+      // Action-Bild + Glow-Puls halten ca. 3.5s; jedes weitere Event
+      // waehrenddessen verlaengert die Anzeigedauer (Baer bleibt "hyped",
+      // solange staendig Events reinkommen), statt hart abzuschneiden.
+      avatarPunch.classList.add('action');
+      avatarGlow.classList.add('action');
+      clearTimeout(actionResetTimer);
+      actionResetTimer = setTimeout(() => {
+        avatarPunch.classList.remove('action');
+        avatarGlow.classList.remove('action');
+      }, ACTION_DURATION_MS);
     }
 
     // ---------- Chat-reaktiv: "Chat ist meine Stimme" ----------

@@ -301,16 +301,25 @@
     /* ---------- Unten links: Bild-Avatar (Baer) ---------- */
     .avatar-position { position: absolute; bottom: 24px; left: 24px; z-index: 10; width: 210px; }
 
+    /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
+       kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
     .avatar-glow-bg {
       position: absolute;
       inset: -26px;
       border-radius: 50%;
-      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+      background: radial-gradient(circle, var(--blood-glow), transparent 70%);
       opacity: 0;
-      transition: opacity 0.18s ease;
+      transition: opacity 0.25s ease;
       pointer-events: none;
     }
-    .avatar-glow-bg.reacting { opacity: 1; }
+    .avatar-glow-bg.action {
+      opacity: 1;
+      animation: avatarGlowPulse 1s ease-in-out infinite;
+    }
+    @keyframes avatarGlowPulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.16); opacity: 1; }
+    }
 
     .avatar-bob {
       animation: avatarIdleBounce 3.2s ease-in-out infinite;
@@ -321,18 +330,30 @@
       50% { transform: translateY(-9px) rotate(-1.2deg); }
     }
 
-    .avatar-img {
+    /* Punch-Wrapper: kurzer Bounce-Impuls bei jedem Trigger, unabhaengig
+       vom darunterliegenden Idle-Wippen. Haelt die beiden gestapelten
+       Bild-Layer, die per Opacity ueberblendet werden (fliessender
+       Uebergang statt hartem src-Swap). */
+    .avatar-punch {
       position: relative;
+      transition: transform 0.12s ease-out;
+      transform-origin: 50% 100%;
+    }
+    .avatar-punch.punch {
+      transform: translateY(-16px) scale(1.05);
+    }
+
+    .avatar-layer {
       display: block;
       width: 100%;
       height: auto;
       filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.65));
-      transition: transform 0.12s ease-out;
-      transform-origin: 50% 100%;
+      transition: opacity 0.4s ease;
     }
-    .avatar-img.reacting {
-      transform: translateY(-16px) scale(1.05);
-    }
+    .avatar-layer-idle { position: relative; opacity: 1; }
+    .avatar-layer-action { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+    .avatar-punch.action .avatar-layer-idle { opacity: 0; }
+    .avatar-punch.action .avatar-layer-action { opacity: 1; }
 
     /* ---------- Unten rechts: Chat-Feed + Branding-Tag ---------- */
     .chat-stage-box {
@@ -700,11 +721,14 @@
       </div>
     </div>
 
-    <!-- Unten links: Bild-Avatar (Baer, assets/images/avatar.png) -->
+    <!-- Unten links: Bild-Avatar (Baer, assets/images/avatar_idle.png / avatar_action.png) -->
     <div class="avatar-position">
       <div class="avatar-glow-bg" id="avatarGlow"></div>
       <div class="avatar-bob">
-        <img class="avatar-img" id="avatarImg" src="assets/images/avatar.png" alt="DaN Avatar">
+        <div class="avatar-punch" id="avatarPunch">
+          <img class="avatar-layer avatar-layer-idle" src="assets/images/avatar_idle.png" alt="DaN Avatar">
+          <img class="avatar-layer avatar-layer-action" src="assets/images/avatar_action.png" alt="DaN Avatar (Action)">
+        </div>
       </div>
     </div>
 
@@ -1399,6 +1423,7 @@
       triggerRecoil();
       fireMuzzleFlash();
       document.getElementById('cop-siren').classList.add('active');
+      triggerAvatarReaction();
 
       startAlertFx();
       popup.classList.add('show');
@@ -1808,26 +1833,43 @@
     }
 
     // =====================================================================
-    // Bild-Avatar (Baer): dauerhaftes Idle-Wippen (CSS) + Chat-Reaktion
-    // (primaer) - Bounce + Glow-Puls bei jeder Chat-Nachricht. Mikro-
-    // Reaktivitaet bleibt als kostenloser Bonus-Pfad im Code (in
-    // Streamlabs Mobile bestaetigt blockiert, siehe avatar.html).
+    // Bild-Avatar (Baer): dauerhaftes Idle-Wippen (CSS, avatar_idle.png) +
+    // Event-Reaktion (primaer) - bei jedem Chat-Nachricht/Command/Alert
+    // wechselt das Bild fuer ca. 3.5s auf avatar_action.png (Bounce +
+    // Neon-Rot-Glow-Puls), danach fliessend zurueck. Getriggert aus dem
+    // tmi.js-Nachrichten-Handler (Chat + Commands) und aus showPartyPopup
+    // (Alerts). Mikro-Reaktivitaet bleibt als kostenloser Bonus-Pfad im
+    // Code (in Streamlabs Mobile bestaetigt blockiert, siehe avatar.html).
     // =====================================================================
-    const avatarImg = document.getElementById('avatarImg');
+    const avatarPunch = document.getElementById('avatarPunch');
     const avatarGlow = document.getElementById('avatarGlow');
 
-    let lastAvatarReactionAt = 0;
-    const AVATAR_REACTION_COOLDOWN_MS = 350;
+    const AVATAR_ACTION_DURATION_MS = 3500;
+    let avatarActionResetTimer = null;
+
+    let lastAvatarPunchAt = 0;
+    const AVATAR_PUNCH_COOLDOWN_MS = 350;
+
+    // Reagiert auf jedes Event (Chat-Nachricht, Command, Alert): kurzer
+    // Bounce-Impuls + ca. 3.5s Bild-Swap auf avatar_action.png mit Neon-
+    // Rot-Glow-Puls, danach fliessender Opacity-Crossfade zurueck auf
+    // avatar_idle.png. Weitere Events waehrend der 3.5s verlaengern die
+    // Anzeigedauer, statt hart abzuschneiden.
     function triggerAvatarReaction() {
       const now = performance.now();
-      if (now - lastAvatarReactionAt < AVATAR_REACTION_COOLDOWN_MS) return;
-      lastAvatarReactionAt = now;
-      avatarImg.classList.add('reacting');
-      avatarGlow.classList.add('reacting');
-      setTimeout(() => {
-        avatarImg.classList.remove('reacting');
-        avatarGlow.classList.remove('reacting');
-      }, 280);
+      if (now - lastAvatarPunchAt >= AVATAR_PUNCH_COOLDOWN_MS) {
+        lastAvatarPunchAt = now;
+        avatarPunch.classList.add('punch');
+        setTimeout(() => avatarPunch.classList.remove('punch'), 280);
+      }
+
+      avatarPunch.classList.add('action');
+      avatarGlow.classList.add('action');
+      clearTimeout(avatarActionResetTimer);
+      avatarActionResetTimer = setTimeout(() => {
+        avatarPunch.classList.remove('action');
+        avatarGlow.classList.remove('action');
+      }, AVATAR_ACTION_DURATION_MS);
     }
 
     // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
