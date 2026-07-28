@@ -8,9 +8,9 @@ Streaming Overlays & Serverless APIs für Twitch/Streamlabs, gehostet auf Vercel
 
 ## Dateistruktur
 
-- **`index.html`** — Session Stats Widget (Wins, Losses, Winrate). Fragt periodisch (alle 20s) die Vercel-API `/api/stats` ab und berechnet die Session-Differenz gegenüber dem beim Laden erfassten Basiswert. Zeigt zusätzlich einen Live/Cached/Offline-Statuspunkt basierend auf den `cached`/`stale`-Feldern der API-Antwort.
-- **`goal.html`** — Follower-Ziel-Widget mit Fortschrittsbalken. Verbindet sich per nativem Browser-`WebSocket` direkt mit **Twitch EventSub** (`wss://eventsub.wss.twitch.tv/ws`, keine Drittanbieter-Client-Library nötig) und meldet die benötigten Event-Subscriptions (Follow, Sub, Resub, Bits, Raid) über `/api/twitch-eventsub` an, sobald die Session-ID vom WebSocket-Handshake vorliegt. Enthält eine eigene Reconnect-Logik mit Backoff sowie Behandlung von Twitchs `session_reconnect`-Handoff (Subscriptions wandern dabei automatisch auf die neue Session, kein erneutes Anmelden nötig). Bei neuen Followern, Subs, Bits-Spenden und Raids sowie beim Erreichen des Follower-Ziels wird ein Party-Animations-Popup (Konfetti, Sound, Popup-Overlay in Bildschirmmitte) über eine Warteschlange (`popupQueue`) angezeigt, damit mehrere Events kurz hintereinander (z. B. ein Bit-Train oder Raid) sauber nacheinander abgespielt werden statt sich zu überschreiben. Die Sounds (`follow.mp3`, `sub.mp3`, `bits.mp3`, `raid.mp3` aus `/assets/audio/`) werden per Web Audio API vorab dekodiert; fehlt eine Datei, bleibt nur der jeweilige Alert stumm, der Rest läuft unbeeinflusst weiter.
-- **`chat.html`** — Chat-Overlay Widget. Verbindet sich via `tmi.js` mit einem Twitch-Kanal und zeigt eingehende Chat-Nachrichten als animierte Karten an, die nach 15s automatisch ausblenden. Rendert Twitch-Emotes (`tags.emotes`) direkt als Bilder vom Twitch-CDN.
+- **`index.html`** — Session Stats Widget (Wins, Losses, Winrate). Fragt periodisch (alle 20s) die Vercel-API `/api/stats` ab und berechnet die Session-Differenz gegenüber dem beim Laden erfassten Basiswert. Zeigt zusätzlich einen Live/Cached/Offline-Statuspunkt basierend auf den `cached`/`stale`-Feldern der API-Antwort. Nutzt noch den ursprünglichen Glassmorphism-Look (siehe Styling-Guides) — wurde bei den Hood/Ghetto-Redesign-Runden bewusst nicht mit umgestellt.
+- **`goal.html`** — Follower-Ziel-Widget mit Fortschrittsbalken **plus komplettes Alert-/Audio-/Physik-System**, im Hood/Ghetto-Look (siehe Styling-Guides). Verbindet sich per nativem Browser-`WebSocket` direkt mit **Twitch EventSub** (`wss://eventsub.wss.twitch.tv/ws`, keine Drittanbieter-Client-Library nötig) und meldet die benötigten Event-Subscriptions (Follow, Sub, Resub, Bits, Raid) über `/api/twitch-eventsub` an, sobald die Session-ID vom WebSocket-Handshake vorliegt. Eigene Reconnect-Logik mit Backoff, Behandlung von Twitchs `session_reconnect`-Handoff. Bei Events wird ein Party-Popup über eine Warteschlange (`popupQueue`) angezeigt (mehrere Events hintereinander spielen sauber nacheinander ab). Struktur: `#party-popup` (äußere, ungeclippte Hülle — trägt Position/Opacity/Transform inkl. Lowrider-Hydraulik-Physik + Recoil-Kick) umschließt `#party-panel` (die eigentliche geclippte "Panzerplatte" mit zerklüftetem `clip-path`, Einschusslöchern, Riss-Overlay) sowie als Geschwister-Elemente `.most-wanted-badge`, `.license-plate` und zwei `.crime-tape`-Streifen, die absichtlich über den Panel-Rand hinausragen (deshalb nicht Kind von `#party-panel`). FX-Layer: `#spray-canvas` (Partikel-System `SpraySystem`, noise-gesteuert, inkl. dynamischer Bullet-Hole-Risse), `#impact-flash` (kontinuierlicher sub-bass-gesteuerter Flash), `#muzzle-flash` (einmaliger Blitz beim Alert-Trigger), `#cop-siren` (rot-blaues Sirenen-Strobe während Alerts), `#scanline-overlay` (VHS-Scanlines, immer oben). Eigene `AudioAnalysisRig`-Klasse zerlegt jeden Alert-Sound per BiquadFilter in Sub-Bass/Mid-High-Bänder und treibt darüber Hydraulik-Hop, Liquid-Bar-Impulse und Spray-Nachschub. Zusätzlich läuft ein **Idle-Ambient-Layer** (`startIdleAmbient`/`emitIdleSpark`) permanent im Hintergrund — unabhängig von Alerts wird alle 700–1200ms ein einzelner Funke an zufälliger Position emittiert, damit der Screen in den >95% der Sendezeit ohne Event nicht komplett statisch wirkt. Die Sounds (`follow.mp3`, `sub.mp3`, `bits.mp3`, `raid.mp3` aus `/assets/audio/`) werden per Web Audio API vorab dekodiert; fehlt eine Datei, bleibt nur der jeweilige Alert stumm. `?test=follow|sub|resub|bits|raid|goal` löst einen Alert manuell aus, ohne auf ein echtes Twitch-Event zu warten.
+- **`chat.html`** — Chat-Overlay Widget im Hood/Ghetto-Look, physik-basierte fallende/abprallende Karten (Gravitation/Bounce/Friction, eigener rAF-Loop, selbstterminierend). Rendert Twitch-Emotes (`tags.emotes`) direkt als Bilder vom Twitch-CDN, XSS-sicheres Escaping. **Kanal kommt ausschließlich aus dem `?channel=`-URL-Parameter** — es gibt keinen hartkodierten Kanalnamen mehr. ⚠️ **Wichtig für die OBS-/Streamlabs-Browser-Quellen-URL: `chat.html?channel=dangsxr1000` (mit Parameter!), sonst läuft automatisch der Demo-Modus statt des echten Chats.** Fehlt der Parameter, wird **nie** weitergeleitet — stattdessen startet automatisch ein Demo-Modus (`startDemoMode()`), der alle 3.5s eine von sieben Beispielnachrichten aus `DEMO_MESSAGES` zeigt, pausiert über die Page Visibility API.
 - **`branding.html`** — Statisches Branding-Widget für die untere rechte Ecke („DaN | LIVE STREAM").
 - **`api/stats.js`** — Vercel Serverless Function. Fragt die Rocket League Tracker API (`api.tracker.gg`) für den Spieler **„DaNgsxR"** (Plattform: `epic`) ab und liefert `wins`/`matches` als JSON zurück. Cached das Ergebnis 30 Sekunden lang In-Memory (modulweite Variable, gilt pro warmer Function-Instanz) und liefert bei einem fehlgeschlagenen Tracker.gg-Request den letzten bekannten Stand als `stale: true` zurück, statt das Overlay einfrieren zu lassen.
 - **`api/twitch-eventsub.js`** — Vercel Serverless Function. Holt per Refresh-Token einen frischen Twitch-User-Access-Token, ermittelt die Broadcaster-ID für den Kanal **„dangsxr1000"** und meldet für eine übergebene WebSocket-Session-ID die EventSub-Subscriptions `channel.follow`, `channel.subscribe`, `channel.subscription.message`, `channel.cheer` und `channel.raid` bei der Twitch-Helix-API an. Liest `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` und `TWITCH_REFRESH_TOKEN` aus den Vercel-Umgebungsvariablen.
@@ -23,10 +23,22 @@ Streaming Overlays & Serverless APIs für Twitch/Streamlabs, gehostet auf Vercel
 
 ## Styling-Guides
 
+**Zwei getrennte visuelle Systeme im Repo — nicht vermischen:**
+
+### `goal.html` + `chat.html` — "Hood/Ghetto"-Look (aktuell, Stand mehrerer Redesign-Runden)
+- **Grundfarben**: dunkles Asphalt/Rost (`--asphalt: #17130f`, `--rust: #3a2317`), Chrome-Töne (`--chrome-1: #e8e6e1`, `--chrome-2: #9a958a`) für Text/Akzente.
+- **Zwei Akzentfarben, sparsam eingesetzt**: Blutrot `--blood: #b30000` (Rahmen, Glow, Sirene/Impact-Flash) und Gold `--gold: #ffd700` (Highlights, Badges, Tape).
+- **Typografie**: `Bebas Neue` (condensed, Versalien) für Überschriften/Namen/Labels, `Montserrat` für Fließtext/Zahlen — beide über Google Fonts eingebunden, klare Lesbarkeit hat Priorität vor Verzerrungseffekten.
+- **Zerklüftete Geometrie statt runder Ecken**: `clip-path`-Polygone simulieren beschädigte Panzerplatten (`goal-card`, `#party-panel`), keine `border-radius`-Container mehr in diesen beiden Dateien.
+- **Beschädigungs-Motive als Ornament**: statische Einschusslöcher (`.bullet-hole`), Riss-Overlays (SVG), abgerissenes Absperrband (`.crime-tape`), "MOST WANTED"-Patch und Nummernschild-Badge — alles bewusst asymmetrisch/schräg positioniert.
+- **Audio-Reaktivität als Kernprinzip**: fast jeder visuelle Effekt (Hydraulik-Hop, Liquid-Bar-Wellen, Spray-Partikel-Rate, Sirene) hängt am `AudioAnalysisRig`-Sub-/Mid-Band-Signal, nicht an festen Timern.
+
+### `index.html` + `branding.html` — ursprünglicher Glassmorphism-Look (unverändert seit dem ersten Redesign)
 - **Dark Mode** als Basis: Hintergrundflächen in Slate-900-Ton (`rgba(15, 23, 42, ...)`).
-- **Neon-Akzente**: Blau `#38bdf8` und Orange `#f97316` als primäre Akzentfarben (Rahmen, Titel, Verläufe); ergänzend Grün `#22c55e`, Rot `#ef4444` und Gelb/Amber `#fbbf24` für Statuswerte (Win/Loss/Rate, Sounds/Konfetti).
-- **Abgerundete Ecken**: `border-radius` durchgängig zwischen 10–20px je nach Element (Container, Popups, Fortschrittsbalken).
-- **Blur-Effekte**: `backdrop-filter: blur(8px)` in Kombination mit halbtransparenten Hintergründen (`rgba(15, 23, 42, 0.9–0.96)`) für den typischen Glassmorphism-Look der Overlays.
+- **Neon-Akzente**: Blau `#38bdf8` und Orange `#f97316` als primäre Akzentfarben; ergänzend Grün `#22c55e`, Rot `#ef4444` und Gelb/Amber `#fbbf24` für Statuswerte.
+- **Abgerundete Ecken**: `border-radius` durchgängig zwischen 10–20px.
+- **Blur-Effekte**: `backdrop-filter: blur(8px)` mit halbtransparenten Hintergründen (`rgba(15, 23, 42, 0.9–0.96)`).
+- Bewusst **nicht** an den Hood/Ghetto-Look angeglichen — offener Punkt, siehe "Aktueller Stand & Offene Punkte".
 
 ## Hinweis (Sicherheit & Setup)
 
@@ -48,6 +60,42 @@ Streaming Overlays & Serverless APIs für Twitch/Streamlabs, gehostet auf Vercel
 - **Streaming-Plattform**: Twitch.
 - **Twitch Kanal**: DaNgsxr1000.
 - **Ingame ID**: DaNgsxR (Epic Games).
+
+## Twitch-Profil (Kanalseite, außerhalb des Overlay-Codes)
+
+Zusätzlich zu den Overlays wurde die eigentliche Twitch-Kanalseite (twitch.tv/dangsxr1000) analysiert und neu konzipiert — zwei Dateien im Repo-Root dokumentieren das:
+
+- **`twitch_profile_dump.json`** — Schnappschuss des Kanal-Zustands (Bio, Panels, Goals-Widget, Tags, Emotes, Monetarisierungsstatus, Erweiterungen). Automatisierter Live-Abruf über `decapi.me`/`twitch.tv` ist aus der Sandbox-Umgebung netzwerkseitig blockiert (HTTP 403 auf Proxy-Ebene, mit `curl` und `WebFetch` bestätigt) — die Daten stammen stattdessen aus vom Nutzer bereitgestellten Screenshots, transparent als `manual_screenshot_review` gekennzeichnet.
+- **`PANEL_CONCEPT.md`** — vollständiges Redesign-Konzept: neue 5-Panel-Architektur (Setup, Kiez-Regeln, Über Mich/Die Hood, Socials, Support) mit exakten, copy-paste-fertigen Texten im Hood-Tone-of-Voice, korrigierte Kanal-Beschreibung (behebt kaputtes Markdown im Original), korrigierter Live-Benachrichtigungstext, einheitliche Bild-Spezifikation für alle 5 Panel-Grafiken (320×320px, Asphalt/Blutrot/Gold, Panzerplatten-Ecke, Einschusslöcher).
+- **Wichtigster inhaltlicher Fund**: die alten Panel-Texte ("Mein Setup", "Über mich") nannten PS4 + DualShock 4 — das widerspricht dem oben dokumentierten tatsächlichen Setup (GeForce NOW Ultimate, 100% Cloud/Mobile). In den neuen Texten in `PANEL_CONCEPT.md` bereits korrigiert.
+
+## Aktueller Stand & Offene Punkte (Stand 28.07.2026)
+
+**Fertig & gemerged:**
+- Vollständiges Hood/Ghetto-Redesign von `goal.html`/`chat.html` inkl. Audio-Engine, Hydraulik-Physik, Muzzle-Flash/Cop-Siren, Idle-Ambient-Layer.
+- Migration von Streamlabs-Socket auf direkte Twitch-EventSub-Anbindung.
+- `chat.html`-Routing-Fix (`?channel=`-Parameter + Demo-Modus, kein Redirect mehr).
+- Twitch-Profil-Analyse + Panel-Redesign-Konzept (`twitch_profile_dump.json`, `PANEL_CONCEPT.md`).
+- Strategie-Roadmap als Artifact veröffentlicht: **https://claude.ai/code/artifact/1d8195c9-76a1-4c89-9de7-1f57c5001c49** (6 Phasen: Overlay-Fundament → Profil-Grundgerüst → Engagement ohne Cam&Mic → Community&Reichweite → Monetarisierung → Pflege).
+
+**Offen — nächste Schritte, in etwa dieser Reihenfolge:**
+1. **Live-Validierung**: Overlays noch nie vollständig gegen die echte Streamlabs-Mobile-App getestet (nur teilweise per Screenshot bestätigt: `chat.html`-Demo-Modus rendert korrekt; `goal.html`-Widget erschien dabei am oberen Rand abgeschnitten — vermutlich Browser-Source-Breite/Höhe in Streamlabs Mobile nicht auf 1920×1080 gesetzt, muss geprüft werden).
+2. Bildschirmfreigabe/App-Capture in Streamlabs Mobile aktivieren (war beim letzten Test noch aus, deshalb schwarzes Vorschaubild).
+3. **Soundtrack by Twitch** aktivieren — kostenlose, lizenzfreie Hintergrundmusik, DMCA-sicher, kein Code nötig. Wichtig für DaN als Nicht-Mic-Streamer.
+4. Twitch-Erweiterung "Sound Alerts" deaktivieren (Risiko: doppelter Ton, da `goal.html` jetzt eigene Alert-Sounds spielt) — Empfehlung ausgesprochen, noch nicht bestätigt/umgesetzt.
+5. Texte aus `PANEL_CONCEPT.md` (Bio, Live-Benachrichtigung, 5 Panel-Texte) sind fertig formuliert, aber noch nicht im echten Twitch-Dashboard eingetragen.
+6. 5 Panel-Grafiken produzieren (Spec steht in `PANEL_CONCEPT.md`).
+7. Neues Offline-/Video-Player-Banner produzieren (ersetzt das alte Neon-Cyberpunk-Bild) — ein erster Design-Philosophie-Entwurf ("Scarred Chrome") wurde begonnen, aber noch nicht fertiggestellt.
+8. Profilbild-Konzept produzieren (Vorschlag: Marken-Badge/Wortmarke statt Foto, da kein bearbeitbares Foto vorliegt).
+9. Social-Media-Handles (Twitter/X, Instagram, TikTok, Discord) von DaN festlegen lassen — Socials-Panel ist strukturell fertig, aber inhaltlich leer.
+10. `index.html`/`branding.html` optisch an den Hood/Ghetto-Look angleichen (aktuell bewusst unverändert im alten Glassmorphism-Look, siehe Styling-Guides).
+11. Phase 3 der Roadmap (Chat-TTS, Channel-Points-Rewards, die direkt die Overlay-FX auslösen, Chatbot-Commands, Twitch-Schedule einrichten).
+12. Affiliate-Status abwarten (0/10 Abonnenten-Punkte) — Emote-/Sub-Badge-Redesign erst danach sinnvoll (Stufe 2/3 sind vorher gesperrt).
+
+**Tech-Stack-Entscheidung (bereits getroffen, nicht neu diskutieren):**
+Streamlabs Mobile (einzige praktikable Broadcast-Software für das 100% mobile Cloud-Setup ohne PC), GitHub + Vercel (Code/Deploy-Pipeline) und Claude Code (Entwicklung) sind der gesetzte Kern-Stack. StreamElements/Cloudbot (Chat-TTS + Commands) und Discord (Community-Hub) sind für Phase 3/4 vorgesehene Ergänzungen. Gemini ist kein Teil des Kern-Stacks (höchstens optional für Content-Brainstorming). OBS ist nicht relevant (Desktop-only, Setup ist 100% mobil).
+
+**Kernstrategie-Prinzip** (aus der Diskussion um Engagement ohne Kamera/Mikrofon): Das Overlay ersetzt die Mimik (audio-reaktive Effekte statt Gesichtsausdruck), der Chat ersetzt die Stimme, künftiges Chat-TTS gibt den Zuschauern das Gefühl gehört zu werden, Channel-Points-Rewards, die direkt Overlay-Effekte auslösen, ersetzen Blickkontakt/Interaktion. Der Idle-Ambient-Layer wurde eingeführt, weil die Overlays vorher nur bei Alerts lebendig wirkten (~2% der Sendezeit) — die übrigen >95% sahen statisch aus, was laut DaN direkt zum Wegklicken bei anderen Streams führt.
 
 ## Proactive Code & Feature Audit Directive
 
