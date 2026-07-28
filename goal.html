@@ -29,10 +29,21 @@
 
     body { padding: 18px; }
 
+    /* Alles, was gemeinsam "wackeln" soll (Goal-Widget + Popup + FX-Layer)
+       lebt in einem einzigen fixed Wrapper. Wichtig: transform auf <body>
+       wuerde die position:fixed-Verankerung aller Kinder zerstoeren, daher
+       dieser dedizierte Layer statt einzelner fixed-Elemente. */
+    #shake-root {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
     /* ---------- Top-Right Fortschritts-Widget ---------- */
 
     .goal-position {
-      position: fixed;
+      position: absolute;
       top: 18px;
       right: 18px;
       z-index: 10;
@@ -94,22 +105,20 @@
       white-space: nowrap;
     }
 
+    /* ---------- Liquid Gold/Chrome Fortschrittsbalken (Canvas2D) ---------- */
     .bar-bg {
       width: 100%;
-      height: 8px;
+      height: 14px;
       background: rgba(255, 255, 255, 0.08);
-      border-radius: 5px;
+      border-radius: 7px;
       overflow: hidden;
       position: relative;
     }
 
-    .bar-fill {
+    .liquid-bar-canvas {
+      display: block;
+      width: 100%;
       height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--accent-orange), var(--warning));
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(249, 115, 22, 0.55);
-      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* Diagnose-Zeile fuer Token-/Socket-Status - klein & dezent, aber auf
@@ -127,7 +136,7 @@
     /* ---------- Party Pop-up (Bildschirmmitte) ---------- */
 
     #party-popup {
-      position: fixed;
+      position: absolute;
       top: 35%;
       left: 50%;
       transform: translate(-50%, -50%) scale(0.5);
@@ -160,13 +169,53 @@
       margin-bottom: 10px;
     }
 
+    /* 90s-Street-Typografie: fett, mit Drip-Verzerrung + Farb-Schlagschatten */
     .party-name {
-      font-size: 44px;
+      position: relative;
+      font-family: 'Arial Black', 'Segoe UI', sans-serif;
       font-weight: 900;
+      font-size: 46px;
+      letter-spacing: -1px;
       color: var(--text-primary);
-      text-shadow: 0 0 25px rgba(56, 189, 248, 0.8);
       margin: 8px 0;
       word-break: break-word;
+      filter: url(#spray-drip);
+      text-shadow:
+        3px 3px 0 var(--accent-orange),
+        6px 6px 0 rgba(0, 0, 0, 0.45),
+        0 0 30px rgba(56, 189, 248, 0.6);
+    }
+
+    /* Chromatic-Aberration-Glitch, ausgeloest vom Sub-Bass-Peak */
+    .party-name::before,
+    .party-name::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      text-shadow: none;
+      filter: none;
+    }
+    #party-popup.glitching .party-name::before {
+      color: #38bdf8;
+      opacity: 0.8;
+      transform: translate(-4px, 1px);
+      mix-blend-mode: screen;
+    }
+    #party-popup.glitching .party-name::after {
+      color: #f97316;
+      opacity: 0.8;
+      transform: translate(4px, -1px);
+      mix-blend-mode: screen;
+    }
+    #party-popup.glitching {
+      animation: tear 0.4s steps(1);
+    }
+    @keyframes tear {
+      0%, 100% { clip-path: inset(0 0 0 0); }
+      15% { clip-path: inset(10% 0 60% 0); }
+      30% { clip-path: inset(55% 0 8% 0); }
+      45%, 100% { clip-path: inset(0 0 0 0); }
     }
 
     .party-thanks {
@@ -176,48 +225,79 @@
       margin-top: 8px;
     }
 
-    /* Konfetti Partikel */
-    .confetti {
-      position: fixed;
-      width: 10px;
-      height: 10px;
-      top: -20px;
-      z-index: 99;
-      animation: fall linear forwards;
+    /* ---------- FX-Layer: Spray-Canvas, Impact-Flash, VHS-Scanlines ---------- */
+
+    #spray-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 90;
     }
 
-    @keyframes fall {
-      to {
-        transform: translateY(105vh) rotate(720deg);
-        opacity: 0;
-      }
+    #impact-flash {
+      position: absolute;
+      inset: 0;
+      z-index: 95;
+      background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.9), rgba(56, 189, 248, 0.3) 60%, transparent 80%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #scanline-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.12) 0px,
+        rgba(0, 0, 0, 0.12) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      mix-blend-mode: overlay;
+      opacity: 0.55;
     }
   </style>
 </head>
 <body>
 
-  <!-- Fortschritts-Widget oben rechts -->
-  <div class="goal-position">
-    <div class="shimmer-frame">
-      <div class="goal-card" id="goalContainer">
-        <div class="goal-header">
-          <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
-          <span class="goal-stats" id="goalText">209 / 210</span>
+  <!-- SVG-Filter fuer die "spray drip"-Kantenverzerrung auf dem Party-Namen -->
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="spray-drip">
+      <feTurbulence type="fractalNoise" baseFrequency="0.01 0.05" numOctaves="2" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <div id="shake-root">
+    <!-- Fortschritts-Widget oben rechts -->
+    <div class="goal-position">
+      <div class="shimmer-frame">
+        <div class="goal-card" id="goalContainer">
+          <div class="goal-header">
+            <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
+            <span class="goal-stats" id="goalText">209 / 210</span>
+          </div>
+          <div class="bar-bg">
+            <canvas id="liquidBarCanvas" class="liquid-bar-canvas"></canvas>
+          </div>
+          <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
         </div>
-        <div class="bar-bg">
-          <div class="bar-fill" id="barFill"></div>
-        </div>
-        <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
       </div>
     </div>
+
+    <!-- Party Pop-up in der Mitte -->
+    <div id="party-popup">
+      <div class="party-tag" id="partyTag">🎉 NEUER FOLLOWER! 🎉</div>
+      <div class="party-name" id="partyName" data-text="Name">Name</div>
+      <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
+    </div>
+
+    <canvas id="spray-canvas"></canvas>
+    <div id="impact-flash"></div>
   </div>
 
-  <!-- Party Pop-up in der Mitte -->
-  <div id="party-popup">
-    <div class="party-tag" id="partyTag">🎉 NEUER FOLLOWER! 🎉</div>
-    <div class="party-name" id="partyName">Name</div>
-    <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
-  </div>
+  <div id="scanline-overlay"></div>
 
   <script>
     // DEINE FESTE VERCEL-CLOUD ADRESSE
@@ -243,8 +323,70 @@
 
       document.getElementById('goalTitle').innerText = `Ziel: ${targetFollowers} Follower`;
       document.getElementById('goalText').innerText = `${currentFollowers} / ${targetFollowers}`;
-      document.getElementById('barFill').style.width = pct + '%';
+      liquidBar.setFill(pct / 100);
     }
+
+    // =====================================================================
+    // 2D Simplex Noise (Standardalgorithmus, hier kompakt implementiert) -
+    // liefert fuer jeden Alert ein koherentes, aber pro Seed einzigartiges
+    // Streumuster statt reinem Zufallsrauschen.
+    // =====================================================================
+    class SimplexNoise2D {
+      constructor(seed = 1) {
+        const p = new Uint8Array(256);
+        let s = (seed >>> 0) || 1;
+        const rand = () => {
+          s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+          return ((s >>> 0) % 100000) / 100000;
+        };
+        for (let i = 0; i < 256; i++) p[i] = i;
+        for (let i = 255; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          const tmp = p[i]; p[i] = p[j]; p[j] = tmp;
+        }
+        this.perm = new Uint8Array(512);
+        this.permMod12 = new Uint8Array(512);
+        for (let i = 0; i < 512; i++) {
+          this.perm[i] = p[i & 255];
+          this.permMod12[i] = this.perm[i] % 12;
+        }
+      }
+      noise(xin, yin) {
+        const grad3 = SimplexNoise2D.GRAD3;
+        const F2 = 0.5 * (Math.sqrt(3) - 1);
+        const G2 = (3 - Math.sqrt(3)) / 6;
+        const s = (xin + yin) * F2;
+        const i = Math.floor(xin + s);
+        const j = Math.floor(yin + s);
+        const t = (i + j) * G2;
+        const X0 = i - t, Y0 = j - t;
+        const x0 = xin - X0, y0 = yin - Y0;
+        let i1, j1;
+        if (x0 > y0) { i1 = 1; j1 = 0; } else { i1 = 0; j1 = 1; }
+        const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+        const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+        const ii = i & 255, jj = j & 255;
+        const gi0 = this.permMod12[ii + this.perm[jj]];
+        const gi1 = this.permMod12[ii + i1 + this.perm[jj + j1]];
+        const gi2 = this.permMod12[ii + 1 + this.perm[jj + 1]];
+
+        let n0 = 0, n1 = 0, n2 = 0;
+        let t0 = 0.5 - x0 * x0 - y0 * y0;
+        if (t0 >= 0) { t0 *= t0; n0 = t0 * t0 * (grad3[gi0][0] * x0 + grad3[gi0][1] * y0); }
+        let t1 = 0.5 - x1 * x1 - y1 * y1;
+        if (t1 >= 0) { t1 *= t1; n1 = t1 * t1 * (grad3[gi1][0] * x1 + grad3[gi1][1] * y1); }
+        let t2 = 0.5 - x2 * x2 - y2 * y2;
+        if (t2 >= 0) { t2 *= t2; n2 = t2 * t2 * (grad3[gi2][0] * x2 + grad3[gi2][1] * y2); }
+
+        return 70 * (n0 + n1 + n2); // ungefaehr im Bereich [-1, 1]
+      }
+    }
+    SimplexNoise2D.GRAD3 = [
+      [1, 1], [-1, 1], [1, -1], [-1, -1],
+      [1, 0], [-1, 0], [1, 0], [-1, 0],
+      [0, 1], [0, -1], [0, 1], [0, -1]
+    ];
+    const noise = new SimplexNoise2D(42);
 
     // ---------- Web-Audio-Alertsystem ----------
     // Sounds werden einmal beim Laden als dekodierte AudioBuffer vorgehalten,
@@ -266,6 +408,68 @@
         console.log('[Audio] AudioContext erstellt, initialer state:', audioCtx.state);
       }
       return audioCtx;
+    }
+
+    // ---------------------------------------------------------------------
+    // Multi-Band Audio Analyzer: zerlegt jedes abgespielte Signal per
+    // BiquadFilterNode in Sub-Bass (<120Hz) und Mids/Highs (>=120Hz).
+    // Beide gefilterten Pfade werden zusaetzlich zu ihrem jeweiligen
+    // Analyser auch an destination durchgereicht, damit der Ton normal
+    // hoerbar bleibt (Tiefpass + Hochpass summieren sich wieder zum
+    // Originalsignal). Eine einzige geteilte Instanz wird fuer jede
+    // Wiedergabe wiederverwendet, nur die transiente Source wird neu
+    // verbunden.
+    // ---------------------------------------------------------------------
+    class AudioAnalysisRig {
+      constructor(ctx) {
+        this.ctx = ctx;
+        this.lowpass = ctx.createBiquadFilter();
+        this.lowpass.type = 'lowpass';
+        this.lowpass.frequency.value = 120;
+        this.highpass = ctx.createBiquadFilter();
+        this.highpass.type = 'highpass';
+        this.highpass.frequency.value = 120;
+
+        this.subAnalyser = ctx.createAnalyser();
+        this.subAnalyser.fftSize = 256;
+        this.midAnalyser = ctx.createAnalyser();
+        this.midAnalyser.fftSize = 256;
+
+        this.lowpass.connect(this.subAnalyser);
+        this.lowpass.connect(ctx.destination);
+        this.highpass.connect(this.midAnalyser);
+        this.highpass.connect(ctx.destination);
+
+        this._subData = new Uint8Array(this.subAnalyser.frequencyBinCount);
+        this._midData = new Uint8Array(this.midAnalyser.frequencyBinCount);
+      }
+
+      connectSource(node) {
+        node.connect(this.lowpass);
+        node.connect(this.highpass);
+      }
+
+      readBands() {
+        this.subAnalyser.getByteTimeDomainData(this._subData);
+        this.midAnalyser.getByteTimeDomainData(this._midData);
+        let subSum = 0, midSum = 0;
+        for (let i = 0; i < this._subData.length; i++) subSum += Math.abs(this._subData[i] - 128);
+        for (let i = 0; i < this._midData.length; i++) midSum += Math.abs(this._midData[i] - 128);
+        // Getrennte Normalisierung: Mids/Highs (Snares/Vocals/Sprays) haben
+        // in echten Alert-Sounds deutlich mehr Rohenergie als reiner
+        // Sub-Bass (<120Hz) - mit einem gemeinsamen Divisor saettigt "mid"
+        // fast dauerhaft bei 1, waehrend "sub" kaum ueber 0.3 kommt. Werte
+        // empirisch gegen die echten follow/sub/bits/raid.mp3 kalibriert.
+        const sub = Math.min(1, (subSum / this._subData.length) / 16);
+        const mid = Math.min(1, (midSum / this._midData.length) / 90);
+        return { sub, mid };
+      }
+    }
+
+    let audioRig = null;
+    function getAudioRig() {
+      if (!audioRig) audioRig = new AudioAnalysisRig(getAudioContext());
+      return audioRig;
     }
 
     // Zentrale Resume-Funktion: wird von der Touch/Klick-Freischaltung (1),
@@ -310,6 +514,7 @@
     // stumm - Popup/Confetti/Warteschlange laufen davon unbeeinflusst weiter.
     async function preloadSounds() {
       const ctx = getAudioContext();
+      getAudioRig();
       console.log('[Audio] Starte Sound-Preload für:', Object.keys(SOUND_FILES).join(', '));
 
       await Promise.all(Object.entries(SOUND_FILES).map(async ([key, file]) => {
@@ -356,9 +561,9 @@
       if (ctx.state === 'running') {
         const source = ctx.createBufferSource();
         source.buffer = soundBuffers[key];
-        source.connect(ctx.destination);
+        getAudioRig().connectSource(source);
         source.start(0);
-        console.log(`[Audio] "${key}" via Web Audio API abgespielt.`);
+        console.log(`[Audio] "${key}" via Web Audio API abgespielt (Multi-Band-Analyse aktiv).`);
         return;
       }
 
@@ -373,6 +578,7 @@
           console.warn(`[Audio] Web Audio blockiert (state: "${ctx.state}") - Ziel-Fanfare basiert auf Synthese und hat keinen HTML5-Fallback, bleibt stumm.`);
           return;
         }
+        const rig = getAudioRig();
         const now = ctx.currentTime;
         const chord = [261.63, 329.63, 392.00, 523.25, 659.25];
         chord.forEach(freq => {
@@ -383,7 +589,7 @@
           gain.gain.setValueAtTime(0.12, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          rig.connectSource(gain);
           osc.start(now);
           osc.stop(now + 1.2);
         });
@@ -398,7 +604,7 @@
             gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.1);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.5);
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            rig.connectSource(gain);
             osc.start(ctx.currentTime + idx * 0.1);
             osc.stop(ctx.currentTime + idx * 0.1 + 0.5);
           });
@@ -407,32 +613,248 @@
       } catch (e) { console.log(e); }
     }
 
-    function triggerConfetti(colors, count) {
-      for (let i = 0; i < count; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.left = Math.random() * 100 + 'vw';
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.width = Math.random() * 12 + 6 + 'px';
-        confetti.style.height = Math.random() * 12 + 6 + 'px';
-        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0%';
-        confetti.style.animationDuration = Math.random() * 2 + 1.5 + 's';
-        confetti.style.animationDelay = Math.random() * 0.5 + 's';
-        document.body.appendChild(confetti);
+    // =====================================================================
+    // Liquid Gold/Chrome Fortschrittsbalken: klassische spaltenbasierte
+    // 2D-Wassersimulation (Feder pro Spalte + Wellenausbreitung zu
+    // Nachbarn). Laeuft dauerhaft mit eigenem, sehr guenstigem rAF-Loop
+    // (kleine Canvas-Flaeche, ~40 Spalten) - das ist bewusst die einzige
+    // Dauerschleife im Idle-Zustand.
+    // =====================================================================
+    class LiquidBar {
+      constructor(canvas, columns = 40) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.columns = columns;
+        this.heights = new Array(columns).fill(0);
+        this.velocities = new Array(columns).fill(0);
+        this.spread = 0.18;
+        this.tension = 0.02;
+        this.dampingLoss = 0.045;
+        this.fillPct = 0;
+        this._raf = null;
+        this._resize();
+        window.addEventListener('resize', () => this._resize());
+      }
+      _resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.w = rect.width;
+        this.h = rect.height;
+      }
+      setFill(pct) { this.fillPct = Math.max(0, Math.min(1, pct)); }
+      impulse(strength = 1) {
+        const col = Math.floor(Math.random() * this.columns);
+        this.velocities[col] += strength * 5;
+      }
+      start() {
+        if (this._raf) return;
+        const step = () => {
+          this._update();
+          this._draw();
+          this._raf = requestAnimationFrame(step);
+        };
+        this._raf = requestAnimationFrame(step);
+      }
+      stop() {
+        if (this._raf) cancelAnimationFrame(this._raf);
+        this._raf = null;
+      }
+      _update() {
+        const n = this.columns;
+        for (let i = 0; i < n; i++) {
+          const accel = this.tension * (0 - this.heights[i]) - this.velocities[i] * this.dampingLoss;
+          this.velocities[i] += accel;
+          this.heights[i] += this.velocities[i];
+        }
+        const leftDeltas = new Float32Array(n);
+        const rightDeltas = new Float32Array(n);
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 0; i < n; i++) {
+            if (i > 0) {
+              leftDeltas[i] = this.spread * (this.heights[i] - this.heights[i - 1]);
+              this.heights[i - 1] += leftDeltas[i];
+            }
+            if (i < n - 1) {
+              rightDeltas[i] = this.spread * (this.heights[i] - this.heights[i + 1]);
+              this.heights[i + 1] += rightDeltas[i];
+            }
+          }
+        }
+      }
+      _draw() {
+        const { ctx, w, h, columns, heights, fillPct } = this;
+        if (w <= 0 || h <= 0) return;
+        ctx.clearRect(0, 0, w, h);
+        const fillW = Math.max(2, w * fillPct);
+        const colW = w / (columns - 1);
 
-        setTimeout(() => { confetti.remove(); }, 3500);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, fillW, h);
+        ctx.clip();
+
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i < columns; i++) {
+          ctx.lineTo(i * colW, h * 0.5 + heights[i]);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, 0, w, 0);
+        grad.addColorStop(0, '#fbbf24');
+        grad.addColorStop(0.5, '#f8fafc');
+        grad.addColorStop(1, '#cbd5e1');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, h * 0.32, fillW, 1.4);
+        ctx.globalAlpha = 1;
+
+        ctx.restore();
       }
     }
 
-    // Ein Eintrag pro Alert-Art: Anzeige-Text/-Farben, Confetti-Menge und Sound
-    // an einer Stelle, statt den Popup-Code für jede Event-Art zu duplizieren.
+    const liquidBar = new LiquidBar(document.getElementById('liquidBarCanvas'));
+    liquidBar.start();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        liquidBar.stop();
+      } else {
+        liquidBar.start();
+      }
+    });
+
+    // =====================================================================
+    // GPU Spray Physics: gepooltes Canvas2D-Partikelsystem fuer Spray-
+    // Nebel/Splatter. Rauch nutzt weiche Radial-Gradienten statt teurem
+    // canvas.filter-Blur. Der rAF-Loop startet nur bei aktiver Emission
+    // und stoppt sich selbst, sobald keine Partikel mehr leben - im Idle
+    // laeuft hier nichts.
+    // =====================================================================
+    class SpraySystem {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.particles = [];
+        this.maxParticles = 260;
+        this._raf = null;
+        this._resize();
+        window.addEventListener('resize', () => this._resize());
+      }
+      _resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        this.canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
+        this.canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      // Ein Burst pro Alert: Winkel/Groesse werden aus Simplex-Noise
+      // abgeleitet, mit einem pro Aufruf einzigartigen Seed -> jedes Mal
+      // ein anderes, aber koherent-organisches Streumuster statt reinem
+      // Zufallsrauschen.
+      emitBurst(x, y, colors, seed, count = 70) {
+        for (let i = 0; i < count && this.particles.length < this.maxParticles; i++) {
+          const n = noise.noise(seed + i * 0.15, seed * 0.7);
+          const angle = n * Math.PI * 2;
+          const speedNoise = noise.noise(seed * 1.3 + i * 0.15, seed);
+          const speed = 2 + Math.abs(speedNoise) * 7;
+          this.particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1.5,
+            r: 1 + Math.abs(n) * 4.5,
+            life: 1,
+            decay: 0.008 + Math.random() * 0.01,
+            color: colors[Math.floor(Math.abs(n) * colors.length) % colors.length],
+            smoke: (i % 3 === 0)
+          });
+        }
+        this._ensureLoop();
+      }
+      // Kontinuierliches leichtes Nachspruehen waehrend ein Sound aktiv ist,
+      // Rate wird vom Mids/Highs-Band gesteuert (siehe applyMidHighFx).
+      emitAmbient(x, y, colors, rate) {
+        if (this.particles.length >= this.maxParticles) return;
+        if (Math.random() > rate) return;
+        const n = noise.noise(performance.now() * 0.003, 0);
+        const angle = n * Math.PI * 2;
+        this.particles.push({
+          x: x + (Math.random() - 0.5) * 50, y,
+          vx: Math.cos(angle) * 1.4, vy: Math.sin(angle) * 1.4 - 0.4,
+          r: 1 + Math.random() * 2.2, life: 1, decay: 0.014,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          smoke: Math.random() < 0.3
+        });
+        this._ensureLoop();
+      }
+      _ensureLoop() {
+        if (this._raf) return;
+        const step = () => {
+          this._update();
+          this._draw();
+          if (this.particles.length > 0) {
+            this._raf = requestAnimationFrame(step);
+          } else {
+            this._raf = null;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          }
+        };
+        this._raf = requestAnimationFrame(step);
+      }
+      _update() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx; p.y += p.vy;
+          p.vy += 0.035;
+          p.vx *= 0.99;
+          p.life -= p.decay;
+          if (p.life <= 0) this.particles.splice(i, 1);
+        }
+      }
+      _draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of this.particles) {
+          const alpha = Math.max(0, p.life);
+          if (p.smoke) {
+            const radius = p.r * (2.2 - p.life) * 4;
+            const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+            grad.addColorStop(0, p.color + 'aa');
+            grad.addColorStop(1, p.color + '00');
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = alpha * 0.35;
+            ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fill();
+          } else {
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha * 0.85;
+            ctx.fill();
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    const spraySystem = new SpraySystem(document.getElementById('spray-canvas'));
+
+    // Ein Eintrag pro Alert-Art: Anzeige-Text/-Farben und Sound an einer
+    // Stelle, statt den Popup-Code fuer jede Event-Art zu duplizieren.
+    // "confetti"-Farben werden jetzt vom SpraySystem statt DOM-Konfetti
+    // verwendet.
     const ALERT_CONFIG = {
       follow: {
         tag: '🎉 NEUER FOLLOWER! 🎉',
         color: '#38bdf8',
         glow: 'rgba(56, 189, 248, 0.6)',
-        confetti: ['#38bdf8', '#22c55e', '#a855f7', '#fbbf24'],
-        confettiCount: 70,
+        spray: ['#38bdf8', '#22c55e', '#a855f7', '#fbbf24'],
+        sprayCount: 60,
         thanks: p => `Vielen Dank für deinen Support, ${p.name}! Willkommen im Stream!`,
         sound: () => playFileSound('follow')
       },
@@ -440,8 +862,8 @@
         tag: '🚀 ZIEL KRACHER! HYPE! 🚀',
         color: '#fbbf24',
         glow: 'rgba(251, 191, 36, 0.8)',
-        confetti: ['#fbbf24', '#f97316', '#ffffff', '#38bdf8'],
-        confettiCount: 120,
+        spray: ['#fbbf24', '#f97316', '#ffffff', '#38bdf8'],
+        sprayCount: 110,
         thanks: p => `Mega! Ziel erreicht! Nächstes Ziel: ${p.nextTarget} Follower!`,
         sound: () => playGoalSound()
       },
@@ -449,8 +871,8 @@
         tag: '⭐ NEUER SUB! ⭐',
         color: '#a855f7',
         glow: 'rgba(168, 85, 247, 0.65)',
-        confetti: ['#a855f7', '#38bdf8', '#fbbf24', '#ffffff'],
-        confettiCount: 90,
+        spray: ['#a855f7', '#38bdf8', '#fbbf24', '#ffffff'],
+        sprayCount: 80,
         thanks: p => `Willkommen in der Community, ${p.name}!`,
         sound: () => playFileSound('sub')
       },
@@ -458,8 +880,8 @@
         tag: '🔥 RESUB! 🔥',
         color: '#a855f7',
         glow: 'rgba(168, 85, 247, 0.65)',
-        confetti: ['#a855f7', '#38bdf8', '#fbbf24', '#ffffff'],
-        confettiCount: 90,
+        spray: ['#a855f7', '#38bdf8', '#fbbf24', '#ffffff'],
+        sprayCount: 80,
         thanks: p => `Danke, dass du seit ${p.months} Monaten dabei bist, ${p.name}!`,
         sound: () => playFileSound('sub')
       },
@@ -467,8 +889,8 @@
         tag: '💎 BITS! 💎',
         color: '#f97316',
         glow: 'rgba(249, 115, 22, 0.65)',
-        confetti: ['#f97316', '#fbbf24', '#ffffff'],
-        confettiCount: 100,
+        spray: ['#f97316', '#fbbf24', '#ffffff'],
+        sprayCount: 90,
         thanks: p => `Danke für ${p.amount} Bits, ${p.name}!`,
         sound: () => playFileSound('bits')
       },
@@ -476,12 +898,91 @@
         tag: '🚨 RAID! 🚨',
         color: '#ef4444',
         glow: 'rgba(239, 68, 68, 0.7)',
-        confetti: ['#ef4444', '#f97316', '#fbbf24'],
-        confettiCount: 130,
+        spray: ['#ef4444', '#f97316', '#fbbf24'],
+        sprayCount: 120,
         thanks: p => `Willkommen, ${p.name}, mit ${p.viewers} Zuschauern!`,
         sound: () => playFileSound('raid')
       }
     };
+
+    // =====================================================================
+    // Alert-reaktive FX-Schleife: EIN gemeinsamer rAF-Loop liest waehrend
+    // eines Alerts die Audio-Baender und steuert Screen-Shake, Impact-
+    // Flash, Liquid-Bar-Impulse, Spray-Nachschub und den Chromatic-
+    // Aberration-Glitch. Hart auf 5 Sekunden gedeckelt (Performance-
+    // Vorgabe) - danach stoppt die Schleife komplett und alle FX werden
+    // zurueckgesetzt, unabhaengig davon, ob das Popup selbst noch sichtbar
+    // ist.
+    // =====================================================================
+    const ALERT_FX_DURATION_MS = 5000;
+    let alertFxActive = false;
+    let alertFxStopAt = 0;
+    let lastImpulseAt = 0;
+    let lastGlitchAt = 0;
+
+    function startAlertFx() {
+      alertFxActive = true;
+      alertFxStopAt = performance.now() + ALERT_FX_DURATION_MS;
+      requestAnimationFrame(stepAlertFx);
+    }
+
+    function stepAlertFx(now) {
+      if (!alertFxActive) return;
+      if (now >= alertFxStopAt) {
+        alertFxActive = false;
+        resetAlertFxVisuals();
+        return;
+      }
+
+      const bands = audioRig ? audioRig.readBands() : { sub: 0, mid: 0 };
+      // Untergrenze, damit der Alert auch ohne (noch fehlende) Sounddatei
+      // spuerbar bleibt, statt komplett statisch zu wirken.
+      const sub = Math.max(bands.sub, 0.12);
+      const mid = Math.max(bands.mid, 0.18);
+
+      applySubBassFx(sub, now);
+      applyMidHighFx(mid);
+
+      requestAnimationFrame(stepAlertFx);
+    }
+
+    function applySubBassFx(sub, now) {
+      const popup = document.getElementById('party-popup');
+      const shakeAmp = sub * 14;
+      const shakeX = (Math.random() - 0.5) * shakeAmp;
+      const shakeY = (Math.random() - 0.5) * shakeAmp;
+      popup.style.transform = `translate(calc(-50% + ${shakeX.toFixed(1)}px), calc(-50% + ${shakeY.toFixed(1)}px)) scale(1)`;
+
+      document.getElementById('impact-flash').style.opacity = (sub * 0.4).toFixed(2);
+
+      if (sub > 0.42 && now - lastImpulseAt > 140) {
+        liquidBar.impulse(sub);
+        lastImpulseAt = now;
+      }
+
+      if (sub > 0.5 && now - lastGlitchAt > 250) {
+        popup.classList.add('glitching');
+        lastGlitchAt = now;
+        setTimeout(() => popup.classList.remove('glitching'), 150);
+      }
+    }
+
+    function applyMidHighFx(mid) {
+      const popup = document.getElementById('party-popup');
+      popup.style.boxShadow = `0 0 ${40 + mid * 60}px ${popup.dataset.glow || 'rgba(56, 189, 248, 0.6)'}`;
+
+      const rect = popup.getBoundingClientRect();
+      const originX = rect.left + rect.width / 2;
+      const originY = rect.top + rect.height / 2;
+      spraySystem.emitAmbient(originX, originY, popup._sprayColors || ['#38bdf8'], mid * 0.85);
+    }
+
+    function resetAlertFxVisuals() {
+      const popup = document.getElementById('party-popup');
+      popup.style.transform = '';
+      popup.classList.remove('glitching');
+      document.getElementById('impact-flash').style.opacity = '0';
+    }
 
     function showPartyPopup(kind, payload) {
       const config = ALERT_CONFIG[kind];
@@ -499,14 +1000,28 @@
       tag.innerText = config.tag;
       tag.style.color = config.color;
       nameElem.innerText = payload.name;
-      nameElem.style.textShadow = `0 0 25px ${config.glow}`;
+      nameElem.setAttribute('data-text', payload.name);
       thanks.innerText = config.thanks(payload);
       popup.style.borderColor = config.color;
       popup.style.boxShadow = `0 0 60px ${config.glow}`;
+      popup.dataset.glow = config.glow;
+      popup._sprayColors = config.spray;
 
       config.sound();
-      triggerConfetti(config.confetti, config.confettiCount);
 
+      const rect = popup.getBoundingClientRect();
+      // Erster Burst sofort beim Triggern (rect kann beim allerersten Alert
+      // noch die Position vor dem "show"-Uebergang widerspiegeln, was fuer
+      // den Spray-Ursprung unerheblich ist).
+      spraySystem.emitBurst(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+        config.spray,
+        Math.random() * 1000,
+        config.sprayCount
+      );
+
+      startAlertFx();
       popup.classList.add('show');
 
       setTimeout(() => {
@@ -516,7 +1031,7 @@
           popupBusy = false;
           processPopupQueue();
         }, 450);
-      }, 6000);
+      }, ALERT_FX_DURATION_MS);
     }
 
     // Warteschlange, damit mehrere Events kurz hintereinander (z.B. Bit-Train
