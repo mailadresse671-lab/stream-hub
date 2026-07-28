@@ -1,6 +1,13 @@
+const PLAYER_NAME = "DaNgsxR";
+const PLATFORM = "epic";
+const CACHE_TTL_MS = 30 * 1000;
+
+// Modul-weiter In-Memory-Cache: bleibt zwischen Aufrufen erhalten, solange
+// Vercel dieselbe (warme) Function-Instanz wiederverwendet.
+let cache = { data: null, timestamp: 0 };
+
 export default async function handler(req, res) {
   // CORS-Header setzen, damit dein Tablet die Daten ungehindert lesen darf
-  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
 
@@ -9,8 +16,12 @@ export default async function handler(req, res) {
     return;
   }
 
-  const PLAYER_NAME = "DaNgsxR";
-  const PLATFORM = "epic";
+  const now = Date.now();
+
+  // Frischer Cache-Treffer: kein neuer Request an tracker.gg nötig
+  if (cache.data && (now - cache.timestamp) < CACHE_TTL_MS) {
+    return res.status(200).json({ ...cache.data, cached: true, stale: false });
+  }
 
   try {
     // Anfrage direkt vom Vercel-Cloudserver an die Tracker-API (wird nicht geblockt)
@@ -21,6 +32,9 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
+      if (cache.data) {
+        return res.status(200).json({ ...cache.data, cached: true, stale: true });
+      }
       return res.status(200).json({ success: false, message: 'Tracker lädt noch...' });
     }
 
@@ -31,16 +45,26 @@ export default async function handler(req, res) {
       const wins = overview.stats.wins ? overview.stats.wins.value : 0;
       const matches = overview.stats.matchesPlayed ? overview.stats.matchesPlayed.value : 0;
 
-      return res.status(200).json({
+      const payload = {
         success: true,
         player: PLAYER_NAME,
         wins: wins,
         matches: matches
-      });
+      };
+
+      cache = { data: payload, timestamp: now };
+
+      return res.status(200).json({ ...payload, cached: false, stale: false });
     }
 
+    if (cache.data) {
+      return res.status(200).json({ ...cache.data, cached: true, stale: true });
+    }
     return res.status(200).json({ success: false, message: 'Keine Stats gefunden' });
   } catch (err) {
+    if (cache.data) {
+      return res.status(200).json({ ...cache.data, cached: true, stale: true });
+    }
     return res.status(500).json({ error: err.message });
   }
 }

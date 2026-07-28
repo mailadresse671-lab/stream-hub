@@ -8,10 +8,12 @@ Streaming Overlays & Serverless APIs für Twitch/Streamlabs, gehostet auf Vercel
 
 ## Dateistruktur
 
-- **`index.html`** — Session Stats Widget (Wins, Losses, Winrate). Fragt periodisch (alle 20s) die Vercel-API `/api/stats` ab und berechnet die Session-Differenz gegenüber dem beim Laden erfassten Basiswert.
-- **`goal.html`** — Follower-Ziel-Widget mit Fortschrittsbalken. Verbindet sich per Socket.IO mit dem Streamlabs-Socket-API (`sockets.streamlabs.com`) und zeigt bei neuen Followern sowie beim Erreichen des Ziels ein Party-Animations-Popup (Konfetti, Sound, Popup-Overlay in Bildschirmmitte).
-- **`chat.html`** — Chat-Overlay Widget. Verbindet sich via `tmi.js` mit einem Twitch-Kanal und zeigt eingehende Chat-Nachrichten als animierte, automatisch ausblendende Karten an.
-- **`api/stats.js`** — Vercel Serverless Function. Fragt die Rocket League Tracker API (`api.tracker.gg`) für den Spieler **„DaNgsxR"** (Plattform: `epic`) ab und liefert `wins`/`matches` als JSON zurück. Setzt CORS-Header, damit die Overlays die Daten browserseitig abrufen können.
+- **`index.html`** — Session Stats Widget (Wins, Losses, Winrate). Fragt periodisch (alle 20s) die Vercel-API `/api/stats` ab und berechnet die Session-Differenz gegenüber dem beim Laden erfassten Basiswert. Zeigt zusätzlich einen Live/Cached/Offline-Statuspunkt basierend auf den `cached`/`stale`-Feldern der API-Antwort.
+- **`goal.html`** — Follower-Ziel-Widget mit Fortschrittsbalken. Holt sich beim Laden den Streamlabs-Socket-Token von `/api/streamlabs-proxy` und verbindet sich anschließend per Socket.IO mit dem Streamlabs-Socket-API (`sockets.streamlabs.com`). Bei neuen Followern sowie beim Erreichen des Ziels wird ein Party-Animations-Popup (Konfetti, Sound, Popup-Overlay in Bildschirmmitte) über eine Warteschlange (`popupQueue`) angezeigt, damit mehrere Follower kurz hintereinander (z. B. bei einem Raid) sauber nacheinander abgespielt werden statt sich zu überschreiben.
+- **`chat.html`** — Chat-Overlay Widget. Verbindet sich via `tmi.js` mit einem Twitch-Kanal und zeigt eingehende Chat-Nachrichten als animierte Karten an, die nach 15s automatisch ausblenden.
+- **`branding.html`** — Statisches Branding-Widget für die untere rechte Ecke („DaN | LIVE STREAM").
+- **`api/stats.js`** — Vercel Serverless Function. Fragt die Rocket League Tracker API (`api.tracker.gg`) für den Spieler **„DaNgsxR"** (Plattform: `epic`) ab und liefert `wins`/`matches` als JSON zurück. Cached das Ergebnis 30 Sekunden lang In-Memory (modulweite Variable, gilt pro warmer Function-Instanz) und liefert bei einem fehlgeschlagenen Tracker.gg-Request den letzten bekannten Stand als `stale: true` zurück, statt das Overlay einfrieren zu lassen.
+- **`api/streamlabs-proxy.js`** — Vercel Serverless Function, die den Streamlabs-Socket-Token aus der Umgebungsvariable `STREAMLABS_SOCKET_TOKEN` liest und als JSON zurückgibt. Hält den Token aus dem öffentlich ausgelieferten `goal.html`-Quelltext heraus.
 
 ## Deployment & Hosting
 
@@ -28,7 +30,9 @@ Streaming Overlays & Serverless APIs für Twitch/Streamlabs, gehostet auf Vercel
 
 ## Hinweis (Sicherheit)
 
-`goal.html` enthält aktuell den Streamlabs-Socket-Token fest im Client-Code eingebettet. Da die Datei öffentlich über Vercel ausgeliefert wird, ist der Token für jeden einsehbar (View-Source). Empfehlenswert wäre, den Token stattdessen serverseitig (z. B. über eine weitere `api/`-Function oder Umgebungsvariable) zu verwalten.
+Der Streamlabs-Socket-Token liegt nicht mehr fest im Client-Code von `goal.html`, sondern wird zur Laufzeit von `api/streamlabs-proxy.js` geladen, das ihn aus der Vercel-Umgebungsvariable `STREAMLABS_SOCKET_TOKEN` liest. **Damit dies funktioniert, muss `STREAMLABS_SOCKET_TOKEN` im Vercel-Projekt (Project Settings → Environment Variables) gesetzt sein** — ohne diese Variable liefert der Proxy einen Fehler und `goal.html` verbindet sich nicht.
+
+Wichtig: Das entfernt den Token zwar aus zukünftigen Commits und aus der View-Source-Ansicht, macht ihn aber **nicht** rückwirkend unsichtbar — der alte Token steht weiterhin im Klartext in der Git-Historie dieses Repos (frühere Commits vor diesem Fix). Der alte Token sollte daher im Streamlabs-Dashboard rotiert/neu generiert und der neue Wert ausschließlich als Vercel-Umgebungsvariable hinterlegt werden.
 
 ## System & Hardware Context
 

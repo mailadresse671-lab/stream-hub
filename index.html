@@ -75,10 +75,25 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .live-dot.status-live {
       background: var(--success);
       box-shadow: 0 0 8px var(--success);
       animation: pulse 1.8s ease-in-out infinite;
-      flex-shrink: 0;
+    }
+
+    .live-dot.status-cached {
+      background: var(--warning);
+      box-shadow: 0 0 8px var(--warning);
+    }
+
+    .live-dot.status-offline {
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+      animation: pulse 1.8s ease-in-out infinite;
     }
 
     @keyframes pulse {
@@ -96,9 +111,13 @@
       font-size: 9.5px;
       font-weight: 800;
       letter-spacing: 1.6px;
-      color: var(--success);
+      color: var(--text-muted);
       text-transform: uppercase;
     }
+
+    .eyebrow.status-live { color: var(--success); }
+    .eyebrow.status-cached { color: var(--warning); }
+    .eyebrow.status-offline { color: var(--danger); }
 
     .title {
       font-size: 16px;
@@ -154,9 +173,9 @@
     <div class="shimmer-frame">
       <div class="card">
         <div class="brand">
-          <span class="live-dot"></span>
+          <span class="live-dot" id="statusDot"></span>
           <div class="brand-text">
-            <span class="eyebrow">Auto Tracking</span>
+            <span class="eyebrow" id="statusLabel">Connecting…</span>
             <span class="title">Session Stats</span>
           </div>
         </div>
@@ -202,6 +221,17 @@
       document.getElementById('winrate').innerText = rate + '%';
     }
 
+    function setStatus(status) {
+      // status: 'live' | 'cached' | 'offline'
+      const dot = document.getElementById('statusDot');
+      const label = document.getElementById('statusLabel');
+      const labels = { live: 'Live', cached: 'Cached', offline: 'Offline' };
+
+      dot.className = 'live-dot status-' + status;
+      label.className = 'eyebrow status-' + status;
+      label.innerText = labels[status] || 'Connecting…';
+    }
+
     async function fetchStats() {
       try {
         const cleanUrl = VERCEL_URL.replace(/\/$/, "");
@@ -209,6 +239,8 @@
         const data = await res.json();
 
         if (data && data.success) {
+          setStatus(data.stale ? 'cached' : 'live');
+
           const currentWins = data.wins;
           const currentMatches = data.matches;
 
@@ -222,8 +254,11 @@
             sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
             updateUI();
           }
+        } else {
+          setStatus('offline');
         }
       } catch (e) {
+        setStatus('offline');
         console.log("Cloud Fetch aktiv...");
       }
     }
