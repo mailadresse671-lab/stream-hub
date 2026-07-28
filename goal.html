@@ -9,27 +9,27 @@
        noetig). -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --concrete: #17140f;
-      --concrete-mid: rgba(26, 22, 18, 0.92);
+      --asphalt: #17130f;
+      --asphalt-mid: rgba(23, 19, 15, 0.94);
+      --rust: #3a2317;
       --chrome-1: #e8e6e1;
       --chrome-2: #9a958a;
-      --chrome-3: #3f3b34;
-      --blood: #7f1010;
-      --blood-bright: #d21f1f;
-      --gold: #c9a227;
-      --gold-bright: #f2cd4d;
-      --text-primary: #f2ede0;
-      --text-muted: #a89f8f;
+      --blood: #b30000;
+      --blood-glow: rgba(179, 0, 0, 0.6);
+      --gold: #ffd700;
+      --gold-glow: rgba(255, 215, 0, 0.55);
+      --text-primary: #f5f0e6;
+      --text-muted: #b7ac9c;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
       background: transparent;
-      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
       color: var(--text-primary);
       overflow: hidden;
       height: 100vh;
@@ -48,28 +48,6 @@
       z-index: 1;
     }
 
-    /* ---------- Wiederverwendbare Gangster-Zierleisten ---------- */
-    .barbwire-strip {
-      height: 7px;
-      width: 100%;
-      background:
-        linear-gradient(135deg, var(--chrome-1) 25%, transparent 25%) 0 0 / 9px 9px,
-        linear-gradient(225deg, var(--chrome-1) 25%, transparent 25%) 0 0 / 9px 9px,
-        linear-gradient(315deg, var(--chrome-1) 25%, transparent 25%) 0 0 / 9px 9px,
-        linear-gradient(45deg,  var(--chrome-1) 25%, transparent 25%) 0 0 / 9px 9px;
-      opacity: 0.65;
-    }
-
-    .chain-strip {
-      height: 9px;
-      width: 100%;
-      background-image: radial-gradient(circle at 5px 4.5px, var(--chrome-1) 0 2.6px, transparent 3px);
-      background-size: 11px 11px;
-      background-repeat: repeat-x;
-      background-position: center;
-      opacity: 0.7;
-    }
-
     .crack-overlay {
       position: absolute;
       inset: 0;
@@ -77,6 +55,35 @@
       height: 100%;
       pointer-events: none;
       z-index: 1;
+    }
+
+    /* ---------- Einschusslöcher: statische, dezent gluehende
+       Beschaedigungen auf der Panzerplatten-Oberflaeche ---------- */
+    .bullet-hole {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #000 0%, #1c1712 55%, transparent 75%);
+      box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      animation: bulletGlow 2.6s ease-in-out infinite;
+      z-index: 2;
+    }
+    .bullet-hole::before {
+      content: '';
+      position: absolute;
+      inset: -7px;
+      background:
+        linear-gradient(12deg, transparent 47%, rgba(179, 0, 0, 0.4) 49%, transparent 51%),
+        linear-gradient(96deg, transparent 47%, rgba(179, 0, 0, 0.32) 49%, transparent 51%),
+        linear-gradient(163deg, transparent 47%, rgba(179, 0, 0, 0.3) 49%, transparent 51%),
+        linear-gradient(210deg, transparent 47%, rgba(179, 0, 0, 0.28) 49%, transparent 51%);
+      border-radius: 50%;
+    }
+    @keyframes bulletGlow {
+      0%, 100% { box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9); }
+      50% { box-shadow: 0 0 11px 3px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9); }
     }
 
     /* ---------- Top-Right Fortschritts-Widget ---------- */
@@ -90,13 +97,13 @@
 
     .shimmer-frame {
       position: relative;
-      clip-path: polygon(16px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 22px) 100%, 0% 100%, 0% 10px);
+      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
       padding: 2px;
       background: linear-gradient(120deg,
-        rgba(201, 162, 39, 0.2),
-        rgba(242, 205, 77, 0.95),
-        rgba(210, 31, 31, 0.6),
-        rgba(154, 149, 138, 0.35));
+        rgba(255, 215, 0, 0.2),
+        rgba(255, 215, 0, 0.9),
+        rgba(179, 0, 0, 0.65),
+        rgba(154, 149, 138, 0.3));
       background-size: 300% 300%;
       animation: shimmer 7s ease-in-out infinite;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
@@ -112,13 +119,13 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 7px;
-      background: var(--concrete-mid);
+      gap: 8px;
+      background: linear-gradient(155deg, var(--asphalt-mid), rgba(58, 35, 23, 0.5));
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 20px) 100%, 0% 100%, 0% 12px);
-      padding: 12px 20px 12px;
-      min-width: 230px;
+      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
+      padding: 20px 26px 18px;
+      min-width: 240px;
       overflow: hidden;
     }
 
@@ -126,7 +133,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle at 8px 8px, rgba(201, 162, 39, 0.10) 0 2px, transparent 2.4px);
+      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.08) 0 2px, transparent 2.4px);
       background-size: 26px 26px;
       pointer-events: none;
     }
@@ -139,24 +146,24 @@
     }
 
     .goal-title {
-      font-family: 'Pirata One', 'Arial Black', sans-serif;
-      font-size: 11px;
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: 13px;
       font-weight: 400;
-      letter-spacing: 1.4px;
-      color: var(--gold-bright);
+      letter-spacing: 1.6px;
+      color: var(--gold);
       text-transform: uppercase;
       white-space: nowrap;
-      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
     }
 
     .goal-stats {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      font-size: 13px;
-      font-weight: 900;
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-weight: 800;
+      font-size: 14px;
       color: var(--chrome-1);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
-      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
     }
 
     /* ---------- Liquid Gold/Chrome/Blood Fortschrittsbalken (Canvas2D) ---------- */
@@ -179,6 +186,7 @@
     /* Diagnose-Zeile fuer Token-/Socket-Status - klein & dezent, aber auf
        dem Tablet ohne Inspector direkt sichtbar. */
     .debug-line {
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
       font-size: 8px;
       color: var(--text-muted);
       letter-spacing: 0.3px;
@@ -188,36 +196,25 @@
       line-height: 1.4;
     }
 
-    /* ---------- Party Pop-up (Bildschirmmitte) ---------- */
+    /* ---------- Party Pop-up (Bildschirmmitte) ----------
+       #party-popup ist die AEUSSERE, ungeclippte Huelle: sie traegt
+       Position/Opacity/Transform (inkl. Lowrider-Hydraulik + Recoil-Kick)
+       und ist damit fest mit dem Audio-/Physik-System verknuepft.
+       #party-panel ist die eigentliche "zerschossene Panzerplatte" mit dem
+       zerklüfteten clip-path - Badges/Tape haengen absichtlich UEBER den
+       Panel-Rand hinaus und duerfen deshalb nicht Kind von #party-panel
+       sein (clip-path wuerde sie sonst mit abschneiden). */
 
     #party-popup {
       position: absolute;
       top: 35%;
       left: 50%;
       transform: translate(-50%, -50%) scale(0.5);
-      background: linear-gradient(135deg, rgba(23, 20, 15, 0.96), rgba(38, 33, 26, 0.96));
-      border: 2px solid var(--gold);
-      clip-path: polygon(4% 0%, 96% 0%, 100% 10%, 100% 86%, 93% 100%, 8% 100%, 0% 88%, 0% 12%);
-      padding: 30px 62px 26px;
-      text-align: center;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      box-shadow: 0 0 60px rgba(201, 162, 39, 0.55);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28),
                   transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
       z-index: 100;
-      overflow: hidden;
-    }
-
-    #party-popup::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle at 10px 10px, rgba(201, 162, 39, 0.09) 0 2.4px, transparent 3px);
-      background-size: 30px 30px;
-      pointer-events: none;
     }
 
     #party-popup.show {
@@ -225,33 +222,55 @@
       transform: translate(-50%, -50%) scale(1);
     }
 
+    #party-panel {
+      position: relative;
+      background: linear-gradient(155deg, rgba(23, 19, 15, 0.97), rgba(58, 35, 23, 0.55));
+      border: 2px solid var(--blood);
+      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
+      padding: 38px 66px 34px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    #party-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 10px 10px, rgba(255, 215, 0, 0.07) 0 2.4px, transparent 3px);
+      background-size: 30px 30px;
+      pointer-events: none;
+    }
+
     .party-tag {
       position: relative;
-      font-family: 'Pirata One', 'Arial Black', sans-serif;
-      font-size: 15px;
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: 17px;
       font-weight: 400;
-      color: var(--gold-bright);
+      color: var(--gold);
       letter-spacing: 3px;
       text-transform: uppercase;
-      margin: 8px 0 10px;
+      margin: 6px 0 12px;
       text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.85);
     }
 
-    /* Gothic-Tattoo-Typografie mit Spray-Drip-Verzerrung + Blood/Chrome-Schlagschatten */
+    /* Bebas Neue: fett, kondensiert, gestochen scharf lesbar - keine
+       Verzerrungsfilter mehr auf dem Namen, Lesbarkeit hat Prioritaet. */
     .party-name {
       position: relative;
-      font-family: 'UnifrakturMaguntia', 'Pirata One', 'Arial Black', sans-serif;
+      font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
       font-weight: 400;
-      font-size: 54px;
-      letter-spacing: 0px;
+      font-size: 58px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
       color: var(--text-primary);
-      margin: 6px 0;
+      margin: 8px 0;
       word-break: break-word;
-      filter: url(#spray-drip);
       text-shadow:
-        3px 3px 0 var(--blood-bright),
-        6px 6px 0 rgba(0, 0, 0, 0.6),
-        0 0 30px rgba(201, 162, 39, 0.5);
+        3px 3px 0 var(--blood),
+        5px 5px 0 rgba(0, 0, 0, 0.65),
+        0 0 26px var(--gold-glow);
     }
 
     /* Chromatic-Aberration-Glitch, ausgeloest vom Sub-Bass-Peak */
@@ -264,19 +283,19 @@
       text-shadow: none;
       filter: none;
     }
-    #party-popup.glitching .party-name::before {
+    #party-panel.glitching .party-name::before {
       color: var(--chrome-1);
       opacity: 0.85;
       transform: translate(-4px, 1px);
       mix-blend-mode: screen;
     }
-    #party-popup.glitching .party-name::after {
-      color: var(--blood-bright);
+    #party-panel.glitching .party-name::after {
+      color: var(--blood);
       opacity: 0.85;
       transform: translate(4px, -1px);
       mix-blend-mode: screen;
     }
-    #party-popup.glitching {
+    #party-panel.glitching {
       animation: tear 0.4s steps(1);
     }
     @keyframes tear {
@@ -288,13 +307,88 @@
 
     .party-thanks {
       position: relative;
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-weight: 600;
       font-size: 15px;
       color: var(--text-muted);
-      font-weight: 600;
-      margin-top: 8px;
+      margin-top: 10px;
     }
 
-    /* ---------- FX-Layer: Spray-/Bullet-Canvas, Impact-Flash, VHS-Scanlines ---------- */
+    /* ---------- Badges: MOST WANTED Patch + Nummernschild ----------
+       Absichtlich Geschwister von #party-panel (nicht Kind), damit sie
+       ueber den geclippten Panel-Rand hinausragen koennen. */
+    .most-wanted-badge {
+      position: absolute;
+      top: -16px;
+      left: 28px;
+      background: var(--blood);
+      color: var(--text-primary);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 14px;
+      letter-spacing: 1.5px;
+      padding: 6px 16px 5px;
+      border: 2px solid var(--gold);
+      border-radius: 2px;
+      transform: rotate(-4deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), 0 0 16px var(--blood-glow);
+      white-space: nowrap;
+      z-index: 6;
+    }
+
+    .license-plate {
+      position: absolute;
+      bottom: -20px;
+      right: 26px;
+      background: linear-gradient(180deg, #f2f1ea, #dcdad0);
+      color: #15130f;
+      text-align: center;
+      padding: 4px 14px 3px;
+      border: 2px solid #15130f;
+      border-radius: 3px;
+      transform: rotate(3deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+      line-height: 1.05;
+      z-index: 6;
+    }
+    .license-plate .plate-state {
+      display: block;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 7px;
+      letter-spacing: 2px;
+    }
+    .license-plate .plate-number {
+      display: block;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 1.5px;
+    }
+
+    /* ---------- Abgerissenes "CRIME SCENE"-Absperrband ---------- */
+    .crime-tape {
+      position: absolute;
+      left: 50%;
+      width: 132%;
+      height: 20px;
+      background: repeating-linear-gradient(45deg, var(--gold) 0 16px, #16130f 16px 32px);
+      color: #16130f;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .crime-tape--a { top: 12%; transform: translateX(-50%) rotate(-5deg); }
+    .crime-tape--b { bottom: 8%; transform: translateX(-50%) rotate(4deg); }
+
+    /* ---------- FX-Layer: Spray-/Bullet-Canvas, Muzzle-Flash, Impact-Flash,
+       Cop-Siren, VHS-Scanlines ---------- */
 
     #spray-canvas {
       position: absolute;
@@ -306,9 +400,45 @@
       position: absolute;
       inset: 0;
       z-index: 95;
-      background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.9), rgba(210, 31, 31, 0.4) 55%, transparent 80%);
+      background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.9), rgba(179, 0, 0, 0.42) 55%, transparent 80%);
       opacity: 0;
       pointer-events: none;
+    }
+
+    /* Einmaliger Muendungsblitz beim Alert-Trigger (Schuss-Moment), separat
+       vom kontinuierlichen sub-bass-gesteuerten Impact-Flash. */
+    #muzzle-flash {
+      position: absolute;
+      inset: 0;
+      z-index: 96;
+      background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.95), rgba(255, 215, 0, 0.5) 35%, transparent 70%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    #muzzle-flash.fire {
+      animation: muzzleFlashPulse 0.22s ease-out;
+    }
+    @keyframes muzzleFlashPulse {
+      0% { opacity: 0; transform: scale(0.7); }
+      15% { opacity: 1; transform: scale(1.15); }
+      100% { opacity: 0; transform: scale(1.4); }
+    }
+
+    /* Rot-blaues US-Police-Siren-Strobe im Hintergrund waehrend Alerts */
+    #cop-siren {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      opacity: 0;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+    #cop-siren.active {
+      animation: copSiren 0.5s steps(1) infinite;
+    }
+    @keyframes copSiren {
+      0%, 49% { background: radial-gradient(circle at 15% 45%, rgba(220, 20, 20, 0.5), transparent 62%); opacity: 1; }
+      50%, 100% { background: radial-gradient(circle at 85% 45%, rgba(20, 70, 220, 0.5), transparent 62%); opacity: 1; }
     }
 
     #scanline-overlay {
@@ -330,20 +460,13 @@
 </head>
 <body>
 
-  <!-- SVG-Filter fuer die "spray drip"-Kantenverzerrung auf dem Party-Namen -->
-  <svg width="0" height="0" style="position:absolute">
-    <filter id="spray-drip">
-      <feTurbulence type="fractalNoise" baseFrequency="0.01 0.05" numOctaves="2" seed="7" result="noise"/>
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </svg>
-
   <div id="shake-root">
     <!-- Fortschritts-Widget oben rechts -->
     <div class="goal-position">
       <div class="shimmer-frame">
         <div class="goal-card" id="goalContainer">
-          <div class="barbwire-strip"></div>
+          <div class="bullet-hole" style="top: 8px; right: 16px; animation-delay: 0.4s;"></div>
+          <div class="bullet-hole" style="bottom: 10px; left: 18px; animation-delay: 1.2s;"></div>
           <div class="goal-header">
             <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
             <span class="goal-stats" id="goalText">209 / 210</span>
@@ -356,21 +479,37 @@
       </div>
     </div>
 
-    <!-- Party Pop-up in der Mitte -->
+    <!-- Party Pop-up in der Mitte: #party-popup (aeussere Huelle, Transform/
+         Opacity) + #party-panel (geclippte Panzerplatte) + ueberhaengende
+         Badges/Tape als Geschwister von #party-panel -->
     <div id="party-popup">
-      <svg class="crack-overlay" viewBox="0 0 400 300" preserveAspectRatio="none">
-        <path d="M0,35 L55,50 L38,85 L105,95 L85,142 L150,132" stroke="rgba(232,230,225,0.16)" stroke-width="1.4" fill="none"/>
-        <path d="M400,255 L342,236 L360,198 L302,188 L320,150" stroke="rgba(232,230,225,0.14)" stroke-width="1.2" fill="none"/>
-      </svg>
-      <div class="barbwire-strip"></div>
-      <div class="party-tag" id="partyTag">🎉 NEUER FOLLOWER! 🎉</div>
-      <div class="party-name" id="partyName" data-text="Name">Name</div>
-      <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
-      <div class="chain-strip"></div>
+      <div id="party-panel">
+        <svg class="crack-overlay" viewBox="0 0 400 300" preserveAspectRatio="none">
+          <path d="M0,35 L55,50 L38,85 L105,95 L85,142 L150,132" stroke="rgba(232,230,225,0.16)" stroke-width="1.4" fill="none"/>
+          <path d="M400,255 L342,236 L360,198 L302,188 L320,150" stroke="rgba(232,230,225,0.14)" stroke-width="1.2" fill="none"/>
+        </svg>
+        <div class="bullet-hole" style="top: 16px; left: 22px; animation-delay: 0s;"></div>
+        <div class="bullet-hole" style="top: 30%; right: 14px; animation-delay: 0.7s;"></div>
+        <div class="bullet-hole" style="bottom: 24px; left: 16%; animation-delay: 1.5s;"></div>
+        <div class="bullet-hole" style="bottom: 40%; right: 22%; animation-delay: 0.3s;"></div>
+        <div class="bullet-hole" style="top: 45%; left: 10px; animation-delay: 1.9s;"></div>
+        <div class="party-tag" id="partyTag">🎉 NEUER FOLLOWER! 🎉</div>
+        <div class="party-name" id="partyName" data-text="Name">Name</div>
+        <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
+      </div>
+      <div class="most-wanted-badge">☠️ MOST WANTED</div>
+      <div class="license-plate">
+        <span class="plate-state">CALIFORNIA</span>
+        <span class="plate-number">THUG-90</span>
+      </div>
+      <div class="crime-tape crime-tape--a">☠ CRIME SCENE ☠ DO NOT CROSS ☠ CRIME SCENE ☠ DO NOT CROSS ☠</div>
+      <div class="crime-tape crime-tape--b">☠ CRIME SCENE ☠ DO NOT CROSS ☠ CRIME SCENE ☠ DO NOT CROSS ☠</div>
     </div>
 
     <canvas id="spray-canvas"></canvas>
     <div id="impact-flash"></div>
+    <div id="muzzle-flash"></div>
+    <div id="cop-siren"></div>
   </div>
 
   <div id="scanline-overlay"></div>
@@ -781,9 +920,9 @@
         ctx.closePath();
 
         const grad = ctx.createLinearGradient(0, 0, w, 0);
-        grad.addColorStop(0, '#c9a227');
+        grad.addColorStop(0, '#ffd700');
         grad.addColorStop(0.5, '#e8e6e1');
-        grad.addColorStop(1, '#7f1010');
+        grad.addColorStop(1, '#b30000');
         ctx.fillStyle = grad;
         ctx.fill();
 
@@ -971,18 +1110,18 @@
     const ALERT_CONFIG = {
       follow: {
         tag: '🎉 NEUER FOLLOWER! 🎉',
-        color: '#c9a227',
-        glow: 'rgba(201, 162, 39, 0.6)',
-        spray: ['#c9a227', '#f2cd4d', '#e8e6e1', '#d21f1f'],
+        color: '#ffd700',
+        glow: 'rgba(255, 215, 0, 0.6)',
+        spray: ['#ffd700', '#fff3b0', '#e8e6e1', '#b30000'],
         sprayCount: 60,
         thanks: p => `Vielen Dank für deinen Support, ${p.name}! Willkommen im Stream!`,
         sound: () => playFileSound('follow')
       },
       goal: {
         tag: '🚀 ZIEL KRACHER! HYPE! 🚀',
-        color: '#f2cd4d',
-        glow: 'rgba(242, 205, 77, 0.85)',
-        spray: ['#f2cd4d', '#c9a227', '#e8e6e1', '#d21f1f'],
+        color: '#ffd700',
+        glow: 'rgba(255, 215, 0, 0.85)',
+        spray: ['#ffd700', '#fff3b0', '#e8e6e1', '#b30000'],
         sprayCount: 110,
         thanks: p => `Mega! Ziel erreicht! Nächstes Ziel: ${p.nextTarget} Follower!`,
         sound: () => playGoalSound()
@@ -991,7 +1130,7 @@
         tag: '⭐ NEUER SUB! ⭐',
         color: '#e8e6e1',
         glow: 'rgba(232, 230, 225, 0.55)',
-        spray: ['#e8e6e1', '#9a958a', '#c9a227', '#d21f1f'],
+        spray: ['#e8e6e1', '#9a958a', '#ffd700', '#b30000'],
         sprayCount: 80,
         thanks: p => `Willkommen in der Community, ${p.name}!`,
         sound: () => playFileSound('sub')
@@ -1000,25 +1139,25 @@
         tag: '🔥 RESUB! 🔥',
         color: '#e8e6e1',
         glow: 'rgba(232, 230, 225, 0.55)',
-        spray: ['#e8e6e1', '#9a958a', '#c9a227', '#d21f1f'],
+        spray: ['#e8e6e1', '#9a958a', '#ffd700', '#b30000'],
         sprayCount: 80,
         thanks: p => `Danke, dass du seit ${p.months} Monaten dabei bist, ${p.name}!`,
         sound: () => playFileSound('sub')
       },
       cheer: {
         tag: '💎 BITS! 💎',
-        color: '#c9a227',
-        glow: 'rgba(201, 162, 39, 0.65)',
-        spray: ['#c9a227', '#f2cd4d', '#e8e6e1'],
+        color: '#ffd700',
+        glow: 'rgba(255, 215, 0, 0.65)',
+        spray: ['#ffd700', '#fff3b0', '#e8e6e1'],
         sprayCount: 90,
         thanks: p => `Danke für ${p.amount} Bits, ${p.name}!`,
         sound: () => playFileSound('bits')
       },
       raid: {
         tag: '🚨 RAID! 🚨',
-        color: '#d21f1f',
-        glow: 'rgba(210, 31, 31, 0.75)',
-        spray: ['#d21f1f', '#7f1010', '#e8e6e1'],
+        color: '#b30000',
+        glow: 'rgba(179, 0, 0, 0.75)',
+        spray: ['#b30000', '#7a0000', '#e8e6e1'],
         sprayCount: 120,
         thanks: p => `Willkommen, ${p.name}, mit ${p.viewers} Zuschauern!`,
         sound: () => playFileSound('raid')
@@ -1054,6 +1193,27 @@
     const ROT_SPRING = 0.2;
     const ROT_DAMPING = 0.8;
 
+    // Zusaetzlicher horizontaler "Recoil-Punch" beim Alert-Trigger (Waffen-
+    // Rueckstoss) - ein eigenes, staerker gedaempftes Feder-System fuer
+    // einen knackigen einmaligen Ausschlag statt der sustained Beat-Hops.
+    let recoilX = 0;
+    let recoilXVelocity = 0;
+    const RECOIL_SPRING = 0.3;
+    const RECOIL_DAMPING = 0.7;
+
+    function triggerRecoil() {
+      hopVelocity -= 30;
+      hopRotVelocity += (Math.random() < 0.5 ? -1 : 1) * 15;
+      recoilXVelocity += (Math.random() < 0.5 ? -1 : 1) * 22;
+    }
+
+    function fireMuzzleFlash() {
+      const flash = document.getElementById('muzzle-flash');
+      flash.classList.remove('fire');
+      void flash.offsetWidth; // Reflow erzwingen, damit die Animation bei schnell aufeinanderfolgenden Alerts neu startet
+      flash.classList.add('fire');
+    }
+
     function updateHydraulics(sub, now, popupRect) {
       if (sub > 0.4 && now - lastHopKickAt > 190) {
         const side = Math.random() < 0.5 ? -1 : 1;
@@ -1074,6 +1234,10 @@
       hopRotVelocity += (0 - hopRot) * ROT_SPRING;
       hopRotVelocity *= ROT_DAMPING;
       hopRot += hopRotVelocity;
+
+      recoilXVelocity += (0 - recoilX) * RECOIL_SPRING;
+      recoilXVelocity *= RECOIL_DAMPING;
+      recoilX += recoilXVelocity;
     }
 
     function startAlertFx() {
@@ -1104,13 +1268,14 @@
 
     function applySubBassFx(sub, now) {
       const popup = document.getElementById('party-popup');
+      const panel = document.getElementById('party-panel');
       const popupRect = popup.getBoundingClientRect();
       updateHydraulics(sub, now, popupRect);
 
       const shakeAmp = sub * 10;
       const shakeX = (Math.random() - 0.5) * shakeAmp;
       const shakeY = (Math.random() - 0.5) * shakeAmp;
-      popup.style.transform = `translate(calc(-50% + ${shakeX.toFixed(1)}px), calc(-50% + ${(shakeY + hopY).toFixed(1)}px)) rotate(${hopRot.toFixed(1)}deg) scale(1)`;
+      popup.style.transform = `translate(calc(-50% + ${(shakeX + recoilX).toFixed(1)}px), calc(-50% + ${(shakeY + hopY).toFixed(1)}px)) rotate(${hopRot.toFixed(1)}deg) scale(1)`;
 
       document.getElementById('impact-flash').style.opacity = (sub * 0.4).toFixed(2);
 
@@ -1120,31 +1285,35 @@
       }
 
       if (sub > 0.5 && now - lastGlitchAt > 250) {
-        popup.classList.add('glitching');
+        panel.classList.add('glitching');
         lastGlitchAt = now;
-        setTimeout(() => popup.classList.remove('glitching'), 150);
+        setTimeout(() => panel.classList.remove('glitching'), 150);
       }
     }
 
     function applyMidHighFx(mid) {
       const popup = document.getElementById('party-popup');
-      popup.style.boxShadow = `0 0 ${40 + mid * 60}px ${popup.dataset.glow || 'rgba(201, 162, 39, 0.6)'}`;
+      popup.style.boxShadow = `0 0 ${40 + mid * 60}px ${popup.dataset.glow || 'rgba(255, 215, 0, 0.6)'}`;
 
       const rect = popup.getBoundingClientRect();
       const originX = rect.left + rect.width / 2;
       const originY = rect.top + rect.height / 2;
-      spraySystem.emitAmbient(originX, originY, popup._sprayColors || ['#c9a227'], mid * 0.85);
+      spraySystem.emitAmbient(originX, originY, popup._sprayColors || ['#ffd700'], mid * 0.85);
     }
 
     function resetAlertFxVisuals() {
       const popup = document.getElementById('party-popup');
+      const panel = document.getElementById('party-panel');
       popup.style.transform = '';
-      popup.classList.remove('glitching');
+      panel.classList.remove('glitching');
       document.getElementById('impact-flash').style.opacity = '0';
+      document.getElementById('cop-siren').classList.remove('active');
       hopY = 0;
       hopVelocity = 0;
       hopRot = 0;
       hopRotVelocity = 0;
+      recoilX = 0;
+      recoilXVelocity = 0;
     }
 
     function showPartyPopup(kind, payload) {
@@ -1156,6 +1325,7 @@
       }
 
       const popup = document.getElementById('party-popup');
+      const panel = document.getElementById('party-panel');
       const tag = document.getElementById('partyTag');
       const nameElem = document.getElementById('partyName');
       const thanks = document.getElementById('partyThanks');
@@ -1165,7 +1335,7 @@
       nameElem.innerText = payload.name;
       nameElem.setAttribute('data-text', payload.name);
       thanks.innerText = config.thanks(payload);
-      popup.style.borderColor = config.color;
+      panel.style.borderColor = config.color;
       popup.style.boxShadow = `0 0 60px ${config.glow}`;
       popup.dataset.glow = config.glow;
       popup._sprayColors = config.spray;
@@ -1184,11 +1354,18 @@
         config.sprayCount
       );
 
+      // Schuss-Moment: Muendungsblitz + Recoil-Kick sofort beim Trigger,
+      // Cop-Siren laeuft im Hintergrund waehrend der gesamten Alert-Dauer.
+      triggerRecoil();
+      fireMuzzleFlash();
+      document.getElementById('cop-siren').classList.add('active');
+
       startAlertFx();
       popup.classList.add('show');
 
       setTimeout(() => {
         popup.classList.remove('show');
+        document.getElementById('cop-siren').classList.remove('active');
         // Warten bis die Ausblend-Transition fertig ist, bevor das nächste Popup startet
         setTimeout(() => {
           popupBusy = false;
