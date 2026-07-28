@@ -7,8 +7,9 @@
   <!-- Streamlabs' Socket-Server (sockets.streamlabs.com) spricht das alte
        Socket.IO-v2-Protokoll. Ein v3/v4-Client verbindet sich hier NICHT
        zuverlässig (keine Events, oft ohne sichtbaren Fehler) - deshalb
-       bewusst ein 2.x-Client statt der aktuellen Socket.IO-Version. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.min.js"></script>
+       bewusst ein 2.x-Client statt der aktuellen Socket.IO-Version.
+       Wird unten dynamisch mit Cache-Busting-Parameter geladen, damit ein
+       veralteter Cache (Tablet/WebView) keine alte Script-Version ausliefert. -->
   <style>
     :root {
       --bg-glass: rgba(15, 23, 42, 0.88);
@@ -225,6 +226,21 @@
     // DEINE FESTE VERCEL-CLOUD ADRESSE
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
 
+    // Cache-Busting: einmal pro Seitenaufruf neu, damit weder das
+    // Socket.IO-CDN-Script noch die Audio-Assets aus einem veralteten
+    // Cache (Tablet/WebView) ausgeliefert werden.
+    const CACHE_BUST = Date.now();
+
+    function loadScript(url) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Skript nicht ladbar: ${url}`));
+        document.head.appendChild(script);
+      });
+    }
+
     let currentFollowers = 209;
     const STEP_SIZE = 10;
 
@@ -303,7 +319,7 @@
       console.log('[Audio] Starte Sound-Preload für:', Object.keys(SOUND_FILES).join(', '));
 
       await Promise.all(Object.entries(SOUND_FILES).map(async ([key, file]) => {
-        const url = `${VERCEL_URL}/assets/audio/${file}`;
+        const url = `${VERCEL_URL}/assets/audio/${file}?v=${CACHE_BUST}`;
         soundUrls[key] = url;
         try {
           const res = await fetch(url);
@@ -550,8 +566,46 @@
       el.innerText = `Token: ${tokenLabel} | Socket: ${socketLabel}`;
     }
 
+    // 1. Robustes Error-Formatting: Socket.IO/Engine.IO-Fehlerobjekte sind
+    // nicht immer normale Error-Instanzen mit .message - je nach Transport
+    // tauchen z.B. .description (oft selbst wieder ein Objekt) oder gar
+    // kein brauchbares Feld auf. Deshalb mehrere Fallbacks nacheinander,
+    // JSON.stringify defensiv abgesichert (zirkulaere Structs wuerden sonst
+    // werfen und den Handler selbst zum Absturz bringen).
+    function formatSocketError(err) {
+      if (!err) return 'unbekannter Fehler (kein err-Objekt)';
+      if (typeof err === 'string') return err;
+      if (err.message) return err.message;
+      if (err.description) {
+        if (typeof err.description === 'string') return err.description;
+        if (err.description.message) return err.description.message;
+      }
+      try {
+        const json = JSON.stringify(err);
+        if (json && json !== '{}') return json;
+      } catch (e) {
+        // zirkulaere Struktur o.ae. - naechster Fallback greift
+      }
+      return String(err);
+    }
+
     async function initFollowerSocket() {
       setDebugStatus('pending', 'idle');
+
+      // 2. Cache-Busting: Socket.IO-Client bei jedem Laden frisch anfordern,
+      // damit ein veralteter Cache (Tablet/WebView) keine alte Script-
+      // Version ausliefert, waehrend hier laengst ein neuer Stand liegt.
+      const socketIoSrc = `https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.min.js?v=${CACHE_BUST}`;
+      console.log('[Streamlabs] Lade Socket.IO-Client (Cache-Bust:', CACHE_BUST, ')...');
+      try {
+        await loadScript(socketIoSrc);
+        console.log('[Streamlabs] Socket.IO-Client geladen, io verfügbar:', typeof io !== 'undefined');
+      } catch (e) {
+        console.error('[Streamlabs] Socket.IO-Client konnte nicht geladen werden:', e);
+        setDebugStatus('pending', 'error', 'Socket.IO-Script nicht ladbar');
+        return;
+      }
+
       console.log('[Streamlabs] Fordere Socket-Token von /api/streamlabs-proxy an...');
 
       // 1. Token-Empfang eindeutig prüfen und loggen - eigener try/catch,
@@ -597,8 +651,14 @@
         });
 
         socket.on('connect_error', (err) => {
-          const detail = (err && err.message) ? err.message : String(err);
-          console.error('[Streamlabs] Verbindungsfehler:', detail, err);
+          const detail = formatSocketError(err);
+          console.error('[Streamlabs] Verbindungsfehler (connect_error):', detail, err);
+          setDebugStatus('ok', 'error', detail);
+        });
+
+        socket.on('error', (err) => {
+          const detail = formatSocketError(err);
+          console.error('[Streamlabs] Socket-Fehler (error):', detail, err);
           setDebugStatus('ok', 'error', detail);
         });
 
@@ -658,8 +718,9 @@
           }
         });
       } catch (e) {
-        console.error('[Streamlabs] Socket-Erstellung fehlgeschlagen (Socket.IO-Client nicht geladen?):', e);
-        setDebugStatus('ok', 'error');
+        const detail = formatSocketError(e);
+        console.error('[Streamlabs] Socket-Erstellung fehlgeschlagen:', detail, e);
+        setDebugStatus('ok', 'error', detail);
       }
     }
 
