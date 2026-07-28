@@ -14,17 +14,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --asphalt: #17130f;
-      --asphalt-mid: rgba(23, 19, 15, 0.94);
-      --rust: #3a2317;
-      --chrome-1: #e8e6e1;
-      --chrome-2: #9a958a;
-      --blood: #b30000;
-      --blood-glow: rgba(179, 0, 0, 0.6);
+      /* "Urban Blackout" - tiefes Schwarz statt Rost/Braun, harte
+         Kanten statt zerrissenem Papier. Getoente-Autoscheiben-Optik
+         ueber halbtransparentes Schwarz + Backdrop-Blur. */
+      --asphalt: #08090a;
+      --asphalt-mid: rgba(9, 9, 11, 0.92);
+      --steel: #202226;
+      --steel-raw: rgba(30, 32, 37, 0.55);
+      --steel-line: rgba(255, 255, 255, 0.1);
+      --chrome-1: #eef0f2;
+      --chrome-2: #8b8d93;
+      --blood: #ff1a1a;
+      --blood-glow: rgba(255, 26, 26, 0.65);
       --gold: #ffd700;
       --gold-glow: rgba(255, 215, 0, 0.55);
-      --text-primary: #f5f0e6;
-      --text-muted: #b7ac9c;
+      --text-primary: #f5f5f7;
+      --text-muted: #9a9ca3;
+      /* geteilter Chamfer-Radius fuer die harte "Tech-Panel"-Ecke */
+      --cut: 15px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -66,7 +73,7 @@
       width: 13px;
       height: 13px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #000 0%, #1c1712 55%, transparent 75%);
+      background: radial-gradient(circle at 35% 35%, #000 0%, #131417 55%, transparent 75%);
       box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9);
       pointer-events: none;
       animation: bulletGlow 2.6s ease-in-out infinite;
@@ -77,10 +84,10 @@
       position: absolute;
       inset: -7px;
       background:
-        linear-gradient(12deg, transparent 47%, rgba(179, 0, 0, 0.4) 49%, transparent 51%),
-        linear-gradient(96deg, transparent 47%, rgba(179, 0, 0, 0.32) 49%, transparent 51%),
-        linear-gradient(163deg, transparent 47%, rgba(179, 0, 0, 0.3) 49%, transparent 51%),
-        linear-gradient(210deg, transparent 47%, rgba(179, 0, 0, 0.28) 49%, transparent 51%);
+        linear-gradient(12deg, transparent 47%, rgba(255, 26, 26, 0.4) 49%, transparent 51%),
+        linear-gradient(96deg, transparent 47%, rgba(255, 26, 26, 0.32) 49%, transparent 51%),
+        linear-gradient(163deg, transparent 47%, rgba(255, 26, 26, 0.3) 49%, transparent 51%),
+        linear-gradient(210deg, transparent 47%, rgba(255, 26, 26, 0.28) 49%, transparent 51%);
       border-radius: 50%;
     }
     @keyframes bulletGlow {
@@ -97,24 +104,20 @@
       z-index: 10;
     }
 
+    /* Duenner, cleaner Tech-Rahmen statt Regenbogen-Shimmer - ein
+       gedaempftes Rot pulsiert leise am Rand statt bunt zu wandern. */
     .shimmer-frame {
       position: relative;
-      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
-      padding: 2px;
-      background: linear-gradient(120deg,
-        rgba(255, 215, 0, 0.2),
-        rgba(255, 215, 0, 0.9),
-        rgba(179, 0, 0, 0.65),
-        rgba(154, 149, 138, 0.3));
-      background-size: 300% 300%;
-      animation: shimmer 7s ease-in-out infinite;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+      padding: 1.5px;
+      background: linear-gradient(155deg, var(--blood), var(--steel) 55%, var(--blood));
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      animation: framePulse 4s ease-in-out infinite;
     }
 
-    @keyframes shimmer {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    @keyframes framePulse {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.35); }
     }
 
     .goal-card {
@@ -122,22 +125,60 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background: linear-gradient(155deg, var(--asphalt-mid), rgba(58, 35, 23, 0.5));
+      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
+      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
       padding: 20px 26px 18px;
       min-width: 240px;
       overflow: hidden;
     }
 
-    .goal-card::before {
+    /* Feines Chainlink-Fence-Muster statt Korn-Textur: zwei
+       gegenlaeufige diagonale Linienraster ergeben ein Maschendraht-Netz. */
+    .goal-card::before,
+    .wanted-card::before,
+    #party-panel::before {
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.08) 0 2px, transparent 2.4px);
-      background-size: 26px 26px;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 14px);
+      opacity: 0.35;
       pointer-events: none;
+    }
+
+    /* Dezenter Corner-Tag mit dem Kanalnamen - Branding direkt im Panel
+       statt als separates Element, wirkt wie eine eingepraegte Plakette. */
+    .hud-watermark {
+      position: absolute;
+      right: 10px;
+      bottom: 6px;
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--chrome-2);
+      opacity: 0.4;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Kleiner Police-Tape-Eckstreifen: sitzt genau ueber der
+       abgeschraegten oberen linken Ecke, wie ein Flicken auf einer
+       beschaedigten Panzerplatte. */
+    .tape-corner {
+      position: absolute;
+      top: 6px;
+      left: -13px;
+      width: 46px;
+      height: 11px;
+      background: repeating-linear-gradient(45deg, var(--gold) 0 6px, #0a0a0a 6px 12px);
+      transform: rotate(-45deg);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      z-index: 3;
     }
 
     .goal-header {
@@ -176,7 +217,7 @@
       clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
       overflow: hidden;
       position: relative;
-      border: 1px solid rgba(154, 149, 138, 0.3);
+      border: 1px solid var(--steel-line);
     }
 
     .liquid-bar-canvas {
@@ -213,22 +254,13 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background: linear-gradient(155deg, var(--asphalt-mid), rgba(58, 35, 23, 0.5));
+      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
+      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
       padding: 16px 24px 14px;
       min-width: 200px;
       overflow: hidden;
-    }
-
-    .wanted-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.08) 0 2px, transparent 2.4px);
-      background-size: 26px 26px;
-      pointer-events: none;
     }
 
     .wanted-title {
@@ -248,7 +280,7 @@
     }
 
     .wanted-star {
-      color: #4a453d;
+      color: #35373c;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
       transition: color 0.3s ease, text-shadow 0.3s ease;
     }
@@ -272,7 +304,7 @@
 
     .soundtrack-badge {
       position: relative;
-      background: linear-gradient(155deg, var(--asphalt-mid), rgba(58, 35, 23, 0.5));
+      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
       border: 1.5px solid var(--gold);
       clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
       padding: 7px 20px;
@@ -328,23 +360,14 @@
 
     #party-panel {
       position: relative;
-      background: linear-gradient(155deg, rgba(23, 19, 15, 0.97), rgba(58, 35, 23, 0.55));
+      background: linear-gradient(155deg, rgba(6, 6, 7, 0.97), var(--steel-raw));
       border: 2px solid var(--blood);
-      clip-path: polygon(0% 12px, 8% 0%, 25% 6px, 45% 0%, 82% 4px, 100% 18px, 97% 45%, 100% 70%, 94% 100%, 75% 95%, 50% 100%, 15% 94%, 0% 82%, 3% 45%);
+      clip-path: polygon(26px 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%, 0 26px);
       padding: 38px 66px 34px;
       text-align: center;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       overflow: hidden;
-    }
-
-    #party-panel::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle at 10px 10px, rgba(255, 215, 0, 0.07) 0 2.4px, transparent 3px);
-      background-size: 30px 30px;
-      pointer-events: none;
     }
 
     .party-tag {
@@ -474,8 +497,8 @@
       left: 50%;
       width: 132%;
       height: 20px;
-      background: repeating-linear-gradient(45deg, var(--gold) 0 16px, #16130f 16px 32px);
-      color: #16130f;
+      background: repeating-linear-gradient(45deg, var(--gold) 0 16px, #0a0a0a 16px 32px);
+      color: #0a0a0a;
       font-family: 'Bebas Neue', sans-serif;
       font-size: 12px;
       letter-spacing: 2px;
@@ -569,6 +592,7 @@
     <div class="goal-position">
       <div class="shimmer-frame">
         <div class="goal-card" id="goalContainer">
+          <div class="tape-corner"></div>
           <div class="bullet-hole" style="top: 8px; right: 16px; animation-delay: 0.4s;"></div>
           <div class="bullet-hole" style="bottom: 10px; left: 18px; animation-delay: 1.2s;"></div>
           <div class="goal-header">
@@ -579,6 +603,7 @@
             <canvas id="liquidBarCanvas" class="liquid-bar-canvas"></canvas>
           </div>
           <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
+          <span class="hud-watermark">DANGSXR1000</span>
         </div>
       </div>
     </div>
@@ -589,6 +614,7 @@
     <div class="wanted-position">
       <div class="shimmer-frame">
         <div class="wanted-card" id="wantedContainer">
+          <div class="tape-corner"></div>
           <div class="wanted-title">Wanted Level</div>
           <div class="wanted-stars" id="wantedStars">
             <span class="wanted-star">★</span>
@@ -597,6 +623,7 @@
             <span class="wanted-star">★</span>
             <span class="wanted-star">★</span>
           </div>
+          <span class="hud-watermark">DAN</span>
         </div>
       </div>
     </div>
