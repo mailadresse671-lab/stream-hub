@@ -29,3 +29,20 @@ Streaming Overlays & Serverless APIs für Twitch/Streamlabs, gehostet auf Vercel
 ## Hinweis (Sicherheit)
 
 `goal.html` enthält aktuell den Streamlabs-Socket-Token fest im Client-Code eingebettet. Da die Datei öffentlich über Vercel ausgeliefert wird, ist der Token für jeden einsehbar (View-Source). Empfehlenswert wäre, den Token stattdessen serverseitig (z. B. über eine weitere `api/`-Function oder Umgebungsvariable) zu verwalten.
+
+## System & Hardware Context
+
+- **Setup-Typ**: 100% Cloud- & Mobile-Streaming Setup (kein PC/Laptop).
+- **Gaming-Plattform**: GeForce NOW Ultimate (Rocket League).
+- **Hauptgerät (Gaming & Stream-Regie)**: Samsung Galaxy Tab S11 Ultra (Streamlabs Mobile).
+- **Begleitgerät (Chat, Control & Twitch-App)**: Samsung Galaxy S26 Ultra.
+- **Entwicklungs-Umgebung**: Claude Code Cloud CLI (Web Browser).
+- **Canvas**: 1920x1080 (16:9 Aspect Ratio).
+- **Streaming-Plattform**: Twitch.
+- **Twitch Kanal**: DaNgsxr1000.
+- **Ingame ID**: DaNgsxR (Epic Games).
+
+## Proactive Code & Feature Audit Directive
+
+- Scanne bei neuen Aufgaben das Repository auf ungenutzten Code, Sicherheitslücken und Performance-Engpässe.
+- Schlage proaktiv neue Widgets, Design-Verbesserungen oder API-Erweiterungen vor, die zu diesem Streamer-Setup passen.
