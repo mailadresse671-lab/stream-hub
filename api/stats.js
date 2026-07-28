@@ -6,6 +6,45 @@ const CACHE_TTL_MS = 30 * 1000;
 // Vercel dieselbe (warme) Function-Instanz wiederverwendet.
 let cache = { data: null, timestamp: 0 };
 
+// Bevorzugte Ranked-Playlists in Praeferenz-Reihenfolge (2v2 zuerst, passt
+// zu den "2v2"/"3v3"-Tags im Kanal-Profil), Fallback auf die erste Playlist
+// mit gueltigen Tier-Daten, falls keine der beiden vorhanden ist.
+const PREFERRED_PLAYLIST_KEYS = ['ranked-doubles', 'ranked-standard'];
+
+function extractRank(segment) {
+  const tier = segment?.stats?.tier;
+  const rating = segment?.stats?.rating;
+  if (!tier?.metadata?.name) return null;
+  return {
+    playlist: segment.metadata?.name || segment.attributes?.key || 'Ranked',
+    tierName: tier.metadata.name,
+    tierIconUrl: tier.metadata.iconUrl || null,
+    mmr: rating?.value ?? null
+  };
+}
+
+// Sucht in den Tracker.gg-Segmenten nach Rang-/MMR-Daten fuer eine
+// bevorzugte Playlist. Liefert null, wenn nichts Verwertbares gefunden
+// wird (z.B. Season noch unranked) - das Overlay blendet den Rang-HUD dann
+// einfach aus, statt kaputte Werte anzuzeigen.
+function findRank(segments) {
+  if (!Array.isArray(segments)) return null;
+  const playlists = segments.filter(s => s.type === 'playlist');
+
+  for (const key of PREFERRED_PLAYLIST_KEYS) {
+    const match = playlists.find(s => s.attributes?.key === key);
+    const rank = match && extractRank(match);
+    if (rank) return rank;
+  }
+
+  for (const segment of playlists) {
+    const rank = extractRank(segment);
+    if (rank) return rank;
+  }
+
+  return null;
+}
+
 export default async function handler(req, res) {
   // CORS-Header setzen, damit dein Tablet die Daten ungehindert lesen darf
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,7 +88,8 @@ export default async function handler(req, res) {
         success: true,
         player: PLAYER_NAME,
         wins: wins,
-        matches: matches
+        matches: matches,
+        rank: findRank(data?.data?.segments)
       };
 
       cache = { data: payload, timestamp: now };
