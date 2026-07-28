@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RL Session Stats</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <title>RL Session Stats Auto</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -87,7 +86,7 @@
 
   <div class="rl-container">
     <div class="brand-section">
-      <span class="tag">Live Steuerung 🟢</span>
+      <span class="tag">Auto Tracking ⚡</span>
       <span class="title">Session Stats</span>
     </div>
 
@@ -110,9 +109,11 @@
   </div>
 
   <script>
-    // STREAMLABS SOCKET TOKEN (FEST EINGEBAUT)
-    const STREAMLABS_SOCKET_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbiI6IjIxQTMzN0NEMzEzQkNEQTE5MzU4MzVDNDIzM0EzMDQ0ODJEQzY5MjFDQzgwMTU4OUVDMzgzRUEwMzMwM0M2NTMyODVDOEI3MTIxQzQ0MEVGQkMwMjM3N0Y1Q0Q1QUUxRDRFQ0FBRjQ5QzFERkU4OUQyOTk0OUVDNDU5NjQxODA4RTRFNkNBMzQ1MkIwNkQwMzFFMDZEOThGQkEzRjZEMUI2MDBEOEI1NDBDRjlBNEMzNTRFQ0ZGQUJFQ0Y1RTkwRTdCMEI3MjFFRkJEQkU4REUxNDZBNkE2NURCNDc0ODQyMjhGRDcxQzIzNkYxRTAxQkFFRDJEQTlENUQiLCJyZWFkX29ubHkiOnRydWUsInByZXZlbnRfbWFzdGVyIjp0cnVlLCJ0d2l0Y2hfaWQiOiI3ODU4ODc3MzUifQ.TnmJmgYgJ3RxNuxibF2SsTGkeChRxbTxfYsiZGbc9gk";
+    // DEINE FESTE VERCEL-CLOUD ADRESSE
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app"; 
 
+    let startWins = null;
+    let startMatches = null;
     let sessionWins = 0;
     let sessionLosses = 0;
 
@@ -128,30 +129,37 @@
       document.getElementById('winrate').innerText = rate + '%';
     }
 
-    updateUI();
+    async function fetchStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/stats`);
+        const data = await res.json();
 
-    if (STREAMLABS_SOCKET_TOKEN) {
-      const socket = io(`https://sockets.streamlabs.com?token=${STREAMLABS_SOCKET_TOKEN}`, { transports: ['websocket'] });
+        if (data && data.success) {
+          const currentWins = data.wins;
+          const currentMatches = data.matches;
 
-      socket.on('event', (eventData) => {
-        // Dashboard "Subscription testen" -> Win +1
-        if (eventData.type === 'subscription') {
-          sessionWins++;
-          updateUI();
+          // Erste Abfrage beim Laden als Basiswert festlegen
+          if (startWins === null) {
+            startWins = currentWins;
+            startMatches = currentMatches;
+          } else {
+            sessionWins = Math.max(0, currentWins - startWins);
+            const totalSessionMatches = Math.max(0, currentMatches - startMatches);
+            sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateUI();
+          }
         }
-        // Dashboard "Donation testen" -> Loss +1
-        else if (eventData.type === 'donation') {
-          sessionLosses++;
-          updateUI();
-        }
-        // Dashboard "Bits testen" -> Reset (0/0)
-        else if (eventData.type === 'bits') {
-          sessionWins = 0;
-          sessionLosses = 0;
-          updateUI();
-        }
-      });
+      } catch (e) {
+        console.log("Cloud Fetch aktiv...");
+      }
     }
+
+    // Sofort abfragen
+    fetchStats();
+
+    // Alle 20 Sekunden vollautomatisch aktualisieren
+    setInterval(fetchStats, 20000);
   </script>
 
 </body>
