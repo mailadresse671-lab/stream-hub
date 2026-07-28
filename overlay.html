@@ -47,13 +47,34 @@
       font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
       color: var(--text-primary);
       overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Die Seite ist fest im 1920x1080-Design-Koordinatensystem gebaut
+       (px-genaue clip-paths, Canvas-Pixel, Badges). #stage-scale ist dieser
+       feste 1920x1080-Layer, der per JS (fitStage()) gleichmaessig auf die
+       TATSAECHLICHE Browser-Quellen-Groesse skaliert und zentriert wird -
+       so bleibt das 16:9-Layout unverkleistert und ueberschneidungsfrei,
+       egal ob die Streamlabs-Mobile-Browser-Quelle wirklich exakt
+       1920x1080 rendert oder (z.B. wegen der viewport-meta-Tag-Skalierung
+       auf einem Tablet) eine ganz andere Aufloesung liefert. */
+    #stage-scale {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 1920px;
       height: 1080px;
+      transform-origin: top left;
     }
 
     /* Alles, was gemeinsam "wackeln" soll (Goal-Widget + Popup + FX-Layer),
        lebt in einem einzigen fixed Wrapper - Transform auf <body> wuerde
-       die position:fixed-Verankerung aller Kinder zerstoeren. */
+       die position:fixed-Verankerung aller Kinder zerstoeren. Da
+       #stage-scale ein transform traegt, wird es automatisch zum
+       Containing-Block fuer dieses position:fixed-Kind (CSS-Spec-Verhalten)
+       - "inset:0" bezieht sich dadurch auf die 1920x1080-Buehne, nicht auf
+       den echten (evtl. abweichenden) Geraete-Viewport. */
     #shake-root {
       position: fixed;
       inset: 0;
@@ -658,6 +679,7 @@
 </head>
 <body>
 
+  <div id="stage-scale">
   <div id="shake-root">
 
     <!-- Oben links: Wanted-Level + Session-Stats/Rang gestapelt -->
@@ -777,6 +799,7 @@
     <div id="muzzle-flash"></div>
     <div id="cop-siren"></div>
   </div>
+  </div>
 
   <div id="scanline-overlay"></div>
 
@@ -785,6 +808,29 @@
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
     const CACHE_BUST = Date.now();
     const OVERLAY_CHANNEL = 'dangsxr1000';
+
+    // =====================================================================
+    // Stage-Fit: skaliert die feste 1920x1080-Buehne (#stage-scale)
+    // gleichmaessig (letterboxed, zentriert) auf die tatsaechliche
+    // Browser-Quellen-Groesse. Noetig, weil Streamlabs Mobile die Seite
+    // nicht garantiert exakt bei 1920x1080 rendert (meta-viewport
+    // "width=device-width" + variable Browser-Quellen-Groesse auf
+    // Tablets) - ohne dieses Scaling wuerden die absolut positionierten
+    // HUD-Karten je nach echtem Viewport ueberlappen oder aus dem
+    // sichtbaren Bereich rutschen (z.B. der unten verankerte Avatar).
+    // Laeuft synchron beim Laden UND bei jedem resize-Event.
+    // =====================================================================
+    const STAGE_W = 1920;
+    const STAGE_H = 1080;
+    const stageScale = document.getElementById('stage-scale');
+    function fitStage() {
+      const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+      const offsetX = (window.innerWidth - STAGE_W * scale) / 2;
+      const offsetY = (window.innerHeight - STAGE_H * scale) / 2;
+      stageScale.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    }
+    fitStage();
+    window.addEventListener('resize', fitStage);
 
     // Soundtrack-Badge: Text kommt aus dem ?track=-URL-Parameter, gleiches
     // Prinzip wie chat.html's ?channel=. innerText macht Escaping ueberfluessig.
@@ -1151,7 +1197,16 @@
         this._resize();
         window.addEventListener('resize', () => this._resize());
       }
+      // Wandelt Viewport-Koordinaten (z.B. aus element.getBoundingClientRect())
+      // in Canvas-lokale CSS-Pixel-Koordinaten um - noetig, weil der Canvas
+      // durch #stage-scale skaliert/verschoben auf dem Bildschirm sitzt und
+      // sein eigenes getBoundingClientRect() denselben Offset traegt.
+      toLocal(x, y) {
+        const rect = this.canvas.getBoundingClientRect();
+        return [x - rect.left, y - rect.top];
+      }
       spawnBulletHole(x, y) {
+        [x, y] = this.toLocal(x, y);
         if (this.holes.length > 30) this.holes.shift();
         const spikes = 5 + Math.floor(Math.random() * 3);
         const angles = [];
@@ -1160,12 +1215,14 @@
         this._ensureLoop();
       }
       _resize() {
+        const rect = this.canvas.getBoundingClientRect();
         const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-        this.canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
-        this.canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
+        this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       emitBurst(x, y, colors, seed, count = 70) {
+        [x, y] = this.toLocal(x, y);
         for (let i = 0; i < count && this.particles.length < this.maxParticles; i++) {
           const n = noise.noise(seed + i * 0.15, seed * 0.7);
           const angle = n * Math.PI * 2;
@@ -1180,6 +1237,7 @@
         this._ensureLoop();
       }
       emitAmbient(x, y, colors, rate) {
+        [x, y] = this.toLocal(x, y);
         if (this.particles.length >= this.maxParticles) return;
         if (Math.random() > rate) return;
         const n = noise.noise(performance.now() * 0.003, 0);
@@ -1268,8 +1326,9 @@
     const IDLE_SPARK_COLORS = ['#ffd700', '#e8e6e1', '#b30000'];
     let idleSparkTimer = null;
     function emitIdleSpark() {
-      const x = Math.random() * window.innerWidth;
-      const y = window.innerHeight * (0.15 + Math.random() * 0.7);
+      const rect = spraySystem.canvas.getBoundingClientRect();
+      const x = rect.left + Math.random() * rect.width;
+      const y = rect.top + rect.height * (0.15 + Math.random() * 0.7);
       spraySystem.emitAmbient(x, y, IDLE_SPARK_COLORS, 1);
     }
     function startIdleAmbient() {
