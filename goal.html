@@ -227,24 +227,52 @@
       document.getElementById('barFill').style.width = pct + '%';
     }
 
-    function playFollowSound() {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const now = ctx.currentTime;
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.15, now + idx * 0.07);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.6);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + idx * 0.07);
-          osc.stop(now + idx * 0.07 + 0.6);
-        });
-      } catch (e) { console.log(e); }
+    // ---------- Web-Audio-Alertsystem ----------
+    // Sounds werden einmal beim Laden als dekodierte AudioBuffer vorgehalten,
+    // damit sie beim Event ohne Netzwerk-/Dekodier-Delay sofort abspielbar sind.
+    const SOUND_FILES = {
+      follow: 'follow.mp3',
+      sub: 'sub.mp3',
+      bits: 'bits.mp3',
+      raid: 'raid.mp3'
+    };
+
+    let audioCtx = null;
+    const soundBuffers = {};
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioCtx;
+    }
+
+    // Fehlt eine Sounddatei (noch) im Repo, bleibt der jeweilige Alert einfach
+    // stumm - Popup/Confetti/Warteschlange laufen davon unbeeinflusst weiter.
+    async function preloadSounds() {
+      const ctx = getAudioContext();
+      ctx.resume().catch(() => {});
+
+      await Promise.all(Object.entries(SOUND_FILES).map(async ([key, file]) => {
+        try {
+          const res = await fetch(`${VERCEL_URL}/assets/audio/${file}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const arrayBuffer = await res.arrayBuffer();
+          soundBuffers[key] = await ctx.decodeAudioData(arrayBuffer);
+        } catch (e) {
+          console.warn(`Alert-Sound "${file}" nicht verfügbar, Alert bleibt stumm:`, e.message);
+        }
+      }));
+    }
+
+    function playFileSound(key) {
+      const buffer = soundBuffers[key];
+      if (!buffer) return; // Fallback: kein Sound, Rest des Alerts läuft normal weiter
+      const ctx = getAudioContext();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
     }
 
     function playGoalSound() {
@@ -284,10 +312,7 @@
       } catch (e) { console.log(e); }
     }
 
-    function triggerConfetti(isGoal) {
-      const colors = isGoal ? ['#fbbf24', '#f97316', '#ffffff', '#38bdf8'] : ['#38bdf8', '#22c55e', '#a855f7', '#fbbf24'];
-      const count = isGoal ? 120 : 70;
-
+    function triggerConfetti(colors, count) {
       for (let i = 0; i < count; i++) {
         const confetti = document.createElement('div');
         confetti.className = 'confetti';
@@ -304,35 +329,88 @@
       }
     }
 
-    function showPartyPopup(name, isGoal) {
+    // Ein Eintrag pro Alert-Art: Anzeige-Text/-Farben, Confetti-Menge und Sound
+    // an einer Stelle, statt den Popup-Code für jede Event-Art zu duplizieren.
+    const ALERT_CONFIG = {
+      follow: {
+        tag: '🎉 NEUER FOLLOWER! 🎉',
+        color: '#38bdf8',
+        glow: 'rgba(56, 189, 248, 0.6)',
+        confetti: ['#38bdf8', '#22c55e', '#a855f7', '#fbbf24'],
+        confettiCount: 70,
+        thanks: p => `Vielen Dank für deinen Support, ${p.name}! Willkommen im Stream!`,
+        sound: () => playFileSound('follow')
+      },
+      goal: {
+        tag: '🚀 ZIEL KRACHER! HYPE! 🚀',
+        color: '#fbbf24',
+        glow: 'rgba(251, 191, 36, 0.8)',
+        confetti: ['#fbbf24', '#f97316', '#ffffff', '#38bdf8'],
+        confettiCount: 120,
+        thanks: p => `Mega! Ziel erreicht! Nächstes Ziel: ${p.nextTarget} Follower!`,
+        sound: () => playGoalSound()
+      },
+      sub: {
+        tag: '⭐ NEUER SUB! ⭐',
+        color: '#a855f7',
+        glow: 'rgba(168, 85, 247, 0.65)',
+        confetti: ['#a855f7', '#38bdf8', '#fbbf24', '#ffffff'],
+        confettiCount: 90,
+        thanks: p => `Willkommen in der Community, ${p.name}!`,
+        sound: () => playFileSound('sub')
+      },
+      resub: {
+        tag: '🔥 RESUB! 🔥',
+        color: '#a855f7',
+        glow: 'rgba(168, 85, 247, 0.65)',
+        confetti: ['#a855f7', '#38bdf8', '#fbbf24', '#ffffff'],
+        confettiCount: 90,
+        thanks: p => `Danke, dass du seit ${p.months} Monaten dabei bist, ${p.name}!`,
+        sound: () => playFileSound('sub')
+      },
+      cheer: {
+        tag: '💎 BITS! 💎',
+        color: '#f97316',
+        glow: 'rgba(249, 115, 22, 0.65)',
+        confetti: ['#f97316', '#fbbf24', '#ffffff'],
+        confettiCount: 100,
+        thanks: p => `Danke für ${p.amount} Bits, ${p.name}!`,
+        sound: () => playFileSound('bits')
+      },
+      raid: {
+        tag: '🚨 RAID! 🚨',
+        color: '#ef4444',
+        glow: 'rgba(239, 68, 68, 0.7)',
+        confetti: ['#ef4444', '#f97316', '#fbbf24'],
+        confettiCount: 130,
+        thanks: p => `Willkommen, ${p.name}, mit ${p.viewers} Zuschauern!`,
+        sound: () => playFileSound('raid')
+      }
+    };
+
+    function showPartyPopup(kind, payload) {
+      const config = ALERT_CONFIG[kind];
+      if (!config) {
+        popupBusy = false;
+        processPopupQueue();
+        return;
+      }
+
       const popup = document.getElementById('party-popup');
       const tag = document.getElementById('partyTag');
       const nameElem = document.getElementById('partyName');
       const thanks = document.getElementById('partyThanks');
 
-      if (isGoal) {
-        tag.innerText = "🚀 ZIEL KRACHER! HYPE! 🚀";
-        tag.style.color = "#fbbf24";
-        nameElem.innerText = name;
-        nameElem.style.textShadow = "0 0 30px rgba(251, 191, 36, 0.9)";
-        thanks.innerText = `Mega! Ziel erreicht! Nächstes Ziel: ${targetFollowers} Follower!`;
-        popup.style.borderColor = "#fbbf24";
-        popup.style.boxShadow = "0 0 80px rgba(251, 191, 36, 0.8)";
+      tag.innerText = config.tag;
+      tag.style.color = config.color;
+      nameElem.innerText = payload.name;
+      nameElem.style.textShadow = `0 0 25px ${config.glow}`;
+      thanks.innerText = config.thanks(payload);
+      popup.style.borderColor = config.color;
+      popup.style.boxShadow = `0 0 60px ${config.glow}`;
 
-        playGoalSound();
-        triggerConfetti(true);
-      } else {
-        tag.innerText = "🎉 NEUER FOLLOWER! 🎉";
-        tag.style.color = "#38bdf8";
-        nameElem.innerText = name;
-        nameElem.style.textShadow = "0 0 25px rgba(56, 189, 248, 0.8)";
-        thanks.innerText = `Vielen Dank für deinen Support, ${name}! Willkommen im Stream!`;
-        popup.style.borderColor = "#38bdf8";
-        popup.style.boxShadow = "0 0 60px rgba(56, 189, 248, 0.6)";
-
-        playFollowSound();
-        triggerConfetti(false);
-      }
+      config.sound();
+      triggerConfetti(config.confetti, config.confettiCount);
 
       popup.classList.add('show');
 
@@ -346,13 +424,14 @@
       }, 6000);
     }
 
-    // Warteschlange, damit mehrere Follower kurz hintereinander (z.B. bei einem Raid)
-    // nacheinander vollständig angezeigt werden, statt sich gegenseitig zu unterbrechen.
+    // Warteschlange, damit mehrere Events kurz hintereinander (z.B. Bit-Train
+    // oder Raid) nacheinander vollständig angezeigt werden, statt sich
+    // gegenseitig zu unterbrechen.
     const popupQueue = [];
     let popupBusy = false;
 
-    function queuePopup(name, isGoal) {
-      popupQueue.push({ name, isGoal });
+    function queuePopup(kind, payload) {
+      popupQueue.push({ kind, payload });
       processPopupQueue();
     }
 
@@ -360,7 +439,7 @@
       if (popupBusy || popupQueue.length === 0) return;
       popupBusy = true;
       const next = popupQueue.shift();
-      showPartyPopup(next.name, next.isGoal);
+      showPartyPopup(next.kind, next.payload);
     }
 
     async function initFollowerSocket() {
@@ -377,24 +456,51 @@
         const socket = io(`https://sockets.streamlabs.com?token=${data.token}`, { transports: ['websocket'] });
 
         socket.on('event', (eventData) => {
-          if (eventData.type === 'follow') {
-            let followerName = "Zuschauer";
-            if (eventData.message && eventData.message[0] && eventData.message[0].name) {
-              followerName = eventData.message[0].name;
-            } else if (eventData.name) {
-              followerName = eventData.name;
-            }
+          const msg = (eventData.message && eventData.message[0]) || {};
 
+          if (eventData.type === 'follow') {
+            const followerName = msg.name || eventData.name || 'Zuschauer';
             currentFollowers += 1;
 
             if (currentFollowers >= targetFollowers) {
-              queuePopup(followerName, true);
-              targetFollowers = calculateTarget(currentFollowers);
+              const nextTarget = calculateTarget(currentFollowers);
+              queuePopup('goal', { name: followerName, nextTarget });
+              targetFollowers = nextTarget;
             } else {
-              queuePopup(followerName, false);
+              queuePopup('follow', { name: followerName });
             }
 
             updateUI();
+            return;
+          }
+
+          // Hinweis: type-/Feldnamen unten (subscription/resub/cheer/raid,
+          // months/amount/raiders) entsprechen der gängigen Streamlabs-Socket-
+          // Struktur, sollten beim ersten echten Event im Log aber gegen-
+          // geprüft werden, falls ein Alert nicht wie erwartet triggert.
+          if (eventData.type === 'subscription') {
+            const name = msg.name || eventData.name || 'Zuschauer';
+            const months = msg.months || msg.streak_months || 1;
+            queuePopup(months > 1 ? 'resub' : 'sub', { name, months });
+            return;
+          }
+
+          if (eventData.type === 'resub') {
+            const name = msg.name || eventData.name || 'Zuschauer';
+            queuePopup('resub', { name, months: msg.months || msg.streak_months || '?' });
+            return;
+          }
+
+          if (eventData.type === 'cheer') {
+            const name = msg.name || eventData.name || 'Zuschauer';
+            queuePopup('cheer', { name, amount: msg.amount || 0 });
+            return;
+          }
+
+          if (eventData.type === 'raid') {
+            const name = msg.name || msg.from || eventData.name || 'Ein Raid';
+            queuePopup('raid', { name, viewers: msg.raiders || msg.viewers || '?' });
+            return;
           }
         });
       } catch (e) {
@@ -403,6 +509,7 @@
     }
 
     updateUI();
+    preloadSounds();
     initFollowerSocket();
   </script>
 
