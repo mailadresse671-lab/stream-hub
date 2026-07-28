@@ -271,83 +271,40 @@
     /* ---------- Oben rechts: Follower-Goal ---------- */
     .goal-position { position: absolute; top: 24px; right: 24px; z-index: 10; }
 
-    /* ---------- Unten links: Audio-Reactive Hood-Avatar ---------- */
-    .avatar-position { position: absolute; bottom: 24px; left: 24px; z-index: 10; width: 220px; height: 250px; }
+    /* ---------- Unten links: Bild-Avatar (Baer) ---------- */
+    .avatar-position { position: absolute; bottom: 24px; left: 24px; z-index: 10; width: 210px; }
 
-    .avatar-breathe {
-      width: 100%;
-      height: 100%;
-      animation: avatarBreathe 3.6s ease-in-out infinite;
+    .avatar-glow-bg {
+      position: absolute;
+      inset: -26px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      pointer-events: none;
+    }
+    .avatar-glow-bg.reacting { opacity: 1; }
+
+    .avatar-bob {
+      animation: avatarIdleBounce 3.2s ease-in-out infinite;
       transform-origin: 50% 100%;
     }
-    @keyframes avatarBreathe {
-      0%, 100% { transform: scale(1) rotate(0deg) translateY(0); }
-      50% { transform: scale(1.015) rotate(0.6deg) translateY(-3px); }
+    @keyframes avatarIdleBounce {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-9px) rotate(-1.2deg); }
     }
 
-    .avatar-mask {
+    .avatar-img {
       position: relative;
+      display: block;
       width: 100%;
-      height: 100%;
-      background: linear-gradient(155deg, #2a2119 0%, var(--asphalt) 55%, #0d0a08 100%);
-      clip-path: polygon(
-        38% 4%, 50% 0%, 62% 4%,
-        82% 12%, 92% 26%, 94% 42%,
-        92% 58%, 96% 66%, 90% 70%,
-        95% 78%, 87% 82%, 93% 90%,
-        83% 92%, 88% 100%, 74% 96%,
-        62% 100%, 50% 95%, 38% 100%,
-        26% 96%, 12% 100%, 17% 92%,
-        7% 90%, 13% 82%, 5% 78%,
-        10% 70%, 4% 66%, 8% 58%,
-        6% 42%, 8% 26%, 18% 12%
-      );
-      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+      height: auto;
+      filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.65));
       transition: transform 0.12s ease-out;
-      transform-origin: 50% 55%;
+      transform-origin: 50% 100%;
     }
-    .avatar-mask::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.05) 0 1.6px, transparent 2px);
-      background-size: 22px 22px;
-      pointer-events: none;
-    }
-    .avatar-seam {
-      position: absolute;
-      left: 50%;
-      top: 6%;
-      width: 1.5px;
-      height: 58%;
-      background: linear-gradient(180deg, transparent, rgba(154, 149, 138, 0.28), rgba(154, 149, 138, 0.1));
-      transform: translateX(-50%);
-      pointer-events: none;
-    }
-    .avatar-tear { position: absolute; width: 22px; height: 1.4px; background: rgba(179, 0, 0, 0.35); pointer-events: none; }
-    .avatar-tear--a { top: 74%; left: 6%; transform: rotate(-24deg); }
-    .avatar-tear--b { top: 86%; right: 10%; transform: rotate(18deg); }
-
-    .avatar-eyes { position: absolute; top: 30%; left: 0; width: 100%; display: flex; justify-content: center; gap: 26px; }
-    .avatar-eye {
-      position: relative;
-      width: 34px;
-      height: 20px;
-      border-radius: 50%;
-      background: radial-gradient(circle, var(--gold) 0%, rgba(255, 215, 0, 0.35) 60%, transparent 100%);
-      box-shadow: 0 0 14px 3px var(--gold-glow);
-      animation: avatarEyeGlow 4.2s ease-in-out infinite;
-      transition: transform 0.09s ease-out, opacity 0.09s ease-out, box-shadow 0.15s ease;
-      transform-origin: center;
-    }
-    .avatar-eye--right { animation-delay: 0.15s; }
-    @keyframes avatarEyeGlow { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
-    .avatar-eye.blinking { transform: scaleY(0.08); }
-    .avatar-mask.reacting { transform: scale(1.035); }
-    .avatar-eye.reacting { transform: scale(1.25); box-shadow: 0 0 22px 6px var(--gold-glow); }
-    .avatar-eye.mic-active {
-      background: radial-gradient(circle, var(--blood) 0%, rgba(179, 0, 0, 0.35) 60%, transparent 100%);
-      box-shadow: 0 0 14px 3px var(--blood-glow);
+    .avatar-img.reacting {
+      transform: translateY(-16px) scale(1.05);
     }
 
     /* ---------- Unten rechts: Chat-Feed + Branding-Tag ---------- */
@@ -706,18 +663,11 @@
       </div>
     </div>
 
-    <!-- Unten links: Hood-Masken-Avatar -->
+    <!-- Unten links: Bild-Avatar (Baer, assets/images/avatar.png) -->
     <div class="avatar-position">
-      <div class="avatar-breathe" id="avatarBreathe">
-        <div class="avatar-mask" id="avatarMask">
-          <div class="avatar-seam"></div>
-          <div class="avatar-tear avatar-tear--a"></div>
-          <div class="avatar-tear avatar-tear--b"></div>
-          <div class="avatar-eyes">
-            <div class="avatar-eye avatar-eye--left" id="eyeLeft"></div>
-            <div class="avatar-eye avatar-eye--right" id="eyeRight"></div>
-          </div>
-        </div>
+      <div class="avatar-glow-bg" id="avatarGlow"></div>
+      <div class="avatar-bob">
+        <img class="avatar-img" id="avatarImg" src="assets/images/avatar.png" alt="DaN Avatar">
       </div>
     </div>
 
@@ -1821,27 +1771,13 @@
     }
 
     // =====================================================================
-    // Hood-Masken-Avatar: Idle-Atmen + Blinzeln + Chat-Reaktion (primaer),
-    // Mikro-Reaktivitaet als kostenloser Bonus-Pfad (in Streamlabs Mobile
-    // bestaetigt blockiert, siehe avatar.html).
+    // Bild-Avatar (Baer): dauerhaftes Idle-Wippen (CSS) + Chat-Reaktion
+    // (primaer) - Bounce + Glow-Puls bei jeder Chat-Nachricht. Mikro-
+    // Reaktivitaet bleibt als kostenloser Bonus-Pfad im Code (in
+    // Streamlabs Mobile bestaetigt blockiert, siehe avatar.html).
     // =====================================================================
-    const eyeLeft = document.getElementById('eyeLeft');
-    const eyeRight = document.getElementById('eyeRight');
-    const avatarMask = document.getElementById('avatarMask');
-
-    function scheduleAvatarBlink() {
-      const delay = 2600 + Math.random() * 3400;
-      setTimeout(() => {
-        eyeLeft.classList.add('blinking');
-        eyeRight.classList.add('blinking');
-        setTimeout(() => {
-          eyeLeft.classList.remove('blinking');
-          eyeRight.classList.remove('blinking');
-        }, 140);
-        scheduleAvatarBlink();
-      }, delay);
-    }
-    scheduleAvatarBlink();
+    const avatarImg = document.getElementById('avatarImg');
+    const avatarGlow = document.getElementById('avatarGlow');
 
     let lastAvatarReactionAt = 0;
     const AVATAR_REACTION_COOLDOWN_MS = 350;
@@ -1849,27 +1785,19 @@
       const now = performance.now();
       if (now - lastAvatarReactionAt < AVATAR_REACTION_COOLDOWN_MS) return;
       lastAvatarReactionAt = now;
-      avatarMask.classList.add('reacting');
-      eyeLeft.classList.add('reacting');
-      eyeRight.classList.add('reacting');
+      avatarImg.classList.add('reacting');
+      avatarGlow.classList.add('reacting');
       setTimeout(() => {
-        avatarMask.classList.remove('reacting');
-        eyeLeft.classList.remove('reacting');
-        eyeRight.classList.remove('reacting');
-      }, 260);
+        avatarImg.classList.remove('reacting');
+        avatarGlow.classList.remove('reacting');
+      }, 280);
     }
 
     // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
     const AVATAR_TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
     const MIC_SPEAK_THRESHOLD = 0.08;
 
-    function setMicActive(active) {
-      eyeLeft.classList.toggle('mic-active', active);
-      eyeRight.classList.toggle('mic-active', active);
-    }
-
     function startMicVisualLoop(getLevel) {
-      setMicActive(true);
       function step() {
         const level = getLevel();
         if (level > MIC_SPEAK_THRESHOLD) triggerAvatarReaction();
