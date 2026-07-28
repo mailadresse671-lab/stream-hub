@@ -3,213 +3,325 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stream Avatar (Mikro-Spike)</title>
-  <!-- MINI-SPIKE (Modul 3, Schritt 1): testet ausschliesslich, ob
-       getUserMedia()/Mikrofon-Berechtigungen in der Streamlabs-Mobile-
-       Android-WebView ueberhaupt durchgereicht werden. Noch KEIN fertiges
-       Maskendesign - das kommt erst, wenn dieser Spike auf dem echten
-       Tablet bestaetigt ist. -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <title>Stream Avatar</title>
+  <!-- Modul 3, Schritt 2: Live-Test in der Streamlabs-Mobile-WebView hat
+       bestaetigt, dass getUserMedia() dort blockiert ist (NotAllowedError,
+       kein Berechtigungsdialog erscheint ueberhaupt - im normalen Mobile-
+       Chrome funktioniert es dagegen einwandfrei, das Problem sitzt also
+       eindeutig in der restriktiven WebView, nicht im Code). Design-
+       Konsequenz: die dauerhafte Idle-/Chat-reaktive Animation ist jetzt
+       der PRIMAERE Zustand, nicht mehr nur Fallback. Mikro-Reaktivitaet
+       bleibt als kostenloser Bonus im Code, falls die Seite je in einem
+       weniger restriktiven Kontext laeuft. -->
+  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <style>
     :root {
       --asphalt: #17130f;
+      --rust: #3a2317;
+      --chrome-1: #e8e6e1;
       --chrome-2: #9a958a;
       --blood: #b30000;
+      --blood-glow: rgba(179, 0, 0, 0.6);
       --gold: #ffd700;
-      --gold-glow: rgba(255, 215, 0, 0.55);
-      --text-muted: #b7ac9c;
+      --gold-glow: rgba(255, 215, 0, 0.6);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
       background: transparent;
-      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
       overflow: hidden;
       height: 100vh;
     }
 
     .avatar-position {
       position: fixed;
-      bottom: 24px;
-      left: 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
+      bottom: 20px;
+      left: 20px;
+      width: 220px;
+      height: 250px;
     }
 
-    /* Aeussere Huelle traegt das Idle-Wippen (CSS-Animation) - getrennt von
-       der inneren Form, die per JS skaliert wird, damit sich die beiden
-       Transform-Quellen nicht gegenseitig ueberschreiben (gleiches Prinzip
-       wie #party-popup/#party-panel in goal.html). */
-    .avatar-bob {
-      animation: avatarIdleBob 2.4s ease-in-out infinite;
+    /* Aeussere Huelle traegt Idle-Atmen (Skalierung) + leichtes seitliches
+       Wiegen - getrennt von der inneren Maske, die per JS fuer Blinzeln/
+       Reaktionen skaliert wird (gleiches Trennprinzip wie #party-popup/
+       #party-panel: zwei Transform-Quellen duerfen sich nicht gegenseitig
+       ueberschreiben). */
+    .avatar-breathe {
+      width: 100%;
+      height: 100%;
+      animation: avatarBreathe 3.6s ease-in-out infinite;
+      transform-origin: 50% 100%;
     }
 
-    @keyframes avatarIdleBob {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
+    @keyframes avatarBreathe {
+      0%, 100% { transform: scale(1) rotate(0deg) translateY(0); }
+      50% { transform: scale(1.015) rotate(0.6deg) translateY(-3px); }
     }
 
-    .avatar-shape {
+    /* Ausgefranste Panzer-/Stoff-Silhouette im selben clip-path-Vokabular
+       wie goal-card/#party-panel (Zerklueftete Geometrie statt runder
+       Ecken, siehe Styling-Guide) - hier als Sturmhauben-Silhouette statt
+       Panzerplatte. */
+    .avatar-mask {
       position: relative;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, rgba(58, 35, 23, 0.9), var(--asphalt) 70%);
-      border: 3px solid var(--chrome-2);
-      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
-      transition: border-color 0.15s ease;
-      transform-origin: center center;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(155deg, #2a2119 0%, var(--asphalt) 55%, #0d0a08 100%);
+      clip-path: polygon(
+        38% 4%, 50% 0%, 62% 4%,
+        82% 12%, 92% 26%, 94% 42%,
+        92% 58%, 96% 66%, 90% 70%,
+        95% 78%, 87% 82%, 93% 90%,
+        83% 92%, 88% 100%, 74% 96%,
+        62% 100%, 50% 95%, 38% 100%,
+        26% 96%, 12% 100%, 17% 92%,
+        7% 90%, 13% 82%, 5% 78%,
+        10% 70%, 4% 66%, 8% 58%,
+        6% 42%, 8% 26%, 18% 12%
+      );
+      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+      transition: transform 0.12s ease-out;
+      transform-origin: 50% 55%;
     }
 
-    .avatar-shape.speaking {
-      border-color: var(--gold);
-    }
-
-    .avatar-glow {
+    .avatar-mask::before {
+      /* Feines Gewebe-/Rauschmuster, gleiche Technik wie goal-card::before */
+      content: '';
       position: absolute;
-      inset: 8px;
+      inset: 0;
+      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.05) 0 1.6px, transparent 2px);
+      background-size: 22px 22px;
+      pointer-events: none;
+    }
+
+    /* Mittelnaht - deutet die Sturmhauben-Struktur an */
+    .avatar-seam {
+      position: absolute;
+      left: 50%;
+      top: 6%;
+      width: 1.5px;
+      height: 58%;
+      background: linear-gradient(180deg, transparent, rgba(154, 149, 138, 0.28), rgba(154, 149, 138, 0.1));
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    /* Kleine Riss-/Beschaedigungs-Akzente am Saum, gleiches Motiv wie die
+       bullet-hole-Risslinien in goal.html - hier dezent, nicht dominant. */
+    .avatar-tear {
+      position: absolute;
+      width: 22px;
+      height: 1.4px;
+      background: rgba(179, 0, 0, 0.35);
+      pointer-events: none;
+    }
+    .avatar-tear--a { top: 74%; left: 6%; transform: rotate(-24deg); }
+    .avatar-tear--b { top: 86%; right: 10%; transform: rotate(18deg); }
+
+    .avatar-eyes {
+      position: absolute;
+      top: 30%;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 26px;
+    }
+
+    .avatar-eye {
+      position: relative;
+      width: 34px;
+      height: 20px;
       border-radius: 50%;
-      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
-      opacity: 0;
+      background: radial-gradient(circle, var(--gold) 0%, rgba(255, 215, 0, 0.35) 60%, transparent 100%);
+      box-shadow: 0 0 14px 3px var(--gold-glow);
+      animation: avatarEyeGlow 4.2s ease-in-out infinite;
+      transition: transform 0.09s ease-out, opacity 0.09s ease-out, box-shadow 0.15s ease;
+      transform-origin: center;
+    }
+    .avatar-eye--right { animation-delay: 0.15s; }
+
+    @keyframes avatarEyeGlow {
+      0%, 100% { opacity: 0.75; }
+      50% { opacity: 1; }
     }
 
-    .avatar-debug {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 10px;
-      color: var(--text-muted);
-      background: rgba(23, 19, 15, 0.75);
-      padding: 5px 12px;
-      border-radius: 4px;
-      max-width: 260px;
-      text-align: center;
-      line-height: 1.4;
+    /* Blinzeln: Augen kurz auf eine duenne Linie zusammendruecken */
+    .avatar-eye.blinking {
+      transform: scaleY(0.08);
     }
 
-    .avatar-level {
-      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      letter-spacing: 1px;
-      color: var(--gold);
+    /* Reaktions-Puls bei eingehender Chat-Nachricht - kurzer Aufhellungs-/
+       Aufweitungs-Impuls, klingt selbststaendig wieder ab (CSS-Transition,
+       kein eigener rAF-Loop noetig). */
+    .avatar-mask.reacting {
+      transform: scale(1.035);
+    }
+    .avatar-eye.reacting {
+      transform: scale(1.25);
+      box-shadow: 0 0 22px 6px var(--gold-glow);
+    }
+
+    /* Wird nur per JS gesetzt, wenn Mikro-Zugriff (Bonus-Pfad) tatsaechlich
+       funktioniert - blutrote statt goldene Iris signalisiert optisch
+       "reagiert live auf deine Stimme" gegenueber dem Standard-Idle/Chat-
+       Modus. */
+    .avatar-eye.mic-active {
+      background: radial-gradient(circle, var(--blood) 0%, rgba(179, 0, 0, 0.35) 60%, transparent 100%);
+      box-shadow: 0 0 14px 3px var(--blood-glow);
     }
   </style>
 </head>
 <body>
 
   <div class="avatar-position">
-    <div class="avatar-bob">
-      <div class="avatar-shape" id="avatarShape">
-        <div class="avatar-glow" id="avatarGlow"></div>
+    <div class="avatar-breathe" id="avatarBreathe">
+      <div class="avatar-mask" id="avatarMask">
+        <div class="avatar-seam"></div>
+        <div class="avatar-tear avatar-tear--a"></div>
+        <div class="avatar-tear avatar-tear--b"></div>
+        <div class="avatar-eyes">
+          <div class="avatar-eye avatar-eye--left" id="eyeLeft"></div>
+          <div class="avatar-eye avatar-eye--right" id="eyeRight"></div>
+        </div>
       </div>
     </div>
-    <div class="avatar-debug" id="avatarDebug">Mikrofon: wird angefragt&hellip;</div>
   </div>
 
   <script>
-    // ?test=speak simuliert einen Sprech-Pegel ohne echtes Mikro - damit
-    // laesst sich die Visual-Logik selbst schon jetzt (ohne Geraete-Test)
-    // ueberpruefen, gleiches Prinzip wie goal.html's ?test=-Parameter.
+    // =====================================================================
+    // Primaerer Zustand: dauerhafte Idle-Animation (Atmen via CSS-Keyframe
+    // auf .avatar-breathe, Augen-Glimmern via CSS-Keyframe auf .avatar-eye)
+    // + zufaelliges Blinzeln + Reaktions-Puls bei eingehenden Chat-
+    // Nachrichten. Laeuft komplett ohne Mikrofon - das ist nach dem
+    // bestaetigten Streamlabs-WebView-Block jetzt der Regelfall, nicht der
+    // Fallback.
+    // =====================================================================
+    const eyeLeft = document.getElementById('eyeLeft');
+    const eyeRight = document.getElementById('eyeRight');
+    const avatarMask = document.getElementById('avatarMask');
+
+    function scheduleBlink() {
+      const delay = 2600 + Math.random() * 3400;
+      setTimeout(() => {
+        eyeLeft.classList.add('blinking');
+        eyeRight.classList.add('blinking');
+        setTimeout(() => {
+          eyeLeft.classList.remove('blinking');
+          eyeRight.classList.remove('blinking');
+        }, 140);
+        scheduleBlink();
+      }, delay);
+    }
+    scheduleBlink();
+
+    let lastReactionAt = 0;
+    const REACTION_COOLDOWN_MS = 350;
+    function triggerReaction() {
+      const now = performance.now();
+      if (now - lastReactionAt < REACTION_COOLDOWN_MS) return;
+      lastReactionAt = now;
+
+      avatarMask.classList.add('reacting');
+      eyeLeft.classList.add('reacting');
+      eyeRight.classList.add('reacting');
+      setTimeout(() => {
+        avatarMask.classList.remove('reacting');
+        eyeLeft.classList.remove('reacting');
+        eyeRight.classList.remove('reacting');
+      }, 260);
+    }
+
+    // ---------- Chat-reaktiv: "Chat ist meine Stimme" ----------
+    // Eigene tmi.js-Verbindung (gleiches Muster wie goal.html's Chat-
+    // Commands - in try/catch gekapselt, damit ein CDN-Ausfall die Idle-
+    // Animation nicht mitreisst). Jede eingehende Nachricht loest einen
+    // kurzen Reaktions-Puls aus, statt eine Stimme zu simulieren, die es
+    // nicht gibt.
+    const CHAT_REACT_CHANNEL = 'dangsxr1000';
+    try {
+      const reactChatClient = new tmi.Client({
+        options: { debug: false },
+        connection: { secure: true, reconnect: true },
+        channels: [CHAT_REACT_CHANNEL]
+      });
+      reactChatClient.connect().catch(err => {
+        console.warn('[Avatar] Chat-Reaktivitaet: Verbindung fehlgeschlagen:', err.message || err);
+      });
+      reactChatClient.on('message', (channel, tags, message, self) => {
+        if (self) return;
+        triggerReaction();
+      });
+    } catch (e) {
+      console.warn('[Avatar] tmi.js nicht verfuegbar, Chat-Reaktivitaet deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
+    }
+
+    // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
+    // In der Streamlabs-Mobile-WebView bestaetigt blockiert (NotAllowedError,
+    // kein Berechtigungsdialog) - im normalen Mobile-Chrome funktioniert es.
+    // Bleibt im Code, falls die Seite je in einem weniger restriktiven
+    // Kontext laeuft; schlaegt es fehl, laeuft einfach die Chat-/Idle-
+    // Animation unveraendert weiter, kein Sonderfall noetig.
     const TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
+    const MIC_SPEAK_THRESHOLD = 0.08;
+    let micRafId = null;
 
-    // Startwert - auf echten Mikro-Daten (anderer Signalpegel als Datei-
-    // Wiedergabe) noch nicht kalibriert, muss nach dem ersten Live-Test auf
-    // dem Tablet ggf. angepasst werden.
-    const SPEAK_THRESHOLD = 0.08;
-
-    let micState = 'pending'; // pending | granted | denied | unsupported | testmode
-    let rafId = null;
-
-    function setDebug(text) {
-      document.getElementById('avatarDebug').innerHTML = text;
+    function setMicActive(active) {
+      eyeLeft.classList.toggle('mic-active', active);
+      eyeRight.classList.toggle('mic-active', active);
     }
 
-    function setSpeaking(active, level) {
-      const shape = document.getElementById('avatarShape');
-      const glow = document.getElementById('avatarGlow');
-      shape.classList.toggle('speaking', active);
-      glow.style.opacity = active ? Math.min(1, level * 3).toFixed(2) : 0;
-      const scale = active ? 1 + Math.min(0.25, level * 0.6) : 1;
-      shape.style.transform = `scale(${scale.toFixed(3)})`;
-    }
-
-    let lastDebugUpdateAt = 0;
-    function startVisualLoop(getLevel, statusLabel) {
+    function startMicVisualLoop(getLevel) {
+      setMicActive(true);
       function step() {
         const level = getLevel();
-        const speaking = level > SPEAK_THRESHOLD;
-        setSpeaking(speaking, level);
-
-        // Debug-Zahl nicht jeden Frame neu schreiben (unnoetige DOM-Last),
-        // alle ~150ms reicht zum Ablesen/Kalibrieren locker.
-        const now = performance.now();
-        if (now - lastDebugUpdateAt > 150) {
-          setDebug(`${statusLabel}<br><span class="avatar-level">${level.toFixed(3)}</span> ${speaking ? '(spricht)' : '(still)'}`);
-          lastDebugUpdateAt = now;
-        }
-
-        rafId = requestAnimationFrame(step);
+        if (level > MIC_SPEAK_THRESHOLD) triggerReaction();
+        micRafId = requestAnimationFrame(step);
       }
-      rafId = requestAnimationFrame(step);
+      micRafId = requestAnimationFrame(step);
     }
 
-    function startTestMode() {
-      micState = 'testmode';
+    function startMicTestMode() {
       let t = 0;
-      startVisualLoop(() => {
+      startMicVisualLoop(() => {
         t += 0.05;
-        // Simulierte Sprech-Huelle: Sinus + etwas Rauschen statt reinem
-        // Ein/Aus, wirkt naeher an echter Sprachdynamik.
         return Math.max(0, Math.sin(t) * 0.5 + 0.5) * (0.6 + Math.random() * 0.4);
-      }, 'TEST-MODUS (?test=speak) - simulierter Pegel, kein echtes Mikro noetig.');
+      });
     }
 
-    async function startMicMode() {
-      setDebug('Mikrofon: Berechtigung wird angefragt&hellip;');
+    async function tryStartMic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        micState = 'granted';
-
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        // WICHTIG: analyser wird NICHT mit audioCtx.destination verbunden -
-        // sonst waere das eigene Mikrofon im Stream als Echo/Feedback zu
-        // hoeren. Fuer reine Pegel-Analyse ist keine destination-Verbindung
-        // noetig.
+        // Bewusst NICHT mit audioCtx.destination verbunden - sonst waere
+        // das eigene Mikrofon im Stream als Echo/Feedback zu hoeren.
         source.connect(analyser);
 
-        startVisualLoop(() => {
+        startMicVisualLoop(() => {
           analyser.getByteTimeDomainData(dataArray);
           let sum = 0;
           for (let i = 0; i < dataArray.length; i++) sum += Math.abs(dataArray[i] - 128);
           return Math.min(1, (sum / dataArray.length) / 40);
-        }, 'Mikrofon aktiv, hoert zu.');
+        });
+        console.log('[Avatar] Mikrofon-Bonus aktiv - Reaktionen jetzt zusaetzlich stimmgesteuert.');
       } catch (err) {
-        micState = 'denied';
-        // Kein Retry: eine einmal verweigerte/fehlgeschlagene Mikro-
-        // Berechtigung aendert sich nicht durch erneutes Anfragen - nur der
-        // Nutzer kann das in den Android-System-Einstellungen aendern.
-        // err.name (z.B. NotAllowedError/NotFoundError/SecurityError) wird
-        // bewusst 1:1 angezeigt, um auf dem Tablet ohne Inspector genau
-        // diagnostizieren zu koennen, WAS blockiert.
-        console.warn('[Avatar] Mikrofon-Zugriff fehlgeschlagen:', err.name, err.message);
-        setDebug(`Mikrofon nicht verfuegbar (${err.name || 'Fehler'}) - dauerhafter Idle-Zustand, kein Absturz.`);
+        // Kein Retry, kein sichtbarer Fehlerhinweis mehr (das war der Zweck
+        // des Mini-Spikes, nicht der Produktivversion) - Idle-/Chat-
+        // Animation laeuft einfach unveraendert weiter.
+        console.log('[Avatar] Mikrofon-Bonus nicht verfuegbar (' + (err.name || 'Fehler') + ') - Idle-/Chat-Animation laeuft normal weiter.');
       }
     }
 
     if (TEST_MODE) {
-      startTestMode();
-    } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      micState = 'unsupported';
-      setDebug('getUserMedia wird von dieser WebView nicht unterstuetzt - dauerhafter Idle-Zustand, kein Absturz.');
+      startMicTestMode();
     } else {
-      startMicMode();
+      tryStartMic();
     }
   </script>
 
