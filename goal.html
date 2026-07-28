@@ -258,6 +258,48 @@
       text-shadow: 0 0 8px var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85);
     }
 
+    /* ---------- Soundtrack-Badge (unten, mittig) ----------
+       Text kommt aus dem ?track=-URL-Parameter (gleiches Prinzip wie
+       chat.html's ?channel=), kein Server/Storage noetig. */
+    .soundtrack-position {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      max-width: 70vw;
+    }
+
+    .soundtrack-badge {
+      position: relative;
+      background: linear-gradient(155deg, var(--asphalt-mid), rgba(58, 35, 23, 0.5));
+      border: 1.5px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+      padding: 7px 20px;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    }
+
+    .soundtrack-text {
+      display: inline-block;
+      white-space: nowrap;
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.4px;
+      color: var(--gold);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+      padding-left: 100%;
+      animation: soundtrackMarquee 16s linear infinite;
+    }
+
+    @keyframes soundtrackMarquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+
     /* ---------- Party Pop-up (Bildschirmmitte) ----------
        #party-popup ist die AEUSSERE, ungeclippte Huelle: sie traegt
        Position/Opacity/Transform (inkl. Lowrider-Hydraulik + Recoil-Kick)
@@ -559,6 +601,13 @@
       </div>
     </div>
 
+    <!-- Soundtrack-Badge unten mittig: Text kommt aus dem ?track=-Parameter -->
+    <div class="soundtrack-position">
+      <div class="soundtrack-badge">
+        <span class="soundtrack-text" id="soundtrackText">🎵 SOUNDTRACK: StreamBeats Hip-Hop (DMCA-Safe)</span>
+      </div>
+    </div>
+
     <!-- Party Pop-up in der Mitte: #party-popup (aeussere Huelle, Transform/
          Opacity) + #party-panel (geclippte Panzerplatte) + ueberhaengende
          Badges/Tape als Geschwister von #party-panel -->
@@ -601,6 +650,16 @@
     // Cache-Busting: einmal pro Seitenaufruf neu, damit die Audio-Assets
     // nicht aus einem veralteten Cache (Tablet/WebView) ausgeliefert werden.
     const CACHE_BUST = Date.now();
+
+    // Soundtrack-Badge: Text kommt aus dem ?track=-URL-Parameter (z.B.
+    // goal.html?track=Soundtrack%20by%20Twitch) - gleiches Prinzip wie
+    // chat.html's ?channel=-Parameter. .get() decodiert bereits, kein
+    // zusaetzliches decodeURIComponent noetig. innerText (nicht innerHTML)
+    // macht ein Escaping fuer den Fall ueberfluessig.
+    const TRACK_PARAM = new URLSearchParams(location.search).get('track');
+    if (TRACK_PARAM) {
+      document.getElementById('soundtrackText').innerText = TRACK_PARAM;
+    }
 
     let currentFollowers = 209;
     const STEP_SIZE = 10;
