@@ -10,13 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --asphalt-mid: rgba(23, 19, 15, 0.9);
-      --chrome-1: #e8e6e1;
-      --chrome-2: #9a958a;
-      --blood: #b30000;
+      /* "Urban Blackout" - siehe goal.html fuer die volle Token-Doku */
+      --asphalt-mid: rgba(9, 9, 11, 0.9);
+      --steel-line: rgba(255, 255, 255, 0.1);
+      --chrome-1: #eef0f2;
+      --chrome-2: #8b8d93;
+      --blood: #ff1a1a;
       --gold: #ffd700;
-      --text-primary: #f5f0e6;
-      --text-muted: #b7ac9c;
+      --text-primary: #f5f5f7;
+      --text-muted: #9a9ca3;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,7 +49,7 @@
       align-items: flex-start;
       gap: 10px;
       background: var(--asphalt-mid);
-      border: 1.5px solid rgba(232, 230, 225, 0.18);
+      border: 1.5px solid var(--steel-line);
       border-left: 4px solid var(--gold);
       clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 12px, 100% 100%, 0 100%);
       padding: 10px 16px 10px 14px;
@@ -65,8 +67,10 @@
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle at 6px 6px, rgba(255, 215, 0, 0.07) 0 1.6px, transparent 2px);
-      background-size: 20px 20px;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 12px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 12px);
+      opacity: 0.3;
       pointer-events: none;
     }
 
@@ -336,11 +340,11 @@
     // =====================================================================
     const DEMO_MESSAGES = [
       { user: 'StreetKing_209', text: 'Yooo Stream sieht mega aus! 🔥', color: '#ffd700' },
-      { user: 'ChromeQueen', text: 'PogChamp diese Runde war krass', color: '#e8e6e1' },
-      { user: 'LowriderLoco', text: 'Das Hydraulik-Popup ist next level 😂', color: '#b30000' },
+      { user: 'ChromeQueen', text: 'PogChamp diese Runde war krass', color: '#eef0f2' },
+      { user: 'LowriderLoco', text: 'Das Hydraulik-Popup ist next level 😂', color: '#ff1a1a' },
       { user: 'xX_BassHead_Xx', text: 'Der Sub-Bass Effekt geht richtig ab!', color: '#ffd700' },
-      { user: 'ThugLifeTina', text: 'GG WP, mega Session heute', color: '#e8e6e1' },
-      { user: 'RaidSquadRico', text: 'Gruesse vom letzten Raid! 🚨', color: '#b30000' },
+      { user: 'ThugLifeTina', text: 'GG WP, mega Session heute', color: '#eef0f2' },
+      { user: 'RaidSquadRico', text: 'Gruesse vom letzten Raid! 🚨', color: '#ff1a1a' },
       { user: 'GoldTeethGary', text: 'Ziel bald geschafft, los gehts!', color: '#ffd700' }
     ];
 
@@ -386,7 +390,7 @@
 
       client.connect().catch(err => {
         console.error("Verbindungsfehler:", err);
-        addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#b30000", true);
+        addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#ff1a1a", true);
       });
 
       client.on('message', (channel, tags, message, self) => {
