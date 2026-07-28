@@ -37,13 +37,15 @@
       --text-muted: #9a9ca3;
       --success: #22c55e;
       --danger: #ef4444;
-      --cut: 15px;
-      /* Globaler Schrumpf-Faktor fuer alle Eck-verankerten HUD-Widgets.
-         Streamlabs Mobile meldet dem iframe offenbar eine sehr geringe
-         interne Aufloesung, wodurch die (an sich korrekt vw/vh-verankerten)
-         Widgets riesig wirken - ein einzelner Regler hier, statt jede
-         Innen-Groesse (Fonts/Paddings/Canvas) einzeln umzurechnen. */
-      --ui-scale: 0.55;
+      /* Kein transform:scale() mehr (Streamlabs-Mobile-WebView rendert
+         herunterskalierte Layer sichtbar unscharf/verpixelt - Text und
+         Bilder werden dort offenbar nicht bei der finalen Groesse neu
+         rasterisiert). Stattdessen sind alle Innen-Groessen (Fonts,
+         Paddings, Breiten, Border, clip-path-Werte) direkt ~45% kleiner
+         als im Original-Design gesetzt, damit die Engine sie nativ in der
+         richtigen kleinen Groesse zeichnet - siehe CLAUDE.md fuer die
+         Hotfix-Historie. */
+      --cut: 8px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -90,8 +92,8 @@
        statt runder Ecken, siehe Styling-Guide) ---------- */
     .bullet-hole {
       position: absolute;
-      width: 13px;
-      height: 13px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #000 0%, #131417 55%, transparent 75%);
       box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9);
@@ -102,7 +104,7 @@
     .bullet-hole::before {
       content: '';
       position: absolute;
-      inset: -7px;
+      inset: -4px;
       background:
         linear-gradient(12deg, transparent 47%, rgba(255, 26, 26, 0.4) 49%, transparent 51%),
         linear-gradient(96deg, transparent 47%, rgba(255, 26, 26, 0.32) 49%, transparent 51%),
@@ -118,7 +120,7 @@
     .shimmer-frame {
       position: relative;
       clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-      padding: 1.5px;
+      padding: 1px;
       background: linear-gradient(155deg, var(--blood), var(--steel) 55%, var(--blood));
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
       animation: framePulse 4s ease-in-out infinite;
@@ -133,7 +135,7 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
@@ -146,19 +148,19 @@
       position: absolute;
       inset: 0;
       background-image:
-        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 14px),
-        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 14px);
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 8px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 8px);
       opacity: 0.35;
       pointer-events: none;
     }
 
     .hud-watermark {
       position: absolute;
-      right: 10px;
-      bottom: 6px;
+      right: 5px;
+      bottom: 3px;
       font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 9px;
-      letter-spacing: 2px;
+      font-size: 5px;
+      letter-spacing: 1px;
       color: var(--chrome-2);
       opacity: 0.4;
       white-space: nowrap;
@@ -168,11 +170,11 @@
 
     .tape-corner {
       position: absolute;
-      top: 6px;
-      left: -13px;
-      width: 46px;
-      height: 11px;
-      background: repeating-linear-gradient(45deg, var(--gold) 0 6px, #0a0a0a 6px 12px);
+      top: 3px;
+      left: -7px;
+      width: 25px;
+      height: 6px;
+      background: repeating-linear-gradient(45deg, var(--gold) 0 3px, #0a0a0a 3px 7px);
       transform: rotate(-45deg);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
       pointer-events: none;
@@ -188,34 +190,32 @@
       top: 2.2vh;
       left: 1.25vw;
       z-index: 10;
-      transform: scale(var(--ui-scale));
-      transform-origin: top left;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 9px;
     }
 
     .goal-card, .wanted-card, .stats-card {
       /* min() statt fixer px, damit die Karten auch in schmalen/krummen
          Viewports schrumpfen koennen, statt garantiert zu ueberlappen. */
-      min-width: min(240px, 34vw);
+      min-width: min(132px, 34vw);
     }
-    .goal-card { padding: 20px 26px 18px; }
-    .wanted-card { padding: 16px 24px 14px; min-width: min(200px, 30vw); }
-    .stats-card { padding: 16px 24px 14px; }
+    .goal-card { padding: 11px 14px 10px; }
+    .wanted-card { padding: 9px 13px 8px; min-width: min(110px, 30vw); }
+    .stats-card { padding: 9px 13px 8px; }
 
     .goal-header {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 14px;
+      gap: 8px;
     }
 
     .goal-title, .wanted-title, .stats-title {
       font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 13px;
+      font-size: 7px;
       font-weight: 400;
-      letter-spacing: 1.6px;
+      letter-spacing: 1px;
       color: var(--gold);
       text-transform: uppercase;
       white-space: nowrap;
@@ -225,7 +225,7 @@
     .goal-stats {
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
       font-weight: 800;
-      font-size: 14px;
+      font-size: 8px;
       color: var(--chrome-1);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -234,9 +234,9 @@
 
     .bar-bg {
       width: 100%;
-      height: 14px;
+      height: 8px;
       background: rgba(0, 0, 0, 0.35);
-      clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+      clip-path: polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%);
       overflow: hidden;
       position: relative;
       border: 1px solid var(--steel-line);
@@ -246,16 +246,16 @@
 
     .debug-line {
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
-      font-size: 8px;
+      font-size: 4px;
       color: var(--text-muted);
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
       font-variant-numeric: tabular-nums;
       white-space: normal;
       word-break: break-word;
       line-height: 1.4;
     }
 
-    .wanted-stars { display: flex; gap: 6px; font-size: 22px; line-height: 1; }
+    .wanted-stars { display: flex; gap: 3px; font-size: 12px; line-height: 1; }
     .wanted-star {
       color: #35373c;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
@@ -270,11 +270,11 @@
        Looks aus index.html, damit die Master-Szene optisch aus einem Guss
        bleibt (siehe Styling-Guide: Hood/Ghetto vs. Glassmorphism nicht
        vermischen - hier ist alles Hood). */
-    .stats-header { display: flex; align-items: center; gap: 8px; }
+    .stats-header { display: flex; align-items: center; gap: 4px; }
 
     .stats-status-dot {
-      width: 7px;
-      height: 7px;
+      width: 4px;
+      height: 4px;
       border-radius: 50%;
       background: var(--text-muted);
       flex-shrink: 0;
@@ -287,12 +287,12 @@
       50% { opacity: 0.5; transform: scale(0.75); }
     }
 
-    .stats-row { display: flex; gap: 18px; }
-    .stat { text-align: center; min-width: 40px; }
+    .stats-row { display: flex; gap: 10px; }
+    .stat { text-align: center; min-width: 22px; }
     .stat .stat-value {
       display: block;
       font-family: 'Montserrat', sans-serif;
-      font-size: 18px;
+      font-size: 10px;
       font-weight: 900;
       line-height: 1;
       font-variant-numeric: tabular-nums;
@@ -300,8 +300,8 @@
     }
     .stat .stat-label {
       display: block;
-      font-size: 8px;
-      margin-top: 4px;
+      font-size: 4px;
+      margin-top: 2px;
       color: var(--text-muted);
       text-transform: uppercase;
       font-weight: 700;
@@ -311,11 +311,11 @@
     .val-loss { color: var(--danger); }
     .val-rate { color: var(--gold); }
 
-    .rank-row { display: flex; align-items: center; gap: 8px; padding-top: 2px; border-top: 1px solid var(--steel-line); }
-    .rank-icon { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+    .rank-row { display: flex; align-items: center; gap: 4px; padding-top: 1px; border-top: 1px solid var(--steel-line); }
+    .rank-icon { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
     .rank-text { display: flex; flex-direction: column; line-height: 1.15; }
-    .rank-tier { font-size: 11px; font-weight: 800; color: var(--gold); white-space: nowrap; }
-    .rank-mmr { font-size: 8px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
+    .rank-tier { font-size: 6px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+    .rank-mmr { font-size: 4px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
 
     /* ---------- Oben rechts: Follower-Goal ---------- */
     .goal-position {
@@ -323,8 +323,6 @@
       top: 2.2vh;
       right: 1.25vw;
       z-index: 10;
-      transform: scale(var(--ui-scale));
-      transform-origin: top right;
     }
 
     /* ---------- Unten links: Bild-Avatar (Baer) ---------- */
@@ -333,20 +331,19 @@
       bottom: 2.2vh;
       left: 1.25vw;
       z-index: 10;
-      transform: scale(var(--ui-scale));
-      transform-origin: bottom left;
       /* vw-basierte Breite mit Klammern nach oben/unten statt starrer
-         210px (die bei kleinen/verzerrten Viewports den Baeren aus dem
-         Bild schieben wuerde) - bleibt proportional zum Viewport, ohne
-         auf sehr breiten/schmalen Quellen absurd zu wachsen/schrumpfen. */
-      width: clamp(120px, 11vw, 260px);
+         Pixel-Zahl (die bei kleinen/verzerrten Viewports den Baeren aus
+         dem Bild schieben wuerde) - bleibt proportional zum Viewport,
+         ohne auf sehr breiten/schmalen Quellen absurd zu wachsen/
+         schrumpfen. Klammern (66-143px) ~45% kleiner als im Original. */
+      width: clamp(66px, 6vw, 143px);
     }
 
     /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
        kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
     .avatar-glow-bg {
       position: absolute;
-      inset: -26px;
+      inset: -14px;
       border-radius: 50%;
       background: radial-gradient(circle, var(--blood-glow), transparent 70%);
       opacity: 0;
@@ -368,7 +365,7 @@
     }
     @keyframes avatarIdleBounce {
       0%, 100% { transform: translateY(0) rotate(0deg); }
-      50% { transform: translateY(-9px) rotate(-1.2deg); }
+      50% { transform: translateY(-5px) rotate(-1.2deg); }
     }
 
     /* Punch-Wrapper: kurzer Bounce-Impuls bei jedem Trigger, unabhaengig
@@ -381,7 +378,7 @@
       transform-origin: 50% 100%;
     }
     .avatar-punch.punch {
-      transform: translateY(-16px) scale(1.05);
+      transform: translateY(-9px) scale(1.05);
     }
 
     .avatar-layer {
@@ -401,10 +398,8 @@
       position: absolute;
       right: 1.25vw;
       bottom: 10.2vh;
-      width: 20.8vw;
-      height: 44.4vh;
-      transform: scale(var(--ui-scale));
-      transform-origin: bottom right;
+      width: 11.4vw;
+      height: 24.4vh;
       overflow: hidden;
       pointer-events: none;
       z-index: 10;
@@ -413,20 +408,20 @@
     .chat-card {
       position: absolute;
       top: 0;
-      left: 20px;
-      width: 340px;
+      left: 11px;
+      width: 187px;
       display: flex;
       align-items: flex-start;
-      gap: 10px;
+      gap: 6px;
       background: var(--asphalt-mid);
-      border: 1.5px solid var(--steel-line);
-      border-left: 4px solid var(--gold);
-      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 12px, 100% 100%, 0 100%);
-      padding: 10px 16px 10px 14px;
+      border: 1px solid var(--steel-line);
+      border-left: 2px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 7px, 100% 100%, 0 100%);
+      padding: 6px 9px 6px 8px;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
-      font-size: 13px;
+      font-size: 7px;
       line-height: 1.45;
       opacity: 0;
       will-change: transform;
@@ -437,54 +432,52 @@
       position: absolute;
       inset: 0;
       background-image:
-        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 12px),
-        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 12px);
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 7px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 7px);
       opacity: 0.3;
       pointer-events: none;
     }
     .chat-card.visible { opacity: 1; }
     .chat-card.fade-out { transition: opacity 0.6s ease; opacity: 0; }
-    .avatar-dot { width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
+    .avatar-dot { width: 4px; height: 4px; margin-top: 3px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
     .msg-body { min-width: 0; }
     .username {
       font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
       font-weight: 400;
-      font-size: 16px;
-      letter-spacing: 0.5px;
-      margin-right: 6px;
+      font-size: 9px;
+      letter-spacing: 0.3px;
+      margin-right: 3px;
       display: inline;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
     }
     .text { color: var(--text-primary); word-break: break-word; }
-    .chat-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -2px 1px; }
+    .chat-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -1px 1px; }
 
     .branding-position {
       position: absolute;
       right: 1.25vw;
       bottom: 2.2vh;
       z-index: 11;
-      transform: scale(var(--ui-scale));
-      transform-origin: bottom right;
     }
     .branding-tag {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
-      border: 1.5px solid var(--blood);
-      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-      padding: 8px 16px;
+      border: 1px solid var(--blood);
+      clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+      padding: 4px 9px;
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
     }
-    .branding-name { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 1px; color: var(--chrome-1); }
-    .branding-pipe { color: var(--chrome-2); margin: 0 5px; font-family: 'Montserrat', sans-serif; }
-    .branding-live { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 1px; color: var(--gold); }
+    .branding-name { font-family: 'Bebas Neue', sans-serif; font-size: 8px; letter-spacing: 0.5px; color: var(--chrome-1); }
+    .branding-pipe { color: var(--chrome-2); margin: 0 3px; font-family: 'Montserrat', sans-serif; }
+    .branding-live { font-family: 'Bebas Neue', sans-serif; font-size: 8px; letter-spacing: 0.5px; color: var(--gold); }
     .branding-dot {
-      width: 6px; height: 6px; border-radius: 50%;
+      width: 3px; height: 3px; border-radius: 50%;
       background: var(--blood);
       box-shadow: 0 0 6px var(--blood-glow);
       display: inline-block;
-      margin-left: 4px;
+      margin-left: 2px;
       animation: brandPulse 1.8s ease-in-out infinite;
     }
     @keyframes brandPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.75); } }
@@ -494,17 +487,16 @@
       position: absolute;
       bottom: 2.2vh;
       left: 50%;
-      transform: translateX(-50%) scale(var(--ui-scale));
-      transform-origin: center bottom;
+      transform: translateX(-50%);
       z-index: 8;
-      max-width: 33vw;
+      max-width: 18vw;
     }
     .soundtrack-badge {
       position: relative;
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
-      border: 1.5px solid var(--gold);
-      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
-      padding: 7px 20px;
+      border: 1px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+      padding: 4px 11px;
       overflow: hidden;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
@@ -515,8 +507,8 @@
       white-space: nowrap;
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
       font-weight: 700;
-      font-size: 12px;
-      letter-spacing: 0.4px;
+      font-size: 7px;
+      letter-spacing: 0.3px;
       color: var(--gold);
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
       padding-left: 100%;
