@@ -239,45 +239,113 @@
 
     let audioCtx = null;
     const soundBuffers = {};
+    const soundUrls = {};
 
     function getAudioContext() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('[Audio] AudioContext erstellt, initialer state:', audioCtx.state);
       }
       return audioCtx;
     }
+
+    // Zentrale Resume-Funktion: wird von der Touch/Klick-Freischaltung (1),
+    // beim Eintreffen eines Socket-Events (2) und vor jeder Wiedergabe erneut
+    // versucht - resume() auf einem bereits laufenden Context ist ein
+    // günstiges No-op, mehrfaches Aufrufen ist also unproblematisch.
+    async function resumeAudioContext(reason) {
+      const ctx = getAudioContext();
+      if (ctx.state !== 'suspended') {
+        console.log(`[Audio] state ist bereits "${ctx.state}" (Auslöser: ${reason}) - kein Resume nötig.`);
+        return ctx;
+      }
+      console.warn(`[Audio] AudioContext ist "suspended" (Auslöser: ${reason}), versuche resume()...`);
+      try {
+        await ctx.resume();
+        console.log(`[Audio] resume() erfolgreich (Auslöser: ${reason}), neuer state: "${ctx.state}".`);
+      } catch (err) {
+        console.warn(`[Audio] resume() fehlgeschlagen (Auslöser: ${reason}) - Browser blockiert Web Audio vermutlich ohne Nutzer-Geste:`, err);
+      }
+      return ctx;
+    }
+
+    // 1. AudioContext-Unlocking: die erste Touch-/Klick-/Tasten-Interaktion
+    // auf der Seite schaltet den AudioContext sofort frei.
+    const AUDIO_UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'click', 'keydown'];
+    function unlockAudioOnFirstInteraction() {
+      console.log('[Audio] Erste Nutzer-Interaktion erkannt, versuche Freischaltung...');
+      resumeAudioContext('erste Nutzer-Interaktion');
+      AUDIO_UNLOCK_EVENTS.forEach(evt => document.removeEventListener(evt, unlockAudioOnFirstInteraction));
+    }
+    AUDIO_UNLOCK_EVENTS.forEach(evt => document.addEventListener(evt, unlockAudioOnFirstInteraction, { passive: true }));
 
     // Fehlt eine Sounddatei (noch) im Repo, bleibt der jeweilige Alert einfach
     // stumm - Popup/Confetti/Warteschlange laufen davon unbeeinflusst weiter.
     async function preloadSounds() {
       const ctx = getAudioContext();
-      ctx.resume().catch(() => {});
+      console.log('[Audio] Starte Sound-Preload für:', Object.keys(SOUND_FILES).join(', '));
 
       await Promise.all(Object.entries(SOUND_FILES).map(async ([key, file]) => {
+        const url = `${VERCEL_URL}/assets/audio/${file}`;
+        soundUrls[key] = url;
         try {
-          const res = await fetch(`${VERCEL_URL}/assets/audio/${file}`);
+          const res = await fetch(url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const arrayBuffer = await res.arrayBuffer();
           soundBuffers[key] = await ctx.decodeAudioData(arrayBuffer);
+          console.log(`[Audio] "${file}" geladen und dekodiert (${key}).`);
         } catch (e) {
-          console.warn(`Alert-Sound "${file}" nicht verfügbar, Alert bleibt stumm:`, e.message);
+          console.warn(`[Audio] Sound "${file}" nicht verfügbar, Alert "${key}" bleibt stumm:`, e.message);
         }
       }));
+
+      const loaded = Object.keys(soundBuffers);
+      const missing = Object.keys(SOUND_FILES).filter(k => !soundBuffers[k]);
+      console.log(`[Audio] Preload abgeschlossen. Geladen: [${loaded.join(', ') || '-'}] | Fehlend: [${missing.join(', ') || '-'}]`);
     }
 
-    function playFileSound(key) {
-      const buffer = soundBuffers[key];
-      if (!buffer) return; // Fallback: kein Sound, Rest des Alerts läuft normal weiter
-      const ctx = getAudioContext();
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
-      source.start(0);
+    // 3. Fallback: einfaches HTML5-<audio>-Element, falls Web Audio blockiert
+    // bleibt (z.B. AudioContext bleibt trotz resume()-Versuch "suspended").
+    function playHtmlAudioFallback(key) {
+      const url = soundUrls[key];
+      if (!url) {
+        console.warn(`[Audio] Kein Fallback für "${key}" möglich - Datei-URL unbekannt.`);
+        return;
+      }
+      const el = new Audio(url);
+      el.play()
+        .then(() => console.log(`[Audio] Fallback-Wiedergabe (HTML5 Audio) für "${key}" gestartet.`))
+        .catch(err => console.warn(`[Audio] Fallback-Wiedergabe (HTML5 Audio) für "${key}" ebenfalls blockiert:`, err));
     }
 
-    function playGoalSound() {
+    async function playFileSound(key) {
+      if (!soundBuffers[key]) {
+        console.warn(`[Audio] Kein geladener Sound für "${key}" vorhanden (Datei fehlt/fehlgeschlagen) - kein Ton.`);
+        return;
+      }
+
+      const ctx = await resumeAudioContext(`Wiedergabe "${key}"`);
+
+      if (ctx.state === 'running') {
+        const source = ctx.createBufferSource();
+        source.buffer = soundBuffers[key];
+        source.connect(ctx.destination);
+        source.start(0);
+        console.log(`[Audio] "${key}" via Web Audio API abgespielt.`);
+        return;
+      }
+
+      console.warn(`[Audio] Web Audio weiterhin blockiert (state: "${ctx.state}") - nutze HTML5-Audio-Fallback für "${key}".`);
+      playHtmlAudioFallback(key);
+    }
+
+    async function playGoalSound() {
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = await resumeAudioContext('Wiedergabe "goal"');
+        if (ctx.state !== 'running') {
+          console.warn(`[Audio] Web Audio blockiert (state: "${ctx.state}") - Ziel-Fanfare basiert auf Synthese und hat keinen HTML5-Fallback, bleibt stumm.`);
+          return;
+        }
         const now = ctx.currentTime;
         const chord = [261.63, 329.63, 392.00, 523.25, 659.25];
         chord.forEach(freq => {
@@ -457,6 +525,12 @@
 
         socket.on('event', (eventData) => {
           const msg = (eventData.message && eventData.message[0]) || {};
+
+          // 2. Auto-Resume: bereits beim Eintreffen des Events versuchen, den
+          // AudioContext freizuschalten - nicht erst kurz vor der Wiedergabe,
+          // da das Popup (und damit der Sound) bei voller Warteschlange erst
+          // später drankommt.
+          resumeAudioContext(`Socket-Event "${eventData.type}"`);
 
           if (eventData.type === 'follow') {
             const followerName = msg.name || eventData.name || 'Zuschauer';
