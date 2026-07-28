@@ -7,25 +7,23 @@
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --concrete-mid: rgba(26, 22, 18, 0.9);
+      --asphalt-mid: rgba(23, 19, 15, 0.9);
       --chrome-1: #e8e6e1;
       --chrome-2: #9a958a;
-      --blood: #7f1010;
-      --blood-bright: #d21f1f;
-      --gold: #c9a227;
-      --gold-bright: #f2cd4d;
-      --text-primary: #f2ede0;
-      --text-muted: #a89f8f;
+      --blood: #b30000;
+      --gold: #ffd700;
+      --text-primary: #f5f0e6;
+      --text-muted: #b7ac9c;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
       background: transparent;
-      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
       color: var(--text-primary);
       overflow: hidden;
       height: 100vh;
@@ -48,7 +46,7 @@
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      background: var(--concrete-mid);
+      background: var(--asphalt-mid);
       border: 1.5px solid rgba(232, 230, 225, 0.18);
       border-left: 4px solid var(--gold);
       clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 12px, 100% 100%, 0 100%);
@@ -67,7 +65,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle at 6px 6px, rgba(201, 162, 39, 0.08) 0 1.6px, transparent 2px);
+      background-image: radial-gradient(circle at 6px 6px, rgba(255, 215, 0, 0.07) 0 1.6px, transparent 2px);
       background-size: 20px 20px;
       pointer-events: none;
     }
@@ -94,10 +92,10 @@
     }
 
     .username {
-      font-family: 'UnifrakturMaguntia', 'Pirata One', 'Arial Black', sans-serif;
+      font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
       font-weight: 400;
       font-size: 16px;
-      letter-spacing: 0;
+      letter-spacing: 0.5px;
       margin-right: 6px;
       display: inline;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
@@ -139,10 +137,15 @@
 
   <script>
     // ==========================================
-    // DEIN TWITCH KANALNAME
+    // Kanal kommt ausschliesslich aus dem ?channel=-URL-Parameter, z.B.
+    // in OBS als Browser-Quellen-URL: chat.html?channel=dangsxr1000
+    // Fehlt der Parameter, wird NIE weitergeleitet/umgeleitet - stattdessen
+    // startet automatisch ein Demo-Modus mit Beispielnachrichten (siehe
+    // startDemoMode() weiter unten), damit das Overlay auch ohne Kanal-
+    // Konfiguration sofort etwas Sinnvolles zeigt.
     // ==========================================
-    const CHANNEL_NAME = "dangsxr1000";
-    // ==========================================
+    const CHANNEL_PARAM = (new URLSearchParams(location.search).get('channel') || '').toLowerCase().trim();
+    const DEMO_MODE = !CHANNEL_PARAM;
 
     const AUTO_HIDE_MS = 15000;
     const SYSTEM_HIDE_MS = 6000;
@@ -237,10 +240,10 @@
       }
     }
 
-    function addMessage(username, text, color = '#c9a227', isSystem = false, emotesTag = null) {
+    function addMessage(username, text, color = '#ffd700', isSystem = false, emotesTag = null) {
       const msgDiv = document.createElement('div');
       msgDiv.className = 'chat-card';
-      const accentColor = isSystem ? '#f2cd4d' : color;
+      const accentColor = isSystem ? '#ffd700' : color;
       msgDiv.style.borderLeftColor = accentColor;
 
       msgDiv.innerHTML = `
@@ -324,29 +327,74 @@
       return html;
     }
 
-    // 1. Sofortige Start-Testnachricht beim Laden
-    addMessage("SYSTEM", "Chat-Overlay geladen! Warte auf Nachrichten...", "#f2cd4d", true);
+    // =====================================================================
+    // Demo-Modus: laeuft komplett unabhaengig von Twitch, zeigt abwechselnd
+    // Beispielnachrichten in einer Schleife. Greift automatisch, wenn kein
+    // ?channel=-Parameter uebergeben wurde - siehe CHANNEL_PARAM/DEMO_MODE
+    // oben. Pausiert ueber die Page Visibility API, wenn die Browser-Quelle
+    // gerade nicht sichtbar ist (gleiches Muster wie LiquidBar in goal.html).
+    // =====================================================================
+    const DEMO_MESSAGES = [
+      { user: 'StreetKing_209', text: 'Yooo Stream sieht mega aus! 🔥', color: '#ffd700' },
+      { user: 'ChromeQueen', text: 'PogChamp diese Runde war krass', color: '#e8e6e1' },
+      { user: 'LowriderLoco', text: 'Das Hydraulik-Popup ist next level 😂', color: '#b30000' },
+      { user: 'xX_BassHead_Xx', text: 'Der Sub-Bass Effekt geht richtig ab!', color: '#ffd700' },
+      { user: 'ThugLifeTina', text: 'GG WP, mega Session heute', color: '#e8e6e1' },
+      { user: 'RaidSquadRico', text: 'Gruesse vom letzten Raid! 🚨', color: '#b30000' },
+      { user: 'GoldTeethGary', text: 'Ziel bald geschafft, los gehts!', color: '#ffd700' }
+    ];
 
-    // 2. Gesicherte Verbindung zu Twitch herstellen
-    const client = new tmi.Client({
-      options: { debug: false },
-      connection: {
-        secure: true,
-        reconnect: true
-      },
-      channels: [ CHANNEL_NAME.toLowerCase().trim() ]
+    let demoTimer = null;
+    let demoIndex = 0;
+
+    function demoTick() {
+      const msg = DEMO_MESSAGES[demoIndex % DEMO_MESSAGES.length];
+      demoIndex++;
+      addMessage(msg.user, msg.text, msg.color, false, null);
+    }
+
+    function startDemoMode() {
+      if (demoTimer) return;
+      demoTick();
+      demoTimer = setInterval(demoTick, 3500);
+    }
+
+    function stopDemoMode() {
+      if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!DEMO_MODE) return;
+      if (document.hidden) stopDemoMode();
+      else startDemoMode();
     });
 
-    client.connect().catch(err => {
-      console.error("Verbindungsfehler:", err);
-      addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#d21f1f", true);
-    });
+    if (DEMO_MODE) {
+      addMessage("SYSTEM", "Demo-Modus aktiv - kein ?channel= Parameter uebergeben. Beispiel: chat.html?channel=dangsxr1000", "#ffd700", true);
+      startDemoMode();
+    } else {
+      addMessage("SYSTEM", `Chat-Overlay geladen! Verbinde mit #${CHANNEL_PARAM} ...`, "#ffd700", true);
 
-    client.on('message', (channel, tags, message, self) => {
-      const userColor = tags.color || '#c9a227';
-      const displayName = tags['display-name'] || tags.username;
-      addMessage(displayName, message, userColor, false, tags.emotes);
-    });
+      const client = new tmi.Client({
+        options: { debug: false },
+        connection: {
+          secure: true,
+          reconnect: true
+        },
+        channels: [ CHANNEL_PARAM ]
+      });
+
+      client.connect().catch(err => {
+        console.error("Verbindungsfehler:", err);
+        addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#b30000", true);
+      });
+
+      client.on('message', (channel, tags, message, self) => {
+        const userColor = tags.color || '#ffd700';
+        const displayName = tags['display-name'] || tags.username;
+        addMessage(displayName, message, userColor, false, tags.emotes);
+      });
+    }
   </script>
 
 </body>
