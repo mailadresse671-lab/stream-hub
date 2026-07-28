@@ -5,15 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stream Chat Overlay</title>
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-glass: rgba(15, 23, 42, 0.88);
-      --neon-blue: #38bdf8;
-      --accent-orange: #f97316;
-      --text-primary: #f8fafc;
-      --text-muted: #94a3b8;
-      --warning: #fbbf24;
-      --danger: #ef4444;
+      --concrete-mid: rgba(26, 22, 18, 0.9);
+      --chrome-1: #e8e6e1;
+      --chrome-2: #9a958a;
+      --blood: #7f1010;
+      --blood-bright: #d21f1f;
+      --gold: #c9a227;
+      --gold-bright: #f2cd4d;
+      --text-primary: #f2ede0;
+      --text-muted: #a89f8f;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,19 +48,28 @@
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      background: var(--bg-glass);
-      border: 1.5px solid rgba(248, 250, 252, 0.2);
-      border-left: 4px solid var(--neon-blue);
-      border-radius: 10px;
-      padding: 10px 14px;
+      background: var(--concrete-mid);
+      border: 1.5px solid rgba(232, 230, 225, 0.18);
+      border-left: 4px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 12px, 100% 100%, 0 100%);
+      padding: 10px 16px 10px 14px;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
       font-size: 13px;
       line-height: 1.45;
       opacity: 0;
       will-change: transform;
       transition: opacity 0.35s ease;
+    }
+
+    .chat-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 6px 6px, rgba(201, 162, 39, 0.08) 0 1.6px, transparent 2px);
+      background-size: 20px 20px;
+      pointer-events: none;
     }
 
     .chat-card.visible { opacity: 1; }
@@ -80,10 +94,13 @@
     }
 
     .username {
-      font-weight: 900;
-      letter-spacing: -0.2px;
+      font-family: 'UnifrakturMaguntia', 'Pirata One', 'Arial Black', sans-serif;
+      font-weight: 400;
+      font-size: 16px;
+      letter-spacing: 0;
       margin-right: 6px;
       display: inline;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
     }
 
     .text {
@@ -220,10 +237,10 @@
       }
     }
 
-    function addMessage(username, text, color = '#38bdf8', isSystem = false, emotesTag = null) {
+    function addMessage(username, text, color = '#c9a227', isSystem = false, emotesTag = null) {
       const msgDiv = document.createElement('div');
       msgDiv.className = 'chat-card';
-      const accentColor = isSystem ? '#fbbf24' : color;
+      const accentColor = isSystem ? '#f2cd4d' : color;
       msgDiv.style.borderLeftColor = accentColor;
 
       msgDiv.innerHTML = `
@@ -308,7 +325,7 @@
     }
 
     // 1. Sofortige Start-Testnachricht beim Laden
-    addMessage("SYSTEM", "Chat-Overlay geladen! Warte auf Nachrichten...", "#fbbf24", true);
+    addMessage("SYSTEM", "Chat-Overlay geladen! Warte auf Nachrichten...", "#f2cd4d", true);
 
     // 2. Gesicherte Verbindung zu Twitch herstellen
     const client = new tmi.Client({
@@ -322,11 +339,11 @@
 
     client.connect().catch(err => {
       console.error("Verbindungsfehler:", err);
-      addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#ef4444", true);
+      addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#d21f1f", true);
     });
 
     client.on('message', (channel, tags, message, self) => {
-      const userColor = tags.color || '#38bdf8';
+      const userColor = tags.color || '#c9a227';
       const displayName = tags['display-name'] || tags.username;
       addMessage(displayName, message, userColor, false, tags.emotes);
     });
