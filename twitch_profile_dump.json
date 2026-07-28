@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "channel": "dangsxr1000",
+    "source": "manual_screenshot_review",
+    "note": "Automatisierter Live-Abruf ueber decapi.me (z.B. /twitch/description/, /twitch/panels/) und direktes Scraping von twitch.tv war aus dieser Sandbox-Umgebung nicht moeglich: sowohl curl als auch das WebFetch-Tool erhalten fuer beide Domains einen expliziten HTTP 403 auf Netzwerk-Policy-Ebene (kein Timeout, kein technischer Fehler - ein bewusster Block). Die folgenden Daten stammen stattdessen aus 9 vom Nutzer bereitgestellten Screenshots der Kanalseite (twitch.tv/dangsxr1000) und des Creator-Dashboards, Stand des Screenshots.",
+    "captured_at": "2026-07-28",
+    "excluded_for_privacy": "Im Dashboard sichtbare personenbezogene Daten (voller amtlicher Name, Geburtsdatum, maskierte E-Mail aus den Monetarisierungs-Einstellungen) wurden absichtlich NICHT in diesen Dump uebernommen - fuer die Kanal-/Panel-Gestaltung irrelevant und gehoeren nicht in ein Repository."
+  },
+  "profile": {
+    "display_name": "DaNgsxr1000",
+    "title": "💥 Full Send im Ranked! | Neues Setup am Start 🚀",
+    "offline_notification_text": "🚀 Rocket League Stream! Kommt vorbei und seht zu, wie ich versuche, nicht in mein eigenes Tor zu schießen! 🎉⚽ Lasst uns Spaß haben!",
+    "category": "Rocket League",
+    "language": "Deutsch",
+    "tags": ["Rangliste", "Zoooocken", "Diamant", "Deutsch", "SpaßAmZocken", "2v2", "3v3", "jederistwillkommen", "WirSindCommunity"],
+    "follower_count": 209,
+    "description_raw": "**DaN: Abenteurer aus Bayern**DaN, aus Bayern, ist Polier im Straßen- und Tiefbau. Mit Leidenschaft fährt er Motorrad, spielt Fußball und hält sich fit. Auf Twitch strebt er nach Größe und begeistert seine Follower. Auch wenn er eine KI um Hilfe bat, bleibt er ein wahres Original!",
+    "description_issues": [
+      "Ungerendertes Markdown: '**...**' wird auf der Kanalseite als Klartext mit sichtbaren Sternchen angezeigt statt fett.",
+      "Kein Zeilenumbruch/Absatz zwischen Überschrift und Fließtext - beides klebt aneinander."
+    ]
+  },
+  "panels": [
+    {
+      "title": "Mein Setup",
+      "content": "Ich zeige euch, dass man keinen 3000€ PC zum Streamen braucht:\n• Konsole: PlayStation 4\n• Regie-Zentrale: Samsung S11 Ultra (Linux/Termux)\n• Controller: DualShock 4\n• Interaktion: Sound Alerts (macht Lärm!)",
+      "has_custom_image": false,
+      "issues": [
+        "Widerspricht CLAUDE.md: dort ist das tatsaechliche Setup als 100% Cloud-/Mobile-Streaming (GeForce NOW Ultimate, kein PC, keine Konsole, Galaxy Tab S11 Ultra + Galaxy S26 Ultra) dokumentiert. PS4/DualShock 4 ist veraltet oder schlicht falsch."
+      ]
+    },
+    {
+      "title": "Regeln",
+      "content": "Damit der Stream für alle cool bleibt:\n1. Seid respektvoll zueinander.\n2. Kein Spam oder Eigenwerbung.\n3. Keine Beleidigungen.\nWer sich nicht dran hält, fliegt raus. Ganz einfach! 😎",
+      "has_custom_image": false,
+      "issues": []
+    },
+    {
+      "title": "Über mich",
+      "content": "Willkommen auf meinem Kanal! Ich bin dangsxr1000. Hier gibt es Action direkt von der PS4.\nDa ich ohne Mikrofon streame, konzentriere ich mich voll auf den Chat – also schreibt gerne hallo, ich antworte sofort! 🤘",
+      "has_custom_image": false,
+      "issues": [
+        "Nennt erneut PS4 statt des tatsaechlichen GeForce-NOW-Cloud-Setups.",
+        "Inhaltliche Ueberschneidung mit der Kanal-Beschreibung und dem 'Mein Setup'-Panel - dieselbe Kerninfo (Herkunft/Wer-bin-ich) steht an drei Stellen."
+      ]
+    }
+  ],
+  "goals_widget": [
+    { "label": "Klick das Plus, die 210 ruft!", "progress": "209/210", "unit": "Follower" },
+    { "label": "Support den Stream!", "progress": "0/1", "unit": "Abo-Punkte" },
+    { "label": "Noch 1.000 Bits!", "progress": "0/1000", "unit": "Bits" }
+  ],
+  "social_links": [],
+  "monetization": {
+    "affiliate_status": "in Bewerbung (0/10 Abonnenten-Punkte gesammelt)",
+    "bits_enabled": true,
+    "min_bits_to_cheer": 1,
+    "smallest_bits_emote": 1,
+    "pinned_cheer_enabled": true,
+    "pinned_cheer_min_bits": 100
+  },
+  "emotes": {
+    "prefix": "dangsxr",
+    "follower_emotes": { "used": 1, "total": 5, "names": ["Rage"] },
+    "sub_emotes_tier1": { "used": 5, "total": 5, "names": ["GG", "BRILLE", "BOMBE", "BIRNE", "DART"] },
+    "sub_emotes_tier2": { "used": 0, "total": 1, "locked": true },
+    "sub_emotes_tier3": { "used": 0, "total": 1, "locked": true },
+    "issue": "Alle vorhandenen Emotes sind generische Standardmotive ohne Bezug zum Hood/Ghetto-Branding. Redesign lohnt sich erst, sobald Stufe 2/3 (Affiliate) freigeschaltet sind."
+  },
+  "extensions": [
+    {
+      "name": "Sound Alerts",
+      "status": "aktiv (Overlay 1)",
+      "note": "Moeglicher Konflikt: goal.html spielt bereits eigene Alert-Sounds ueber die Twitch-EventSub-Anbindung ab. Wenn diese Erweiterung parallel laeuft, koennen Follow/Sub/Bit/Raid-Sounds doppelt abgespielt werden."
+    },
+    { "name": "Free Stream Alerts - OWN3D", "status": "installiert, nicht aktiviert" },
+    { "name": "Prime Gaming Benefits Reminder", "status": "installiert, nicht aktiviert" }
+  ]
+}
