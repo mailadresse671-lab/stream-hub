@@ -4,12 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stream Follower Goal</title>
-  <!-- Streamlabs' Socket-Server (sockets.streamlabs.com) spricht das alte
-       Socket.IO-v2-Protokoll. Ein v3/v4-Client verbindet sich hier NICHT
-       zuverlässig (keine Events, oft ohne sichtbaren Fehler) - deshalb
-       bewusst ein 2.x-Client statt der aktuellen Socket.IO-Version.
-       Wird unten dynamisch mit Cache-Busting-Parameter geladen, damit ein
-       veralteter Cache (Tablet/WebView) keine alte Script-Version ausliefert. -->
+  <!-- Events kommen direkt von Twitch EventSub per nativem Browser-
+       WebSocket (kein Drittanbieter-Socket, keine externe Client-Library
+       noetig). -->
   <style>
     :root {
       --bg-glass: rgba(15, 23, 42, 0.88);
@@ -210,7 +207,7 @@
         <div class="bar-bg">
           <div class="bar-fill" id="barFill"></div>
         </div>
-        <div class="debug-line" id="debugLine">Token: … | Socket: –</div>
+        <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
       </div>
     </div>
   </div>
@@ -226,20 +223,9 @@
     // DEINE FESTE VERCEL-CLOUD ADRESSE
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
 
-    // Cache-Busting: einmal pro Seitenaufruf neu, damit weder das
-    // Socket.IO-CDN-Script noch die Audio-Assets aus einem veralteten
-    // Cache (Tablet/WebView) ausgeliefert werden.
+    // Cache-Busting: einmal pro Seitenaufruf neu, damit die Audio-Assets
+    // nicht aus einem veralteten Cache (Tablet/WebView) ausgeliefert werden.
     const CACHE_BUST = Date.now();
-
-    function loadScript(url) {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = url;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Skript nicht ladbar: ${url}`));
-        document.head.appendChild(script);
-      });
-    }
 
     let currentFollowers = 209;
     const STEP_SIZE = 10;
@@ -543,36 +529,29 @@
       showPartyPopup(next.kind, next.payload);
     }
 
-    // 3. Sichtbarer Verbindungsstatus - direkt im Widget, damit man auf dem
-    // Tablet ohne Inspector sieht, ob Token/Socket stehen. "detail" ist die
-    // konkrete Fehlermeldung von Streamlabs (z.B. bei connect_error) und wird
-    // 1:1 mit angezeigt, statt nur ein generisches "Fehler".
-    function setDebugStatus(tokenState, socketState, detail) {
+    // Sichtbarer Verbindungsstatus - direkt im Widget, damit man auf dem
+    // Tablet ohne Inspector sieht, ob Twitch EventSub steht. "detail" ist
+    // eine konkrete Fehlermeldung und wird 1:1 mit angezeigt statt nur
+    // einem generischen "Fehler".
+    function setDebugStatus(state, detail) {
       const el = document.getElementById('debugLine');
       if (!el) return;
-      const tokenLabel = { pending: '…', ok: '✓', failed: '✗' }[tokenState] || tokenState;
-      let socketLabel;
-      if (socketState === 'error') {
-        socketLabel = `✗ ${detail || 'Fehler'}`;
-      } else if (socketState === 'disconnected') {
-        socketLabel = `✗ getrennt${detail ? ' (' + detail + ')' : ''}`;
-      } else {
-        socketLabel = {
-          idle: '–',
-          connecting: '… verbindet',
-          connected: '✓ verbunden'
-        }[socketState] || socketState;
-      }
-      el.innerText = `Token: ${tokenLabel} | Socket: ${socketLabel}`;
+      const labels = {
+        connecting: '… verbindet',
+        connected: '✓ verbunden, melde Events an…',
+        ready: '✓ Verbunden',
+        reconnecting: `… verbinde neu${detail ? ' (' + detail + ')' : ''}`,
+        closed: `✗ getrennt${detail ? ' (' + detail + ')' : ''}`,
+        error: `✗ ${detail || 'Fehler'}`
+      };
+      el.innerText = `Twitch EventSub: ${labels[state] || state}`;
     }
 
-    // 1. Robustes Error-Formatting: Socket.IO/Engine.IO-Fehlerobjekte sind
-    // nicht immer normale Error-Instanzen mit .message - je nach Transport
-    // tauchen z.B. .description (oft selbst wieder ein Objekt) oder gar
-    // kein brauchbares Feld auf. Deshalb mehrere Fallbacks nacheinander,
-    // JSON.stringify defensiv abgesichert (zirkulaere Structs wuerden sonst
-    // werfen und den Handler selbst zum Absturz bringen).
-    function formatSocketError(err) {
+    // Robustes Error-Formatting: WebSocket-/EventSub-Fehlerobjekte sind
+    // nicht immer normale Error-Instanzen mit .message - deshalb mehrere
+    // Fallbacks nacheinander, JSON.stringify defensiv abgesichert
+    // (zirkulaere Structs wuerden sonst werfen).
+    function formatErrorDetail(err) {
       if (!err) return 'unbekannter Fehler (kein err-Objekt)';
       if (typeof err === 'string') return err;
       if (err.message) return err.message;
@@ -589,144 +568,191 @@
       return String(err);
     }
 
-    async function initFollowerSocket() {
-      setDebugStatus('pending', 'idle');
+    // ---------- Twitch EventSub (natives WebSocket) ----------
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let twitchSocket = null;
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
 
-      // 2. Cache-Busting: Socket.IO-Client bei jedem Laden frisch anfordern,
-      // damit ein veralteter Cache (Tablet/WebView) keine alte Script-
-      // Version ausliefert, waehrend hier laengst ein neuer Stand liegt.
-      const socketIoSrc = `https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.min.js?v=${CACHE_BUST}`;
-      console.log('[Streamlabs] Lade Socket.IO-Client (Cache-Bust:', CACHE_BUST, ')...');
-      try {
-        await loadScript(socketIoSrc);
-        console.log('[Streamlabs] Socket.IO-Client geladen, io verfügbar:', typeof io !== 'undefined');
-      } catch (e) {
-        console.error('[Streamlabs] Socket.IO-Client konnte nicht geladen werden:', e);
-        setDebugStatus('pending', 'error', 'Socket.IO-Script nicht ladbar');
-        return;
-      }
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.warn(`[Twitch] Verbinde in ${delay / 1000}s erneut (Versuch ${reconnectAttempts}, Grund: ${reason})...`);
+      setDebugStatus('reconnecting', `in ${delay / 1000}s`);
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
 
-      console.log('[Streamlabs] Fordere Socket-Token von /api/streamlabs-proxy an...');
-
-      // 1. Token-Empfang eindeutig prüfen und loggen - eigener try/catch,
-      // damit ein späterer Socket-Fehler den Token-Status nicht faelschlich
-      // ueberschreibt.
-      let token;
+    async function subscribeToTwitchEvents(sessionId) {
+      console.log('[Twitch] Melde Event-Subscriptions an fuer Session:', sessionId);
       try {
         const cleanUrl = VERCEL_URL.replace(/\/$/, "");
-        const res = await fetch(`${cleanUrl}/api/streamlabs-proxy`);
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
         const data = await res.json();
 
-        if (!data || !data.success || !data.token) {
-          console.error('[Streamlabs] Token NICHT erhalten:', data && data.message);
-          setDebugStatus('failed', 'idle');
+        if (!data || !data.success) {
+          const failedTypes = ((data && data.subscriptions) || []).filter(s => !s.success).map(s => s.type);
+          const detail = failedTypes.length ? `Subscription fehlgeschlagen: ${failedTypes.join(', ')}` : ((data && data.message) || 'Subscription fehlgeschlagen');
+          console.error('[Twitch] Event-Subscriptions fehlgeschlagen:', data);
+          setDebugStatus('error', detail);
           return;
         }
-        token = data.token;
-        console.log('[Streamlabs] Token erhalten (Länge:', token.length, 'Zeichen).');
-        setDebugStatus('ok', 'connecting');
+
+        console.log('[Twitch] Event-Subscriptions angemeldet:', data.subscriptions.map(s => s.type).join(', '));
+        setDebugStatus('ready');
       } catch (e) {
-        console.error('[Streamlabs] Verbindung zum Streamlabs-Proxy fehlgeschlagen:', e);
-        setDebugStatus('failed', 'idle');
+        console.error('[Twitch] Fehler beim Anmelden der Subscriptions:', e);
+        setDebugStatus('error', formatErrorDetail(e));
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      console.log('[Twitch] Event empfangen:', type, event);
+
+      // Auto-Resume: AudioContext moeglichst frueh freizuschalten versuchen -
+      // nicht erst kurz vor der Wiedergabe, da das Popup (und damit der
+      // Sound) bei voller Warteschlange erst spaeter drankommt.
+      resumeAudioContext(`Twitch-Event "${type}"`);
+
+      if (type === 'channel.follow') {
+        const followerName = event.user_name || 'Zuschauer';
+        currentFollowers += 1;
+
+        if (currentFollowers >= targetFollowers) {
+          const nextTarget = calculateTarget(currentFollowers);
+          queuePopup('goal', { name: followerName, nextTarget });
+          targetFollowers = nextTarget;
+        } else {
+          queuePopup('follow', { name: followerName });
+        }
+
+        updateUI();
         return;
       }
 
-      // 2. Verbindungsaufbau: Token direkt als Query-Parameter in der URL
-      // (nicht ueber die "query"-Option) und nur "websocket" als Transport -
-      // Streamlabs blockiert Polling-Requests, ein Fallback auf 'polling'
-      // fuehrt dort ins Leere statt zu helfen.
-      try {
-        const socket = io(`https://sockets.streamlabs.com?token=${token}`, {
-          transports: ['websocket']
-        });
-
-        socket.on('connect', () => {
-          console.log('[Streamlabs] Socket verbunden. Socket-ID:', socket.id);
-          setDebugStatus('ok', 'connected');
-        });
-
-        socket.on('disconnect', (reason) => {
-          console.warn('[Streamlabs] Socket getrennt. Grund:', reason);
-          setDebugStatus('ok', 'disconnected', reason);
-        });
-
-        socket.on('connect_error', (err) => {
-          const detail = formatSocketError(err);
-          console.error('[Streamlabs] Verbindungsfehler (connect_error):', detail, err);
-          setDebugStatus('ok', 'error', detail);
-        });
-
-        socket.on('error', (err) => {
-          const detail = formatSocketError(err);
-          console.error('[Streamlabs] Socket-Fehler (error):', detail, err);
-          setDebugStatus('ok', 'error', detail);
-        });
-
-        socket.on('event', (eventData) => {
-          console.log('[Streamlabs] Event empfangen:', eventData.type, eventData);
-          const msg = (eventData.message && eventData.message[0]) || {};
-
-          // 2. Auto-Resume: bereits beim Eintreffen des Events versuchen, den
-          // AudioContext freizuschalten - nicht erst kurz vor der Wiedergabe,
-          // da das Popup (und damit der Sound) bei voller Warteschlange erst
-          // später drankommt.
-          resumeAudioContext(`Socket-Event "${eventData.type}"`);
-
-          if (eventData.type === 'follow') {
-            const followerName = msg.name || eventData.name || 'Zuschauer';
-            currentFollowers += 1;
-
-            if (currentFollowers >= targetFollowers) {
-              const nextTarget = calculateTarget(currentFollowers);
-              queuePopup('goal', { name: followerName, nextTarget });
-              targetFollowers = nextTarget;
-            } else {
-              queuePopup('follow', { name: followerName });
-            }
-
-            updateUI();
-            return;
-          }
-
-          // Hinweis: type-/Feldnamen unten (subscription/resub/cheer/raid,
-          // months/amount/raiders) entsprechen der gängigen Streamlabs-Socket-
-          // Struktur, sollten beim ersten echten Event im Log aber gegen-
-          // geprüft werden, falls ein Alert nicht wie erwartet triggert.
-          if (eventData.type === 'subscription') {
-            const name = msg.name || eventData.name || 'Zuschauer';
-            const months = msg.months || msg.streak_months || 1;
-            queuePopup(months > 1 ? 'resub' : 'sub', { name, months });
-            return;
-          }
-
-          if (eventData.type === 'resub') {
-            const name = msg.name || eventData.name || 'Zuschauer';
-            queuePopup('resub', { name, months: msg.months || msg.streak_months || '?' });
-            return;
-          }
-
-          if (eventData.type === 'cheer') {
-            const name = msg.name || eventData.name || 'Zuschauer';
-            queuePopup('cheer', { name, amount: msg.amount || 0 });
-            return;
-          }
-
-          if (eventData.type === 'raid') {
-            const name = msg.name || msg.from || eventData.name || 'Ein Raid';
-            queuePopup('raid', { name, viewers: msg.raiders || msg.viewers || '?' });
-            return;
-          }
-        });
-      } catch (e) {
-        const detail = formatSocketError(e);
-        console.error('[Streamlabs] Socket-Erstellung fehlgeschlagen:', detail, e);
-        setDebugStatus('ok', 'error', detail);
+      if (type === 'channel.subscribe') {
+        queuePopup('sub', { name: event.user_name || 'Zuschauer' });
+        return;
       }
+
+      if (type === 'channel.subscription.message') {
+        queuePopup('resub', {
+          name: event.user_name || 'Zuschauer',
+          months: event.cumulative_months || event.streak_months || '?'
+        });
+        return;
+      }
+
+      if (type === 'channel.cheer') {
+        queuePopup('cheer', {
+          name: event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer'),
+          amount: event.bits || 0
+        });
+        return;
+      }
+
+      if (type === 'channel.raid') {
+        queuePopup('raid', {
+          name: event.from_broadcaster_user_name || 'Ein Raid',
+          viewers: event.viewers || '?'
+        });
+        return;
+      }
+
+      console.log('[Twitch] Unbehandelter Event-Typ:', type);
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      console.log('[Twitch] Verbinde mit EventSub WebSocket:', url, isReconnectHandoff ? '(Reconnect-Handoff)' : '(neue Session)');
+      setDebugStatus(isReconnectHandoff ? 'reconnecting' : 'connecting');
+
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {
+        console.log('[Twitch] WebSocket-Verbindung geöffnet.');
+      };
+
+      ws.onmessage = (event) => {
+        let data;
+        try {
+          data = JSON.parse(event.data);
+        } catch (e) {
+          console.error('[Twitch] Ungültige Nachricht (kein JSON):', event.data);
+          return;
+        }
+
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          const sessionId = data.payload.session.id;
+          console.log('[Twitch] Session erhalten:', sessionId);
+          twitchSocket = ws;
+          reconnectAttempts = 0;
+
+          if (isReconnectHandoff) {
+            // Subscriptions wandern bei einem server-seitigen Reconnect
+            // automatisch mit auf die neue Session - kein erneutes Anmelden.
+            console.log('[Twitch] Reconnect-Handoff abgeschlossen, bestehende Subscriptions bleiben aktiv.');
+            setDebugStatus('ready');
+            return;
+          }
+
+          setDebugStatus('connected');
+          subscribeToTwitchEvents(sessionId);
+          return;
+        }
+
+        if (messageType === 'session_keepalive') {
+          return; // nur Lebenszeichen, kein UI-Update noetig
+        }
+
+        if (messageType === 'notification') {
+          handleTwitchNotification(data.payload);
+          return;
+        }
+
+        if (messageType === 'session_reconnect') {
+          const reconnectUrl = data.payload.session.reconnect_url;
+          console.warn('[Twitch] Server fordert Reconnect an:', reconnectUrl);
+          handoffInProgress = true;
+          connectTwitchEventSub(reconnectUrl, true);
+          return;
+        }
+
+        if (messageType === 'revocation') {
+          const detail = `Subscription widerrufen (${data.payload.subscription.type}, Grund: ${data.payload.subscription.status})`;
+          console.error('[Twitch]', detail);
+          setDebugStatus('error', detail);
+          return;
+        }
+
+        console.log('[Twitch] Unbekannte Nachricht:', messageType, data);
+      };
+
+      ws.onerror = (event) => {
+        console.error('[Twitch] WebSocket-Fehler:', event);
+      };
+
+      ws.onclose = (event) => {
+        console.warn('[Twitch] WebSocket geschlossen. Code:', event.code, 'Grund:', event.reason || '(kein Grund angegeben)');
+        if (handoffInProgress) return; // geplanter Reconnect-Handoff, kein erneuter Reconnect-Versuch hier
+
+        setDebugStatus('closed', event.reason || `Code ${event.code}`);
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
     }
 
     updateUI();
     preloadSounds();
-    initFollowerSocket();
+    connectTwitchEventSub();
   </script>
 
 </body>
