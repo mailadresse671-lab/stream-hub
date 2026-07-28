@@ -3,114 +3,187 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RL Session Stats Auto</title>
+  <title>RL Session Stats</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: transparent;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #ffffff;
-      padding: 10px;
+    :root {
+      --bg-glass: rgba(15, 23, 42, 0.88);
+      --neon-blue: #38bdf8;
+      --accent-orange: #f97316;
+      --text-primary: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #fbbf24;
     }
 
-    .rl-container {
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: var(--text-primary);
+    }
+
+    body {
+      padding: 18px;
+    }
+
+    .widget-position {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+    }
+
+    .shimmer-frame {
+      position: relative;
+      border-radius: 16px;
+      padding: 1.5px;
+      background: linear-gradient(120deg,
+        rgba(56, 189, 248, 0.15),
+        rgba(56, 189, 248, 0.95),
+        rgba(249, 115, 22, 0.65),
+        rgba(56, 189, 248, 0.15));
+      background-size: 300% 300%;
+      animation: shimmer 7s ease-in-out infinite;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
       display: inline-flex;
       align-items: center;
       gap: 18px;
-      background: rgba(15, 23, 42, 0.90);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-left: 4px solid #f97316;
-      border-radius: 12px;
-      padding: 12px 20px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 14.5px;
+      padding: 12px 22px;
     }
 
-    .brand-section {
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.8s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.75); }
+    }
+
+    .brand-text {
       display: flex;
       flex-direction: column;
+      line-height: 1.15;
     }
 
-    .tag {
-      font-size: 10px;
+    .eyebrow {
+      font-size: 9.5px;
       font-weight: 800;
-      letter-spacing: 1.5px;
-      color: #22c55e;
+      letter-spacing: 1.6px;
+      color: var(--success);
       text-transform: uppercase;
     }
 
     .title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 900;
-      color: #38bdf8;
+      color: var(--neon-blue);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      white-space: nowrap;
     }
 
     .divider {
       width: 1px;
-      height: 32px;
-      background: rgba(255, 255, 255, 0.2);
+      height: 30px;
+      background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.22), transparent);
     }
 
-    .stats-group {
+    .stats {
       display: flex;
-      gap: 16px;
+      gap: 18px;
     }
 
-    .stat-box {
+    .stat {
       text-align: center;
-      min-width: 45px;
+      min-width: 44px;
     }
 
-    .stat-val {
+    .stat .value {
+      display: block;
       font-size: 20px;
       font-weight: 900;
       line-height: 1;
+      font-variant-numeric: tabular-nums;
     }
 
-    .stat-lbl {
-      font-size: 9px;
-      margin-top: 4px;
-      color: #cbd5e1;
+    .stat .label {
+      display: block;
+      font-size: 8.5px;
+      margin-top: 5px;
+      color: var(--text-muted);
       text-transform: uppercase;
       font-weight: 700;
+      letter-spacing: 0.6px;
     }
 
-    .val-win { color: #22c55e; }
-    .val-loss { color: #ef4444; }
-    .val-rate { color: #fbbf24; }
+    .val-win { color: var(--success); }
+    .val-loss { color: var(--danger); }
+    .val-rate { color: var(--warning); }
   </style>
 </head>
 <body>
 
-  <div class="rl-container">
-    <div class="brand-section">
-      <span class="tag">Auto Tracking ⚡</span>
-      <span class="title">Session Stats</span>
-    </div>
+  <div class="widget-position">
+    <div class="shimmer-frame">
+      <div class="card">
+        <div class="brand">
+          <span class="live-dot"></span>
+          <div class="brand-text">
+            <span class="eyebrow">Auto Tracking</span>
+            <span class="title">Session Stats</span>
+          </div>
+        </div>
 
-    <div class="divider"></div>
+        <div class="divider"></div>
 
-    <div class="stats-group">
-      <div class="stat-box">
-        <div class="stat-val val-win" id="wins">0</div>
-        <div class="stat-lbl">Wins</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val val-loss" id="losses">0</div>
-        <div class="stat-lbl">Losses</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val val-rate" id="winrate">0%</div>
-        <div class="stat-lbl">Win Rate</div>
+        <div class="stats">
+          <div class="stat">
+            <span class="value val-win" id="wins">0</span>
+            <span class="label">Wins</span>
+          </div>
+          <div class="stat">
+            <span class="value val-loss" id="losses">0</span>
+            <span class="label">Losses</span>
+          </div>
+          <div class="stat">
+            <span class="value val-rate" id="winrate">0%</span>
+            <span class="label">Win Rate</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
     // DEINE FESTE VERCEL-CLOUD ADRESSE
-    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app"; 
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
 
     let startWins = null;
     let startMatches = null;
