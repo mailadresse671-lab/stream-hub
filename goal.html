@@ -205,6 +205,9 @@
   </div>
 
   <script>
+    // DEINE FESTE VERCEL-CLOUD ADRESSE
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+
     let currentFollowers = 209;
     const STEP_SIZE = 10;
 
@@ -213,9 +216,6 @@
     }
 
     let targetFollowers = calculateTarget(currentFollowers);
-
-    // STREAMLABS SOCKET TOKEN (FEST EINGEBAUT)
-    const STREAMLABS_SOCKET_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbiI6IjIxQTMzN0NEMzEzQkNEQTE5MzU4MzVDNDIzM0EzMDQ0ODJEQzY5MjFDQzgwMTU4OUVDMzgzRUEwMzMwM0M2NTMyODVDOEI3MTIxQzQ0MEVGQkMwMjM3N0Y1Q0Q1QUUxRDRFQ0FBRjQ5QzFERkU4OUQyOTk0OUVDNDU5NjQxODA4RTRFNkNBMzQ1MkIwNkQwMzFFMDZEOThGQkEzRjZEMUI2MDBEOEI1NDBDRjlBNEMzNTRFQ0ZGQUJFQ0Y1RTkwRTdCMEI3MjFFRkJEQkU4REUxNDZBNkE2NURCNDc0ODQyMjhGRDcxQzIzNkYxRTAxQkFFRDJEQTlENUQiLCJyZWFkX29ubHkiOnRydWUsInByZXZlbnRfbWFzdGVyIjp0cnVlLCJ0d2l0Y2hfaWQiOiI3ODU4ODc3MzUifQ.TnmJmgYgJ3RxNuxibF2SsTGkeChRxbTxfYsiZGbc9gk";
 
     function updateUI() {
       const previousTarget = targetFollowers - STEP_SIZE;
@@ -338,36 +338,72 @@
 
       setTimeout(() => {
         popup.classList.remove('show');
+        // Warten bis die Ausblend-Transition fertig ist, bevor das nächste Popup startet
+        setTimeout(() => {
+          popupBusy = false;
+          processPopupQueue();
+        }, 450);
       }, 6000);
     }
 
-    updateUI();
+    // Warteschlange, damit mehrere Follower kurz hintereinander (z.B. bei einem Raid)
+    // nacheinander vollständig angezeigt werden, statt sich gegenseitig zu unterbrechen.
+    const popupQueue = [];
+    let popupBusy = false;
 
-    if (STREAMLABS_SOCKET_TOKEN) {
-      const socket = io(`https://sockets.streamlabs.com?token=${STREAMLABS_SOCKET_TOKEN}`, { transports: ['websocket'] });
-
-      socket.on('event', (eventData) => {
-        if (eventData.type === 'follow') {
-          let followerName = "Zuschauer";
-          if (eventData.message && eventData.message[0] && eventData.message[0].name) {
-            followerName = eventData.message[0].name;
-          } else if (eventData.name) {
-            followerName = eventData.name;
-          }
-
-          currentFollowers += 1;
-
-          if (currentFollowers >= targetFollowers) {
-            showPartyPopup(followerName, true);
-            targetFollowers = calculateTarget(currentFollowers);
-          } else {
-            showPartyPopup(followerName, false);
-          }
-
-          updateUI();
-        }
-      });
+    function queuePopup(name, isGoal) {
+      popupQueue.push({ name, isGoal });
+      processPopupQueue();
     }
+
+    function processPopupQueue() {
+      if (popupBusy || popupQueue.length === 0) return;
+      popupBusy = true;
+      const next = popupQueue.shift();
+      showPartyPopup(next.name, next.isGoal);
+    }
+
+    async function initFollowerSocket() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/streamlabs-proxy`);
+        const data = await res.json();
+
+        if (!data || !data.success || !data.token) {
+          console.error("Streamlabs-Token konnte nicht vom Proxy geladen werden.", data && data.message);
+          return;
+        }
+
+        const socket = io(`https://sockets.streamlabs.com?token=${data.token}`, { transports: ['websocket'] });
+
+        socket.on('event', (eventData) => {
+          if (eventData.type === 'follow') {
+            let followerName = "Zuschauer";
+            if (eventData.message && eventData.message[0] && eventData.message[0].name) {
+              followerName = eventData.message[0].name;
+            } else if (eventData.name) {
+              followerName = eventData.name;
+            }
+
+            currentFollowers += 1;
+
+            if (currentFollowers >= targetFollowers) {
+              queuePopup(followerName, true);
+              targetFollowers = calculateTarget(currentFollowers);
+            } else {
+              queuePopup(followerName, false);
+            }
+
+            updateUI();
+          }
+        });
+      } catch (e) {
+        console.error("Verbindung zum Streamlabs-Proxy fehlgeschlagen:", e);
+      }
+    }
+
+    updateUI();
+    initFollowerSocket();
   </script>
 
 </body>
