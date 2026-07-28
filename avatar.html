@@ -4,26 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stream Avatar</title>
-  <!-- Modul 3, Schritt 2: Live-Test in der Streamlabs-Mobile-WebView hat
-       bestaetigt, dass getUserMedia() dort blockiert ist (NotAllowedError,
-       kein Berechtigungsdialog erscheint ueberhaupt - im normalen Mobile-
-       Chrome funktioniert es dagegen einwandfrei, das Problem sitzt also
-       eindeutig in der restriktiven WebView, nicht im Code). Design-
-       Konsequenz: die dauerhafte Idle-/Chat-reaktive Animation ist jetzt
-       der PRIMAERE Zustand, nicht mehr nur Fallback. Mikro-Reaktivitaet
-       bleibt als kostenloser Bonus im Code, falls die Seite je in einem
-       weniger restriktiven Kontext laeuft. -->
+  <!-- Modul 3, Kurskorrektur: das CSS-gezeichnete Sturmhauben-Design wurde
+       durch ein eigenes Bild ersetzt (assets/images/avatar.png, vom Nutzer
+       bereitgestellt) - passt besser zum gewuenschten Branding als die
+       abstrakte Maske. Verhalten bleibt gleich: dauerhafte Idle-Animation
+       als Grundzustand (kein Mikro noetig, siehe Modul-3-Historie in
+       CLAUDE.md), Reaktions-Puls bei jeder Chat-Nachricht. -->
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <style>
     :root {
-      --asphalt: #17130f;
-      --rust: #3a2317;
-      --chrome-1: #e8e6e1;
-      --chrome-2: #9a958a;
-      --blood: #b30000;
-      --blood-glow: rgba(179, 0, 0, 0.6);
-      --gold: #ffd700;
-      --gold-glow: rgba(255, 215, 0, 0.6);
+      --gold-glow: rgba(255, 215, 0, 0.55);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,183 +28,66 @@
       position: fixed;
       bottom: 20px;
       left: 20px;
-      width: 220px;
-      height: 250px;
+      width: 210px;
     }
 
-    /* Aeussere Huelle traegt Idle-Atmen (Skalierung) + leichtes seitliches
-       Wiegen - getrennt von der inneren Maske, die per JS fuer Blinzeln/
-       Reaktionen skaliert wird (gleiches Trennprinzip wie #party-popup/
-       #party-panel: zwei Transform-Quellen duerfen sich nicht gegenseitig
+    /* Glow-Impuls im Hintergrund bei Chat-/Mikro-Reaktion */
+    .avatar-glow-bg {
+      position: absolute;
+      inset: -26px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      pointer-events: none;
+    }
+    .avatar-glow-bg.reacting { opacity: 1; }
+
+    /* Aeussere Huelle traegt das dauerhafte Idle-Wippen (CSS-Animation) -
+       getrennt vom Bild selbst, das per JS fuer den Reaktions-Bounce
+       skaliert/verschoben wird (gleiches Trennprinzip wie ueberall sonst
+       im Projekt: zwei Transform-Quellen duerfen sich nicht gegenseitig
        ueberschreiben). */
-    .avatar-breathe {
-      width: 100%;
-      height: 100%;
-      animation: avatarBreathe 3.6s ease-in-out infinite;
+    .avatar-bob {
+      animation: avatarIdleBounce 3.2s ease-in-out infinite;
       transform-origin: 50% 100%;
     }
-
-    @keyframes avatarBreathe {
-      0%, 100% { transform: scale(1) rotate(0deg) translateY(0); }
-      50% { transform: scale(1.015) rotate(0.6deg) translateY(-3px); }
+    @keyframes avatarIdleBounce {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-9px) rotate(-1.2deg); }
     }
 
-    /* Ausgefranste Panzer-/Stoff-Silhouette im selben clip-path-Vokabular
-       wie goal-card/#party-panel (Zerklueftete Geometrie statt runder
-       Ecken, siehe Styling-Guide) - hier als Sturmhauben-Silhouette statt
-       Panzerplatte. */
-    .avatar-mask {
+    .avatar-img {
       position: relative;
+      display: block;
       width: 100%;
-      height: 100%;
-      background: linear-gradient(155deg, #2a2119 0%, var(--asphalt) 55%, #0d0a08 100%);
-      clip-path: polygon(
-        38% 4%, 50% 0%, 62% 4%,
-        82% 12%, 92% 26%, 94% 42%,
-        92% 58%, 96% 66%, 90% 70%,
-        95% 78%, 87% 82%, 93% 90%,
-        83% 92%, 88% 100%, 74% 96%,
-        62% 100%, 50% 95%, 38% 100%,
-        26% 96%, 12% 100%, 17% 92%,
-        7% 90%, 13% 82%, 5% 78%,
-        10% 70%, 4% 66%, 8% 58%,
-        6% 42%, 8% 26%, 18% 12%
-      );
-      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+      height: auto;
+      filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.65));
       transition: transform 0.12s ease-out;
-      transform-origin: 50% 55%;
+      transform-origin: 50% 100%;
     }
-
-    .avatar-mask::before {
-      /* Feines Gewebe-/Rauschmuster, gleiche Technik wie goal-card::before */
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle at 8px 8px, rgba(255, 215, 0, 0.05) 0 1.6px, transparent 2px);
-      background-size: 22px 22px;
-      pointer-events: none;
-    }
-
-    /* Mittelnaht - deutet die Sturmhauben-Struktur an */
-    .avatar-seam {
-      position: absolute;
-      left: 50%;
-      top: 6%;
-      width: 1.5px;
-      height: 58%;
-      background: linear-gradient(180deg, transparent, rgba(154, 149, 138, 0.28), rgba(154, 149, 138, 0.1));
-      transform: translateX(-50%);
-      pointer-events: none;
-    }
-
-    /* Kleine Riss-/Beschaedigungs-Akzente am Saum, gleiches Motiv wie die
-       bullet-hole-Risslinien in goal.html - hier dezent, nicht dominant. */
-    .avatar-tear {
-      position: absolute;
-      width: 22px;
-      height: 1.4px;
-      background: rgba(179, 0, 0, 0.35);
-      pointer-events: none;
-    }
-    .avatar-tear--a { top: 74%; left: 6%; transform: rotate(-24deg); }
-    .avatar-tear--b { top: 86%; right: 10%; transform: rotate(18deg); }
-
-    .avatar-eyes {
-      position: absolute;
-      top: 30%;
-      left: 0;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      gap: 26px;
-    }
-
-    .avatar-eye {
-      position: relative;
-      width: 34px;
-      height: 20px;
-      border-radius: 50%;
-      background: radial-gradient(circle, var(--gold) 0%, rgba(255, 215, 0, 0.35) 60%, transparent 100%);
-      box-shadow: 0 0 14px 3px var(--gold-glow);
-      animation: avatarEyeGlow 4.2s ease-in-out infinite;
-      transition: transform 0.09s ease-out, opacity 0.09s ease-out, box-shadow 0.15s ease;
-      transform-origin: center;
-    }
-    .avatar-eye--right { animation-delay: 0.15s; }
-
-    @keyframes avatarEyeGlow {
-      0%, 100% { opacity: 0.75; }
-      50% { opacity: 1; }
-    }
-
-    /* Blinzeln: Augen kurz auf eine duenne Linie zusammendruecken */
-    .avatar-eye.blinking {
-      transform: scaleY(0.08);
-    }
-
-    /* Reaktions-Puls bei eingehender Chat-Nachricht - kurzer Aufhellungs-/
-       Aufweitungs-Impuls, klingt selbststaendig wieder ab (CSS-Transition,
-       kein eigener rAF-Loop noetig). */
-    .avatar-mask.reacting {
-      transform: scale(1.035);
-    }
-    .avatar-eye.reacting {
-      transform: scale(1.25);
-      box-shadow: 0 0 22px 6px var(--gold-glow);
-    }
-
-    /* Wird nur per JS gesetzt, wenn Mikro-Zugriff (Bonus-Pfad) tatsaechlich
-       funktioniert - blutrote statt goldene Iris signalisiert optisch
-       "reagiert live auf deine Stimme" gegenueber dem Standard-Idle/Chat-
-       Modus. */
-    .avatar-eye.mic-active {
-      background: radial-gradient(circle, var(--blood) 0%, rgba(179, 0, 0, 0.35) 60%, transparent 100%);
-      box-shadow: 0 0 14px 3px var(--blood-glow);
+    .avatar-img.reacting {
+      transform: translateY(-16px) scale(1.05);
     }
   </style>
 </head>
 <body>
 
   <div class="avatar-position">
-    <div class="avatar-breathe" id="avatarBreathe">
-      <div class="avatar-mask" id="avatarMask">
-        <div class="avatar-seam"></div>
-        <div class="avatar-tear avatar-tear--a"></div>
-        <div class="avatar-tear avatar-tear--b"></div>
-        <div class="avatar-eyes">
-          <div class="avatar-eye avatar-eye--left" id="eyeLeft"></div>
-          <div class="avatar-eye avatar-eye--right" id="eyeRight"></div>
-        </div>
-      </div>
+    <div class="avatar-glow-bg" id="avatarGlow"></div>
+    <div class="avatar-bob">
+      <img class="avatar-img" id="avatarImg" src="assets/images/avatar.png" alt="DaN Avatar">
     </div>
   </div>
 
   <script>
-    // =====================================================================
-    // Primaerer Zustand: dauerhafte Idle-Animation (Atmen via CSS-Keyframe
-    // auf .avatar-breathe, Augen-Glimmern via CSS-Keyframe auf .avatar-eye)
-    // + zufaelliges Blinzeln + Reaktions-Puls bei eingehenden Chat-
-    // Nachrichten. Laeuft komplett ohne Mikrofon - das ist nach dem
-    // bestaetigten Streamlabs-WebView-Block jetzt der Regelfall, nicht der
-    // Fallback.
-    // =====================================================================
-    const eyeLeft = document.getElementById('eyeLeft');
-    const eyeRight = document.getElementById('eyeRight');
-    const avatarMask = document.getElementById('avatarMask');
+    // ?test=speak simuliert einen Reaktions-Puls ohne echtes Mikro/Chat -
+    // gleiches Prinzip wie goal.html's ?test=.
+    const TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
+    const MIC_SPEAK_THRESHOLD = 0.08;
 
-    function scheduleBlink() {
-      const delay = 2600 + Math.random() * 3400;
-      setTimeout(() => {
-        eyeLeft.classList.add('blinking');
-        eyeRight.classList.add('blinking');
-        setTimeout(() => {
-          eyeLeft.classList.remove('blinking');
-          eyeRight.classList.remove('blinking');
-        }, 140);
-        scheduleBlink();
-      }, delay);
-    }
-    scheduleBlink();
+    const avatarImg = document.getElementById('avatarImg');
+    const avatarGlow = document.getElementById('avatarGlow');
 
     let lastReactionAt = 0;
     const REACTION_COOLDOWN_MS = 350;
@@ -222,23 +95,18 @@
       const now = performance.now();
       if (now - lastReactionAt < REACTION_COOLDOWN_MS) return;
       lastReactionAt = now;
-
-      avatarMask.classList.add('reacting');
-      eyeLeft.classList.add('reacting');
-      eyeRight.classList.add('reacting');
+      avatarImg.classList.add('reacting');
+      avatarGlow.classList.add('reacting');
       setTimeout(() => {
-        avatarMask.classList.remove('reacting');
-        eyeLeft.classList.remove('reacting');
-        eyeRight.classList.remove('reacting');
-      }, 260);
+        avatarImg.classList.remove('reacting');
+        avatarGlow.classList.remove('reacting');
+      }, 280);
     }
 
     // ---------- Chat-reaktiv: "Chat ist meine Stimme" ----------
-    // Eigene tmi.js-Verbindung (gleiches Muster wie goal.html's Chat-
-    // Commands - in try/catch gekapselt, damit ein CDN-Ausfall die Idle-
-    // Animation nicht mitreisst). Jede eingehende Nachricht loest einen
-    // kurzen Reaktions-Puls aus, statt eine Stimme zu simulieren, die es
-    // nicht gibt.
+    // Eigene tmi.js-Verbindung (in try/catch gekapselt, damit ein CDN-
+    // Ausfall die Idle-Animation nicht mitreisst). Jede eingehende
+    // Nachricht loest einen kurzen Bounce+Glow-Puls aus.
     const CHAT_REACT_CHANNEL = 'dangsxr1000';
     try {
       const reactChatClient = new tmi.Client({
@@ -258,28 +126,17 @@
     }
 
     // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
-    // In der Streamlabs-Mobile-WebView bestaetigt blockiert (NotAllowedError,
-    // kein Berechtigungsdialog) - im normalen Mobile-Chrome funktioniert es.
-    // Bleibt im Code, falls die Seite je in einem weniger restriktiven
-    // Kontext laeuft; schlaegt es fehl, laeuft einfach die Chat-/Idle-
-    // Animation unveraendert weiter, kein Sonderfall noetig.
-    const TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
-    const MIC_SPEAK_THRESHOLD = 0.08;
-    let micRafId = null;
-
-    function setMicActive(active) {
-      eyeLeft.classList.toggle('mic-active', active);
-      eyeRight.classList.toggle('mic-active', active);
-    }
-
+    // In der Streamlabs-Mobile-WebView bestaetigt blockiert - bleibt im
+    // Code, falls die Seite je in einem weniger restriktiven Kontext
+    // laeuft; schlaegt es fehl, laeuft die Chat-/Idle-Animation unveraendert
+    // weiter.
     function startMicVisualLoop(getLevel) {
-      setMicActive(true);
       function step() {
         const level = getLevel();
         if (level > MIC_SPEAK_THRESHOLD) triggerReaction();
-        micRafId = requestAnimationFrame(step);
+        requestAnimationFrame(step);
       }
-      micRafId = requestAnimationFrame(step);
+      requestAnimationFrame(step);
     }
 
     function startMicTestMode() {
@@ -311,9 +168,6 @@
         });
         console.log('[Avatar] Mikrofon-Bonus aktiv - Reaktionen jetzt zusaetzlich stimmgesteuert.');
       } catch (err) {
-        // Kein Retry, kein sichtbarer Fehlerhinweis mehr (das war der Zweck
-        // des Mini-Spikes, nicht der Produktivversion) - Idle-/Chat-
-        // Animation laeuft einfach unveraendert weiter.
         console.log('[Avatar] Mikrofon-Bonus nicht verfuegbar (' + (err.name || 'Fehler') + ') - Idle-/Chat-Animation laeuft normal weiter.');
       }
     }
