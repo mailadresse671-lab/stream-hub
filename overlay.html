@@ -40,12 +40,18 @@
       /* Kein transform:scale() mehr (Streamlabs-Mobile-WebView rendert
          herunterskalierte Layer sichtbar unscharf/verpixelt - Text und
          Bilder werden dort offenbar nicht bei der finalen Groesse neu
-         rasterisiert). Stattdessen sind alle Innen-Groessen (Fonts,
-         Paddings, Breiten, Border, clip-path-Werte) direkt ~45% kleiner
-         als im Original-Design gesetzt, damit die Engine sie nativ in der
-         richtigen kleinen Groesse zeichnet - siehe CLAUDE.md fuer die
-         Hotfix-Historie. */
-      --cut: 8px;
+         rasterisiert). Stattdessen ist die Basis-Einheit selbst fluide:
+         --vu ("viewport unit") loest sich zu 1px bei 1920px Browser-
+         Quellen-Breite auf, skaliert aber proportional mit der TATSAECH-
+         LICHEN Breite mit (Boden bei 0.5px) - falls Streamlabs Mobile dem
+         iframe eine viel kleinere interne Aufloesung meldet als erwartet,
+         schrumpfen Fonts/Paddings/Border automatisch mit, statt in
+         absoluten px riesig zu wirken. calc(var(--vu) * N) ersetzt ueberall
+         dort, wo bisher ein hartes "Npx" stand - bleibt dabei "nativ"
+         (calc()/clamp() werden vor dem Rendern aufgeloest, kein
+         nachtraegliches Herunterskalieren wie bei transform:scale()). */
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+      --cut: calc(var(--vu) * 8);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -92,8 +98,8 @@
        statt runder Ecken, siehe Styling-Guide) ---------- */
     .bullet-hole {
       position: absolute;
-      width: 7px;
-      height: 7px;
+      width: calc(var(--vu) * 7);
+      height: calc(var(--vu) * 7);
       border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #000 0%, #131417 55%, transparent 75%);
       box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9);
@@ -104,7 +110,7 @@
     .bullet-hole::before {
       content: '';
       position: absolute;
-      inset: -4px;
+      inset: calc(var(--vu) * -4);
       background:
         linear-gradient(12deg, transparent 47%, rgba(255, 26, 26, 0.4) 49%, transparent 51%),
         linear-gradient(96deg, transparent 47%, rgba(255, 26, 26, 0.32) 49%, transparent 51%),
@@ -135,10 +141,10 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: calc(var(--vu) * 4);
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(calc(var(--vu) * 7));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 7));
       clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
       overflow: hidden;
     }
@@ -148,19 +154,19 @@
       position: absolute;
       inset: 0;
       background-image:
-        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 8px),
-        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 8px);
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 8)),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 8));
       opacity: 0.35;
       pointer-events: none;
     }
 
     .hud-watermark {
       position: absolute;
-      right: 5px;
-      bottom: 3px;
+      right: calc(var(--vu) * 5);
+      bottom: calc(var(--vu) * 3);
       font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 5px;
-      letter-spacing: 1px;
+      font-size: calc(var(--vu) * 5);
+      letter-spacing: calc(var(--vu) * 1);
       color: var(--chrome-2);
       opacity: 0.4;
       white-space: nowrap;
@@ -170,52 +176,57 @@
 
     .tape-corner {
       position: absolute;
-      top: 3px;
-      left: -7px;
-      width: 25px;
-      height: 6px;
-      background: repeating-linear-gradient(45deg, var(--gold) 0 3px, #0a0a0a 3px 7px);
+      top: calc(var(--vu) * 3);
+      left: calc(var(--vu) * -7);
+      width: calc(var(--vu) * 25);
+      height: calc(var(--vu) * 6);
+      background: repeating-linear-gradient(45deg, var(--gold) 0 calc(var(--vu) * 3), #0a0a0a calc(var(--vu) * 3) calc(var(--vu) * 7));
       transform: rotate(-45deg);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
       pointer-events: none;
       z-index: 3;
     }
 
-    /* ---------- Oben links: Wanted-Level + Session-Stats/Rang gestapelt ----------
-       vw/vh statt fixer px-Werte: klebt so am Viewport-Rand, egal welche
-       tatsaechliche Aufloesung die Browser-Quelle liefert (kein festes
-       1920x1080-Design-Raster mehr, siehe Kommentar bei #shake-root). */
-    .top-left-stack {
+    /* ---------- Linker Rand, vertikal zentriert: Wanted-Level + Session-
+       Stats/Rang gestapelt ----------
+       Bewusst NICHT oben links (dort liegt in Rocket League der In-Game-
+       Chat) und NICHT oben mittig (Tor-/Zeit-Anzeige) - die vertikal
+       zentrierte linke Kante ist in RL HUD-frei. vw/vh statt fixer px-
+       Werte: klebt so am Viewport-Rand, egal welche tatsaechliche
+       Aufloesung die Browser-Quelle liefert (kein festes 1920x1080-
+       Design-Raster mehr, siehe Kommentar bei #shake-root). */
+    .left-edge-stack {
       position: absolute;
-      top: 2.2vh;
+      top: 50%;
       left: 1.25vw;
+      transform: translateY(-50%);
       z-index: 10;
       display: flex;
       flex-direction: column;
-      gap: 9px;
+      gap: calc(var(--vu) * 9);
     }
 
     .goal-card, .wanted-card, .stats-card {
       /* min() statt fixer px, damit die Karten auch in schmalen/krummen
          Viewports schrumpfen koennen, statt garantiert zu ueberlappen. */
-      min-width: min(132px, 34vw);
+      min-width: min(calc(var(--vu) * 132), 34vw);
     }
-    .goal-card { padding: 11px 14px 10px; }
-    .wanted-card { padding: 9px 13px 8px; min-width: min(110px, 30vw); }
-    .stats-card { padding: 9px 13px 8px; }
+    .goal-card { padding: calc(var(--vu) * 11) calc(var(--vu) * 14) calc(var(--vu) * 10); }
+    .wanted-card { padding: calc(var(--vu) * 9) calc(var(--vu) * 13) calc(var(--vu) * 8); min-width: min(calc(var(--vu) * 110), 30vw); }
+    .stats-card { padding: calc(var(--vu) * 9) calc(var(--vu) * 13) calc(var(--vu) * 8); }
 
     .goal-header {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 8px;
+      gap: calc(var(--vu) * 8);
     }
 
     .goal-title, .wanted-title, .stats-title {
       font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 7px;
+      font-size: calc(var(--vu) * 7);
       font-weight: 400;
-      letter-spacing: 1px;
+      letter-spacing: calc(var(--vu) * 1);
       color: var(--gold);
       text-transform: uppercase;
       white-space: nowrap;
@@ -225,7 +236,7 @@
     .goal-stats {
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
       font-weight: 800;
-      font-size: 8px;
+      font-size: calc(var(--vu) * 8);
       color: var(--chrome-1);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -234,7 +245,7 @@
 
     .bar-bg {
       width: 100%;
-      height: 8px;
+      height: calc(var(--vu) * 8);
       background: rgba(0, 0, 0, 0.35);
       clip-path: polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%);
       overflow: hidden;
@@ -246,7 +257,7 @@
 
     .debug-line {
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
-      font-size: 4px;
+      font-size: calc(var(--vu) * 4);
       color: var(--text-muted);
       letter-spacing: 0.2px;
       font-variant-numeric: tabular-nums;
@@ -255,7 +266,7 @@
       line-height: 1.4;
     }
 
-    .wanted-stars { display: flex; gap: 3px; font-size: 12px; line-height: 1; }
+    .wanted-stars { display: flex; gap: calc(var(--vu) * 3); font-size: calc(var(--vu) * 12); line-height: 1; }
     .wanted-star {
       color: #35373c;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
@@ -270,11 +281,11 @@
        Looks aus index.html, damit die Master-Szene optisch aus einem Guss
        bleibt (siehe Styling-Guide: Hood/Ghetto vs. Glassmorphism nicht
        vermischen - hier ist alles Hood). */
-    .stats-header { display: flex; align-items: center; gap: 4px; }
+    .stats-header { display: flex; align-items: center; gap: calc(var(--vu) * 4); }
 
     .stats-status-dot {
-      width: 4px;
-      height: 4px;
+      width: calc(var(--vu) * 4);
+      height: calc(var(--vu) * 4);
       border-radius: 50%;
       background: var(--text-muted);
       flex-shrink: 0;
@@ -287,12 +298,12 @@
       50% { opacity: 0.5; transform: scale(0.75); }
     }
 
-    .stats-row { display: flex; gap: 10px; }
-    .stat { text-align: center; min-width: 22px; }
+    .stats-row { display: flex; gap: calc(var(--vu) * 10); }
+    .stat { text-align: center; min-width: calc(var(--vu) * 22); }
     .stat .stat-value {
       display: block;
       font-family: 'Montserrat', sans-serif;
-      font-size: 10px;
+      font-size: calc(var(--vu) * 10);
       font-weight: 900;
       line-height: 1;
       font-variant-numeric: tabular-nums;
@@ -300,8 +311,8 @@
     }
     .stat .stat-label {
       display: block;
-      font-size: 4px;
-      margin-top: 2px;
+      font-size: calc(var(--vu) * 4);
+      margin-top: calc(var(--vu) * 2);
       color: var(--text-muted);
       text-transform: uppercase;
       font-weight: 700;
@@ -311,11 +322,36 @@
     .val-loss { color: var(--danger); }
     .val-rate { color: var(--gold); }
 
-    .rank-row { display: flex; align-items: center; gap: 4px; padding-top: 1px; border-top: 1px solid var(--steel-line); }
-    .rank-icon { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
+    .rank-row { display: flex; align-items: center; gap: calc(var(--vu) * 4); padding-top: 1px; border-top: 1px solid var(--steel-line); }
+    .rank-icon { width: calc(var(--vu) * 14); height: calc(var(--vu) * 14); object-fit: contain; flex-shrink: 0; }
     .rank-text { display: flex; flex-direction: column; line-height: 1.15; }
-    .rank-tier { font-size: 6px; font-weight: 800; color: var(--gold); white-space: nowrap; }
-    .rank-mmr { font-size: 4px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
+    .rank-tier { font-size: calc(var(--vu) * 6); font-weight: 800; color: var(--gold); white-space: nowrap; }
+    .rank-mmr { font-size: calc(var(--vu) * 4); color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    /* Stylisches Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige,
+       wenn api/stats.js dauerhaft nicht erreichbar ist (siehe
+       setStatsStatus() in JS) - .stats-row/.rank-row werden dabei
+       ausgeblendet, dieses Panel eingeblendet. */
+    .stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); }
+    .stats-card.is-offline .stats-row,
+    .stats-card.is-offline .rank-row { display: none !important; }
+    .stats-card.is-offline .stats-offline-panel { display: flex; }
+    .offline-tag {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: calc(var(--vu) * 20);
+      color: var(--gold);
+      letter-spacing: 1px;
+      line-height: 1;
+      text-shadow: 0 0 8px var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+    .offline-sub {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: calc(var(--vu) * 6);
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
 
     /* ---------- Oben rechts: Follower-Goal ---------- */
     .goal-position {
@@ -335,15 +371,17 @@
          Pixel-Zahl (die bei kleinen/verzerrten Viewports den Baeren aus
          dem Bild schieben wuerde) - bleibt proportional zum Viewport,
          ohne auf sehr breiten/schmalen Quellen absurd zu wachsen/
-         schrumpfen. Klammern (66-143px) ~45% kleiner als im Original. */
-      width: clamp(66px, 6vw, 143px);
+         schrumpfen. Klammern nochmals abgesenkt (40-110px), damit der
+         Baer auch bei einer sehr klein gemeldeten Streamlabs-Mobile-
+         Aufloesung nicht zu dominant wirkt. */
+      width: clamp(40px, 5vw, 110px);
     }
 
     /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
        kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
     .avatar-glow-bg {
       position: absolute;
-      inset: -14px;
+      inset: calc(var(--vu) * -14);
       border-radius: 50%;
       background: radial-gradient(circle, var(--blood-glow), transparent 70%);
       opacity: 0;
@@ -352,33 +390,41 @@
     }
     .avatar-glow-bg.action {
       opacity: 1;
-      animation: avatarGlowPulse 1s ease-in-out infinite;
+      animation: avatarGlowPulse 0.8s ease-in-out infinite;
     }
     @keyframes avatarGlowPulse {
-      0%, 100% { transform: scale(1); opacity: 0.7; }
-      50% { transform: scale(1.16); opacity: 1; }
+      0%, 100% { transform: scale(1); opacity: 0.75; }
+      50% { transform: scale(1.4); opacity: 1; }
     }
 
+    /* Organischeres Idle-Wippen: leichtes Schaukeln (statt reinem
+       Auf-Ab) durch zusaetzliche horizontale Verschiebung + wechselnde
+       Rotationsrichtung ueber 4 Punkte, damit der Baer auch in den
+       >95% Sendezeit ohne Event lebendig wirkt statt nur simpel zu
+       hüpfen. */
     .avatar-bob {
-      animation: avatarIdleBounce 3.2s ease-in-out infinite;
+      animation: avatarIdleBounce 3.6s ease-in-out infinite;
       transform-origin: 50% 100%;
     }
     @keyframes avatarIdleBounce {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      50% { transform: translateY(-5px) rotate(-1.2deg); }
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      25% { transform: translate(1.5px, -3px) rotate(-1.4deg) scale(1.005); }
+      50% { transform: translate(0, -6px) rotate(0.6deg) scale(1.012); }
+      75% { transform: translate(-1.5px, -2.5px) rotate(1.4deg) scale(1.005); }
     }
 
     /* Punch-Wrapper: kurzer Bounce-Impuls bei jedem Trigger, unabhaengig
        vom darunterliegenden Idle-Wippen. Haelt die beiden gestapelten
        Bild-Layer, die per Opacity ueberblendet werden (fliessender
-       Uebergang statt hartem src-Swap). */
+       Uebergang statt hartem src-Swap). Staerkerer Ausschlag (Rotation
+       + mehr Scale) fuer mehr "Hype"-Gefuehl bei Interaktionen. */
     .avatar-punch {
       position: relative;
-      transition: transform 0.12s ease-out;
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
       transform-origin: 50% 100%;
     }
     .avatar-punch.punch {
-      transform: translateY(-9px) scale(1.05);
+      transform: translateY(-13px) scale(1.09) rotate(-4deg);
     }
 
     .avatar-layer {
@@ -393,35 +439,47 @@
     .avatar-punch.action .avatar-layer-idle { opacity: 0; }
     .avatar-punch.action .avatar-layer-action { opacity: 1; }
 
-    /* ---------- Unten rechts: Chat-Feed + Branding-Tag ---------- */
-    .chat-stage-box {
+    /* ---------- Rechter Rand, vertikal zentriert: Chat-Feed + Branding-Tag ----------
+       Bewusst NICHT unten rechts (dort sitzt in Rocket League die Boost-
+       Anzeige) - die vertikal zentrierte rechte Kante ist HUD-frei,
+       spiegelt den .left-edge-stack auf der anderen Seite. */
+    .right-edge-stack {
       position: absolute;
+      top: 50%;
       right: 1.25vw;
-      bottom: 10.2vh;
-      width: 11.4vw;
-      height: 24.4vh;
+      transform: translateY(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: calc(var(--vu) * 9);
+    }
+
+    .chat-stage-box {
+      position: relative;
+      width: 9vw;
+      height: 22vh;
       overflow: hidden;
       pointer-events: none;
-      z-index: 10;
     }
 
     .chat-card {
       position: absolute;
       top: 0;
-      left: 11px;
-      width: 187px;
+      left: 4%;
+      width: 92%;
       display: flex;
       align-items: flex-start;
-      gap: 6px;
+      gap: calc(var(--vu) * 6);
       background: var(--asphalt-mid);
       border: 1px solid var(--steel-line);
       border-left: 2px solid var(--gold);
       clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 7px, 100% 100%, 0 100%);
-      padding: 6px 9px 6px 8px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      padding: calc(var(--vu) * 6) calc(var(--vu) * 9) calc(var(--vu) * 6) calc(var(--vu) * 8);
+      backdrop-filter: blur(calc(var(--vu) * 7));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 7));
       box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
-      font-size: 7px;
+      font-size: calc(var(--vu) * 7);
       line-height: 1.45;
       opacity: 0;
       will-change: transform;
@@ -432,52 +490,46 @@
       position: absolute;
       inset: 0;
       background-image:
-        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 7px),
-        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 7px);
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 7)),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 7));
       opacity: 0.3;
       pointer-events: none;
     }
     .chat-card.visible { opacity: 1; }
     .chat-card.fade-out { transition: opacity 0.6s ease; opacity: 0; }
-    .avatar-dot { width: 4px; height: 4px; margin-top: 3px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
+    .avatar-dot { width: calc(var(--vu) * 4); height: calc(var(--vu) * 4); margin-top: calc(var(--vu) * 3); border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
     .msg-body { min-width: 0; }
     .username {
       font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
       font-weight: 400;
-      font-size: 9px;
+      font-size: calc(var(--vu) * 9);
       letter-spacing: 0.3px;
-      margin-right: 3px;
+      margin-right: calc(var(--vu) * 3);
       display: inline;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
     }
     .text { color: var(--text-primary); word-break: break-word; }
     .chat-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -1px 1px; }
 
-    .branding-position {
-      position: absolute;
-      right: 1.25vw;
-      bottom: 2.2vh;
-      z-index: 11;
-    }
     .branding-tag {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: calc(var(--vu) * 4);
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
       border: 1px solid var(--blood);
       clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
-      padding: 4px 9px;
+      padding: calc(var(--vu) * 4) calc(var(--vu) * 9);
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
     }
-    .branding-name { font-family: 'Bebas Neue', sans-serif; font-size: 8px; letter-spacing: 0.5px; color: var(--chrome-1); }
-    .branding-pipe { color: var(--chrome-2); margin: 0 3px; font-family: 'Montserrat', sans-serif; }
-    .branding-live { font-family: 'Bebas Neue', sans-serif; font-size: 8px; letter-spacing: 0.5px; color: var(--gold); }
+    .branding-name { font-family: 'Bebas Neue', sans-serif; font-size: calc(var(--vu) * 8); letter-spacing: 0.5px; color: var(--chrome-1); }
+    .branding-pipe { color: var(--chrome-2); margin: 0 calc(var(--vu) * 3); font-family: 'Montserrat', sans-serif; }
+    .branding-live { font-family: 'Bebas Neue', sans-serif; font-size: calc(var(--vu) * 8); letter-spacing: 0.5px; color: var(--gold); }
     .branding-dot {
-      width: 3px; height: 3px; border-radius: 50%;
+      width: calc(var(--vu) * 3); height: calc(var(--vu) * 3); border-radius: 50%;
       background: var(--blood);
       box-shadow: 0 0 6px var(--blood-glow);
       display: inline-block;
-      margin-left: 2px;
+      margin-left: calc(var(--vu) * 2);
       animation: brandPulse 1.8s ease-in-out infinite;
     }
     @keyframes brandPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.75); } }
@@ -496,10 +548,10 @@
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
       border: 1px solid var(--gold);
       clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
-      padding: 4px 11px;
+      padding: calc(var(--vu) * 4) calc(var(--vu) * 11);
       overflow: hidden;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(calc(var(--vu) * 6));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 6));
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
     }
     .soundtrack-text {
@@ -507,7 +559,7 @@
       white-space: nowrap;
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
       font-weight: 700;
-      font-size: 7px;
+      font-size: calc(var(--vu) * 7);
       letter-spacing: 0.3px;
       color: var(--gold);
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
@@ -703,8 +755,8 @@
 
   <div id="shake-root">
 
-    <!-- Oben links: Wanted-Level + Session-Stats/Rang gestapelt -->
-    <div class="top-left-stack">
+    <!-- Linker Rand, vertikal zentriert: Wanted-Level + Session-Stats/Rang gestapelt -->
+    <div class="left-edge-stack">
       <div class="shimmer-frame">
         <div class="hud-card wanted-card" id="wantedContainer">
           <div class="tape-corner"></div>
@@ -738,6 +790,13 @@
               <span class="rank-tier" id="rankTier">-</span>
               <span class="rank-mmr" id="rankMmr">-</span>
             </div>
+          </div>
+          <!-- Faellt automatisch ein, sobald api/stats.js dauerhaft nicht
+               erreichbar ist (siehe setStatsStatus() in JS) - stylisches
+               Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige. -->
+          <div class="stats-offline-panel" id="statsOfflinePanel">
+            <span class="offline-tag">D5</span>
+            <span class="offline-sub">DaN · DANGSXR1000</span>
           </div>
           <span class="hud-watermark">DANGSXR1000</span>
         </div>
@@ -775,9 +834,9 @@
       </div>
     </div>
 
-    <!-- Unten rechts: Chat-Feed + Branding-Tag -->
-    <div class="chat-stage-box" id="chat-stage"></div>
-    <div class="branding-position">
+    <!-- Rechter Rand, vertikal zentriert: Chat-Feed + Branding-Tag -->
+    <div class="right-edge-stack">
+      <div class="chat-stage-box" id="chat-stage"></div>
       <div class="branding-tag">
         <span class="branding-name">DaN</span><span class="branding-pipe">|</span><span class="branding-live">LIVE</span><span class="branding-dot"></span>
       </div>
@@ -1564,9 +1623,14 @@
     function setStatsStatus(status) {
       const dot = document.getElementById('statusDot');
       const label = document.getElementById('statusLabel');
-      const labels = { live: 'Live', cached: 'Cached', offline: 'Offline' };
+      // Bewusst kein sichtbares "Offline"-Fehlerlabel - liest sich sonst wie
+      // ein kaputtes Widget. Der Dot bleibt rot (kleines Diagnose-Signal),
+      // aber der Kartenkoerper faellt stattdessen auf ein stylisches
+      // DaN/D5-Branding-Panel zurueck (siehe .stats-offline-panel).
+      const labels = { live: 'Live', cached: 'Cached', offline: 'DANGSXR1000' };
       dot.className = 'stats-status-dot status-' + status;
       label.innerText = labels[status] || 'Session Stats';
+      document.getElementById('statsContainer').classList.toggle('is-offline', status === 'offline');
     }
 
     async function fetchStats() {
