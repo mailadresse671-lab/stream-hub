@@ -51,30 +51,18 @@
       height: 100%;
     }
 
-    /* Die Seite ist fest im 1920x1080-Design-Koordinatensystem gebaut
-       (px-genaue clip-paths, Canvas-Pixel, Badges). #stage-scale ist dieser
-       feste 1920x1080-Layer, der per JS (fitStage()) gleichmaessig auf die
-       TATSAECHLICHE Browser-Quellen-Groesse skaliert und zentriert wird -
-       so bleibt das 16:9-Layout unverkleistert und ueberschneidungsfrei,
-       egal ob die Streamlabs-Mobile-Browser-Quelle wirklich exakt
-       1920x1080 rendert oder (z.B. wegen der viewport-meta-Tag-Skalierung
-       auf einem Tablet) eine ganz andere Aufloesung liefert. */
-    #stage-scale {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 1920px;
-      height: 1080px;
-      transform-origin: top left;
-    }
-
-    /* Alles, was gemeinsam "wackeln" soll (Goal-Widget + Popup + FX-Layer),
-       lebt in einem einzigen fixed Wrapper - Transform auf <body> wuerde
-       die position:fixed-Verankerung aller Kinder zerstoeren. Da
-       #stage-scale ein transform traegt, wird es automatisch zum
-       Containing-Block fuer dieses position:fixed-Kind (CSS-Spec-Verhalten)
-       - "inset:0" bezieht sich dadurch auf die 1920x1080-Buehne, nicht auf
-       den echten (evtl. abweichenden) Geraete-Viewport. */
+    /* KEIN festes 1920x1080-Design-Raster mehr (siehe Git-Historie fuer den
+       verworfenen #stage-scale-JS-Scaling-Versuch - Streamlabs Mobile
+       rendert das iframe intern offenbar bei einer eigenen, per JS nicht
+       zuverlaessig auslesbaren Aufloesung, wodurch jede auf
+       window.innerWidth/innerHeight basierende Skalierung dort ins Leere
+       lief). Stattdessen rein CSS-basiertes, fluides Layout: #shake-root
+       fuellt per "position:fixed; inset:0" IMMER exakt den echten Viewport
+       (das ist Browser-natives Verhalten, unabhaengig von JS-Messwerten),
+       und alle Widget-Anker darunter positionieren sich relativ dazu ueber
+       vw/vh statt fixer px-Werte - dadurch "atmet" das Layout mit jedem
+       Viewport mit, egal wie krumm/klein/verzerrt Streamlabs Mobile das
+       iframe tatsaechlich rendert. */
     #shake-root {
       position: fixed;
       inset: 0;
@@ -185,11 +173,14 @@
       z-index: 3;
     }
 
-    /* ---------- Oben links: Wanted-Level + Session-Stats/Rang gestapelt ---------- */
+    /* ---------- Oben links: Wanted-Level + Session-Stats/Rang gestapelt ----------
+       vw/vh statt fixer px-Werte: klebt so am Viewport-Rand, egal welche
+       tatsaechliche Aufloesung die Browser-Quelle liefert (kein festes
+       1920x1080-Design-Raster mehr, siehe Kommentar bei #shake-root). */
     .top-left-stack {
       position: absolute;
-      top: 24px;
-      left: 24px;
+      top: 2.2vh;
+      left: 1.25vw;
       z-index: 10;
       display: flex;
       flex-direction: column;
@@ -197,10 +188,12 @@
     }
 
     .goal-card, .wanted-card, .stats-card {
-      min-width: 240px;
+      /* min() statt fixer px, damit die Karten auch in schmalen/krummen
+         Viewports schrumpfen koennen, statt garantiert zu ueberlappen. */
+      min-width: min(240px, 34vw);
     }
     .goal-card { padding: 20px 26px 18px; }
-    .wanted-card { padding: 16px 24px 14px; min-width: 200px; }
+    .wanted-card { padding: 16px 24px 14px; min-width: min(200px, 30vw); }
     .stats-card { padding: 16px 24px 14px; }
 
     .goal-header {
@@ -317,10 +310,20 @@
     .rank-mmr { font-size: 8px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
 
     /* ---------- Oben rechts: Follower-Goal ---------- */
-    .goal-position { position: absolute; top: 24px; right: 24px; z-index: 10; }
+    .goal-position { position: absolute; top: 2.2vh; right: 1.25vw; z-index: 10; }
 
     /* ---------- Unten links: Bild-Avatar (Baer) ---------- */
-    .avatar-position { position: absolute; bottom: 24px; left: 24px; z-index: 10; width: 210px; }
+    .avatar-position {
+      position: absolute;
+      bottom: 2.2vh;
+      left: 1.25vw;
+      z-index: 10;
+      /* vw-basierte Breite mit Klammern nach oben/unten statt starrer
+         210px (die bei kleinen/verzerrten Viewports den Baeren aus dem
+         Bild schieben wuerde) - bleibt proportional zum Viewport, ohne
+         auf sehr breiten/schmalen Quellen absurd zu wachsen/schrumpfen. */
+      width: clamp(120px, 11vw, 260px);
+    }
 
     /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
        kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
@@ -379,10 +382,10 @@
     /* ---------- Unten rechts: Chat-Feed + Branding-Tag ---------- */
     .chat-stage-box {
       position: absolute;
-      right: 24px;
-      bottom: 110px;
-      width: 400px;
-      height: 480px;
+      right: 1.25vw;
+      bottom: 10.2vh;
+      width: 20.8vw;
+      height: 44.4vh;
       overflow: hidden;
       pointer-events: none;
       z-index: 10;
@@ -436,7 +439,7 @@
     .text { color: var(--text-primary); word-break: break-word; }
     .chat-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -2px 1px; }
 
-    .branding-position { position: absolute; right: 24px; bottom: 24px; z-index: 11; }
+    .branding-position { position: absolute; right: 1.25vw; bottom: 2.2vh; z-index: 11; }
     .branding-tag {
       display: flex;
       align-items: center;
@@ -463,11 +466,11 @@
     /* ---------- Unten mittig: Soundtrack-Badge ---------- */
     .soundtrack-position {
       position: absolute;
-      bottom: 24px;
+      bottom: 2.2vh;
       left: 50%;
       transform: translateX(-50%);
       z-index: 8;
-      max-width: 640px;
+      max-width: 33vw;
     }
     .soundtrack-badge {
       position: relative;
@@ -679,7 +682,6 @@
 </head>
 <body>
 
-  <div id="stage-scale">
   <div id="shake-root">
 
     <!-- Oben links: Wanted-Level + Session-Stats/Rang gestapelt -->
@@ -799,7 +801,6 @@
     <div id="muzzle-flash"></div>
     <div id="cop-siren"></div>
   </div>
-  </div>
 
   <div id="scanline-overlay"></div>
 
@@ -808,29 +809,6 @@
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
     const CACHE_BUST = Date.now();
     const OVERLAY_CHANNEL = 'dangsxr1000';
-
-    // =====================================================================
-    // Stage-Fit: skaliert die feste 1920x1080-Buehne (#stage-scale)
-    // gleichmaessig (letterboxed, zentriert) auf die tatsaechliche
-    // Browser-Quellen-Groesse. Noetig, weil Streamlabs Mobile die Seite
-    // nicht garantiert exakt bei 1920x1080 rendert (meta-viewport
-    // "width=device-width" + variable Browser-Quellen-Groesse auf
-    // Tablets) - ohne dieses Scaling wuerden die absolut positionierten
-    // HUD-Karten je nach echtem Viewport ueberlappen oder aus dem
-    // sichtbaren Bereich rutschen (z.B. der unten verankerte Avatar).
-    // Laeuft synchron beim Laden UND bei jedem resize-Event.
-    // =====================================================================
-    const STAGE_W = 1920;
-    const STAGE_H = 1080;
-    const stageScale = document.getElementById('stage-scale');
-    function fitStage() {
-      const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
-      const offsetX = (window.innerWidth - STAGE_W * scale) / 2;
-      const offsetY = (window.innerHeight - STAGE_H * scale) / 2;
-      stageScale.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-    }
-    fitStage();
-    window.addEventListener('resize', fitStage);
 
     // Soundtrack-Badge: Text kommt aus dem ?track=-URL-Parameter, gleiches
     // Prinzip wie chat.html's ?channel=. innerText macht Escaping ueberfluessig.
@@ -1198,9 +1176,8 @@
         window.addEventListener('resize', () => this._resize());
       }
       // Wandelt Viewport-Koordinaten (z.B. aus element.getBoundingClientRect())
-      // in Canvas-lokale CSS-Pixel-Koordinaten um - noetig, weil der Canvas
-      // durch #stage-scale skaliert/verschoben auf dem Bildschirm sitzt und
-      // sein eigenes getBoundingClientRect() denselben Offset traegt.
+      // in Canvas-lokale CSS-Pixel-Koordinaten um, damit FX-Positionen auch
+      // dann stimmen, wenn der Canvas nicht bei (0,0) im Viewport sitzt.
       toLocal(x, y) {
         const rect = this.canvas.getBoundingClientRect();
         return [x - rect.left, y - rect.top];
