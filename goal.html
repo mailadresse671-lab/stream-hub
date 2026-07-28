@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stream Follower Goal</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- Streamlabs' Socket-Server (sockets.streamlabs.com) spricht das alte
+       Socket.IO-v2-Protokoll. Ein v3/v4-Client verbindet sich hier NICHT
+       zuverlässig (keine Events, oft ohne sichtbaren Fehler) - deshalb
+       bewusst ein 2.x-Client statt der aktuellen Socket.IO-Version. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.min.js"></script>
   <style>
     :root {
       --bg-glass: rgba(15, 23, 42, 0.88);
@@ -110,6 +114,16 @@
       transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    /* Diagnose-Zeile fuer Token-/Socket-Status - klein & dezent, aber auf
+       dem Tablet ohne Inspector direkt sichtbar. */
+    .debug-line {
+      font-size: 8px;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
     /* ---------- Party Pop-up (Bildschirmmitte) ---------- */
 
     #party-popup {
@@ -193,6 +207,7 @@
         <div class="bar-bg">
           <div class="bar-fill" id="barFill"></div>
         </div>
+        <div class="debug-line" id="debugLine">Token: … | Socket: –</div>
       </div>
     </div>
   </div>
@@ -510,20 +525,78 @@
       showPartyPopup(next.kind, next.payload);
     }
 
+    // 3. Sichtbarer Verbindungsstatus - direkt im Widget, damit man auf dem
+    // Tablet ohne Inspector sieht, ob Token/Socket stehen.
+    function setDebugStatus(tokenState, socketState) {
+      const el = document.getElementById('debugLine');
+      if (!el) return;
+      const tokenLabel = { pending: '…', ok: '✓', failed: '✗' }[tokenState] || tokenState;
+      const socketLabel = {
+        idle: '–',
+        connecting: '… verbindet',
+        connected: '✓ verbunden',
+        disconnected: '✗ getrennt',
+        error: '✗ Fehler'
+      }[socketState] || socketState;
+      el.innerText = `Token: ${tokenLabel} | Socket: ${socketLabel}`;
+    }
+
     async function initFollowerSocket() {
+      setDebugStatus('pending', 'idle');
+      console.log('[Streamlabs] Fordere Socket-Token von /api/streamlabs-proxy an...');
+
+      // 1. Token-Empfang eindeutig prüfen und loggen - eigener try/catch,
+      // damit ein späterer Socket-Fehler den Token-Status nicht faelschlich
+      // ueberschreibt.
+      let token;
       try {
         const cleanUrl = VERCEL_URL.replace(/\/$/, "");
         const res = await fetch(`${cleanUrl}/api/streamlabs-proxy`);
         const data = await res.json();
 
         if (!data || !data.success || !data.token) {
-          console.error("Streamlabs-Token konnte nicht vom Proxy geladen werden.", data && data.message);
+          console.error('[Streamlabs] Token NICHT erhalten:', data && data.message);
+          setDebugStatus('failed', 'idle');
           return;
         }
+        token = data.token;
+        console.log('[Streamlabs] Token erhalten (Länge:', token.length, 'Zeichen).');
+        setDebugStatus('ok', 'connecting');
+      } catch (e) {
+        console.error('[Streamlabs] Verbindung zum Streamlabs-Proxy fehlgeschlagen:', e);
+        setDebugStatus('failed', 'idle');
+        return;
+      }
 
-        const socket = io(`https://sockets.streamlabs.com?token=${data.token}`, { transports: ['websocket'] });
+      // 2. Verbindungsaufbau: Server-URL und Event-Name ('event') sind laut
+      // Streamlabs-Doku korrekt. Wichtig ist der Client: Streamlabs' Socket-
+      // Server spricht Socket.IO v2 - ein v4-Client verbindet sich damit
+      // nicht zuverlässig, siehe Script-Tag im <head>. Token wird bewusst
+      // über die "query"-Option übergeben statt in die URL eingebettet
+      // (offizielles Streamlabs-Beispiel-Pattern).
+      try {
+        const socket = io('https://sockets.streamlabs.com', {
+          query: { token },
+          transports: ['websocket', 'polling']
+        });
+
+        socket.on('connect', () => {
+          console.log('[Streamlabs] Socket verbunden. Socket-ID:', socket.id);
+          setDebugStatus('ok', 'connected');
+        });
+
+        socket.on('disconnect', (reason) => {
+          console.warn('[Streamlabs] Socket getrennt. Grund:', reason);
+          setDebugStatus('ok', 'disconnected');
+        });
+
+        socket.on('connect_error', (err) => {
+          console.error('[Streamlabs] Verbindungsfehler:', err && err.message ? err.message : err);
+          setDebugStatus('ok', 'error');
+        });
 
         socket.on('event', (eventData) => {
+          console.log('[Streamlabs] Event empfangen:', eventData.type, eventData);
           const msg = (eventData.message && eventData.message[0]) || {};
 
           // 2. Auto-Resume: bereits beim Eintreffen des Events versuchen, den
@@ -578,7 +651,8 @@
           }
         });
       } catch (e) {
-        console.error("Verbindung zum Streamlabs-Proxy fehlgeschlagen:", e);
+        console.error('[Streamlabs] Socket-Erstellung fehlgeschlagen (Socket.IO-Client nicht geladen?):', e);
+        setDebugStatus('ok', 'error');
       }
     }
 
