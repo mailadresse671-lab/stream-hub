@@ -1103,6 +1103,37 @@
 
     const spraySystem = new SpraySystem(document.getElementById('spray-canvas'));
 
+    // =====================================================================
+    // Idle-Ambient-Layer: staendig laufende, sehr sparsame Funken-Emission
+    // unabhaengig von Alerts. Ohne das wirkt der Screen in den >95% der
+    // Sendezeit ohne Event komplett tot - das hier gibt permanent leichte
+    // Bewegung, ohne die bestehende Partikel-/Noise-Logik zu duplizieren
+    // (nutzt schlicht spraySystem.emitAmbient() an zufaelliger Position).
+    // =====================================================================
+    const IDLE_SPARK_COLORS = ['#ffd700', '#e8e6e1', '#b30000'];
+    let idleSparkTimer = null;
+
+    function emitIdleSpark() {
+      const x = Math.random() * window.innerWidth;
+      const y = window.innerHeight * (0.15 + Math.random() * 0.7);
+      spraySystem.emitAmbient(x, y, IDLE_SPARK_COLORS, 1);
+    }
+
+    function startIdleAmbient() {
+      if (idleSparkTimer) return;
+      idleSparkTimer = setInterval(emitIdleSpark, 700 + Math.random() * 500);
+    }
+
+    function stopIdleAmbient() {
+      if (idleSparkTimer) { clearInterval(idleSparkTimer); idleSparkTimer = null; }
+    }
+
+    startIdleAmbient();
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopIdleAmbient();
+      else startIdleAmbient();
+    });
+
     // Ein Eintrag pro Alert-Art: Anzeige-Text/-Farben und Sound an einer
     // Stelle, statt den Popup-Code fuer jede Event-Art zu duplizieren.
     // "confetti"-Farben werden jetzt vom SpraySystem statt DOM-Konfetti
