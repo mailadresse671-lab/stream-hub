@@ -112,16 +112,17 @@
     .bear-wrap {
       position: relative;
       width: clamp(200px, 26vw, 560px);
-      aspect-ratio: 1 / 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      /* Echtes Seitenverhaeltnis des freigestellten Bildes (714x804) statt
+         eines erzwungenen Quadrats - object-fit:contain wuerde sonst links/
+         rechts Luft lassen und die Prozent-Positionierung des Augen-Glows
+         unten aus dem Ruder laufen lassen. */
+      aspect-ratio: 714 / 804;
       z-index: 3;
     }
     .bear-head {
+      display: block;
       width: 100%;
       height: 100%;
-      object-fit: contain;
       /* Folgt der echten Alpha-Silhouette des Bildes statt eines simplen
          Kreis-Glows dahinter - zwei gestapelte drop-shadows fuer einen
          weicheren, tieferen Rotschimmer. */
@@ -145,14 +146,62 @@
       }
     }
 
+    /* Eigener, schnellerer Glueh-Puls NUR ueber der Augen-Region (per
+       Bildanalyse lokalisiert: ~66%/26% der Bildflaeche) - laeuft
+       unabhaengig vom langsamen Gesamt-Atmen, damit die Augen wirken, als
+       wuerden sie eigenstaendig aufflackern statt nur der ganze Kopf zu
+       pulsieren. mix-blend-mode:screen addiert nur Licht, statt eine Flaeche
+       zu ueberdecken. */
+    .eye-glow {
+      position: absolute;
+      left: 66%;
+      top: 26%;
+      width: 46%;
+      height: 26%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(ellipse, rgba(255, 40, 40, 0.95), rgba(255, 20, 20, 0.35) 55%, transparent 75%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      animation: eyeFlicker 2.3s ease-in-out infinite;
+    }
+    @keyframes eyeFlicker {
+      0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+      45% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+      55% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+      65% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.03); }
+      75% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+      85% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* Dezenter Glitch-Ausreisser, per JS in unregelmaessigen Abstaenden kurz
+       (~180ms) auf .bear-wrap gezuendet (siehe triggerGlitch() im Script) -
+       simuliert einen kurzen Signal-Aussetzer statt eines Dauereffekts. */
+    .bear-wrap.is-glitching .bear-head {
+      animation: none;
+      filter:
+        drop-shadow(2px 0 0 rgba(255, 26, 26, 0.85))
+        drop-shadow(-2px 0 0 rgba(120, 200, 255, 0.55))
+        drop-shadow(0 0 calc(var(--vu) * 30) var(--blood-glow));
+    }
+    .bear-wrap.is-glitching { animation: glitchJitter 0.18s steps(2, jump-none); }
+    @keyframes glitchJitter {
+      0% { clip-path: inset(0 0 0 0); transform: translateX(0); }
+      25% { clip-path: inset(8% 0 62% 0); transform: translateX(-6px); }
+      50% { clip-path: inset(48% 0 12% 0); transform: translateX(5px); }
+      75% { clip-path: inset(20% 0 40% 0); transform: translateX(-3px); }
+      100% { clip-path: inset(0 0 0 0); transform: translateX(0); }
+    }
+
     /* Platzhalter, bis assets/images/bear_head_lowpoly.png hochgeladen ist -
        zeigt absichtlich KEIN kaputtes Bildsymbol, sondern einen klar
        beschrifteten, stilistisch passenden Hinweis. Wird per onerror auf dem
-       <img> eingeblendet (siehe Script unten). */
+       <img> eingeblendet (siehe Script unten). Eigenes, quadratisches
+       Seitenverhaeltnis statt des Bild-Verhaeltnisses, da hier kein Bild
+       vorliegt, an das sich die Form anpassen koennte. */
     .bear-placeholder {
       display: none;
-      width: 78%;
-      height: 78%;
+      position: absolute;
+      inset: 8% 12%;
       border-radius: 50%;
       border: 1px dashed rgba(255, 26, 26, 0.5);
       align-items: center;
@@ -195,10 +244,33 @@
       color: var(--blood);
       text-transform: uppercase;
       opacity: 0.85;
+      /* Text wird per JS alle paar Sekunden ausgetauscht (rotierende Status-
+         Meldungen, siehe cycleEyebrow() im Script) - weiche Ein-/Ausblendung
+         statt hartem Text-Sprung. */
+      transition: opacity 0.35s ease;
     }
+    .eyebrow.is-swapping { opacity: 0; }
     .eyebrow::after {
       content: '_';
       animation: blink 1s steps(1) infinite;
+    }
+
+    /* ---------- Simulierter Audio-Visualizer ----------
+       Rein dekorativ/prozedural (Noise-gesteuert) statt echt audio-reaktiv -
+       fuer diese Start-Szene gibt es keine echte Audioquelle zum Analysieren
+       (kein Mikro, kein Player), anders als der AudioAnalysisRig in
+       goal.html. Sorgt trotzdem fuer durchgehende Bewegung waehrend der
+       5-Minuten-Wartezeit. */
+    #visualizer {
+      position: fixed;
+      left: 50%;
+      bottom: 7.4vh;
+      transform: translateX(-50%);
+      width: min(64vw, 720px);
+      height: clamp(22px, 3.4vh, 42px);
+      z-index: 2;
+      opacity: 0.55;
+      pointer-events: none;
     }
 
     .headline {
@@ -272,7 +344,7 @@
     <div class="hud-corner bl"></div>
     <div class="hud-corner br"></div>
 
-    <div class="bear-wrap">
+    <div class="bear-wrap" id="bearWrap">
       <img
         id="bearHead"
         class="bear-head"
@@ -280,13 +352,14 @@
         alt="DaN Low-Poly Baer"
         onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';"
       >
+      <div class="eye-glow"></div>
       <div class="bear-placeholder" id="bearPlaceholder">
         <span>BAER-BILD FEHLT NOCH<code>assets/images/bear_head_lowpoly.png</code></span>
       </div>
     </div>
 
     <div class="info-stack">
-      <div class="eyebrow">SYSTEM INITIALIZING</div>
+      <div class="eyebrow" id="eyebrowText">SYSTEM INITIALIZING</div>
       <div class="headline" id="headlineText">GLEICH GEHT ES LOS</div>
       <div class="countdown" id="countdown">
         <span id="cdMin">05</span><span class="colon">:</span><span id="cdSec">00</span>
@@ -296,6 +369,7 @@
       </div>
     </div>
 
+    <canvas id="visualizer"></canvas>
     <div class="watermark">DANGSXR1000</div>
   </div>
 
@@ -355,6 +429,91 @@
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
+
+    // ---------- Rotierende Status-Meldungen ----------
+    // Ersetzt das statische "SYSTEM INITIALIZING" durch mehrere kurze
+    // Tech-Meldungen, die im Wechsel durchlaufen - sorgt dafuer, dass die
+    // Szene ueber die vollen 5 Minuten hinweg nicht wie eingefroren wirkt.
+    const EYEBROW_MESSAGES = [
+      'SYSTEM INITIALIZING',
+      'LOADING STREAM MODULES',
+      'TWITCH CONNECTION: OK',
+      'AUDIO ENGINE: STANDBY',
+      'OVERLAY MODULES: READY',
+      'STAND BY',
+    ];
+    let eyebrowIndex = 0;
+    const eyebrowEl = document.getElementById('eyebrowText');
+    setInterval(() => {
+      eyebrowEl.classList.add('is-swapping');
+      setTimeout(() => {
+        eyebrowIndex = (eyebrowIndex + 1) % EYEBROW_MESSAGES.length;
+        eyebrowEl.textContent = EYEBROW_MESSAGES[eyebrowIndex];
+        eyebrowEl.classList.remove('is-swapping');
+      }, 350);
+    }, 3400);
+
+    // ---------- Dezenter Glitch-Ausreisser ----------
+    // Feuert in unregelmaessigen Abstaenden (6-11s) einen kurzen (~180ms)
+    // Signal-Aussetzer auf dem Baerenkopf - simuliert einen kleinen
+    // "Live-Feed"-Zucker statt eines Dauereffekts (siehe .is-glitching-CSS).
+    const bearWrap = document.getElementById('bearWrap');
+    function scheduleGlitch() {
+      const delay = 6000 + Math.random() * 5000;
+      setTimeout(() => {
+        bearWrap.classList.add('is-glitching');
+        setTimeout(() => bearWrap.classList.remove('is-glitching'), 180);
+        scheduleGlitch();
+      }, delay);
+    }
+    scheduleGlitch();
+
+    // ---------- Simulierter Audio-Visualizer ----------
+    // Rein dekorativ/prozedural: mehrschichtiges Sinus-Rauschen statt
+    // echter Audioanalyse, da diese Szene keine Audioquelle hat (kein
+    // Mikro, kein Player). Liefert trotzdem durchgehende, organisch
+    // wirkende Bewegung fuer die 5-Minuten-Wartezeit.
+    const vizCanvas = document.getElementById('visualizer');
+    const vizCtx = vizCanvas.getContext('2d');
+    const BAR_COUNT = 40;
+
+    function resizeVisualizer() {
+      const rect = vizCanvas.getBoundingClientRect();
+      vizCanvas.width = Math.round(rect.width * devicePixelRatio);
+      vizCanvas.height = Math.round(rect.height * devicePixelRatio);
+    }
+    resizeVisualizer();
+    window.addEventListener('resize', resizeVisualizer);
+
+    function barHeight(i, t) {
+      // Ueberlagerte Sinus-Wellen mit leicht unterschiedlichen Frequenzen/
+      // Phasen pro Balken statt echtem Noise-Modul - genuegt fuer einen
+      // rein dekorativen "atmenden" Balken-Teppich, ohne eine zusaetzliche
+      // Bibliothek/Klasse einzubinden.
+      const a = Math.sin(t * 1.7 + i * 0.6) * 0.5 + 0.5;
+      const b = Math.sin(t * 3.1 + i * 1.3 + 2.0) * 0.5 + 0.5;
+      const c = Math.sin(t * 0.6 + i * 0.15) * 0.5 + 0.5;
+      return 0.12 + (a * 0.5 + b * 0.3 + c * 0.2) * 0.88;
+    }
+
+    function drawVisualizer(now) {
+      const t = now / 1000;
+      const w = vizCanvas.width;
+      const h = vizCanvas.height;
+      vizCtx.clearRect(0, 0, w, h);
+      const gap = w / BAR_COUNT;
+      const barW = gap * 0.42;
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const frac = barHeight(i, t);
+        const barH = Math.max(2, frac * h);
+        const x = i * gap + (gap - barW) / 2;
+        const y = h - barH;
+        vizCtx.fillStyle = 'rgba(255, 26, 26, ' + (0.35 + frac * 0.5).toFixed(2) + ')';
+        vizCtx.fillRect(x, y, barW, barH);
+      }
+      requestAnimationFrame(drawVisualizer);
+    }
+    requestAnimationFrame(drawVisualizer);
   </script>
 
 </body>
