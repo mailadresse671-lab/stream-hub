@@ -93,9 +93,9 @@
       z-index: 1;
     }
 
-    /* ---------- Gemeinsames Karten-Aussehen (goal-card/wanted-card/
-       stats-card teilen sich dieses Vokabular: zerklueftete Geometrie
-       statt runder Ecken, siehe Styling-Guide) ---------- */
+    /* ---------- Gemeinsames Karten-Aussehen (goal-card/hud-card-merged
+       teilen sich dieses Vokabular: zerklueftete Geometrie statt runder
+       Ecken, siehe Styling-Guide) ---------- */
     .bullet-hole {
       position: absolute;
       width: calc(var(--vu) * 7);
@@ -206,14 +206,36 @@
       gap: calc(var(--vu) * 9);
     }
 
-    .goal-card, .wanted-card, .stats-card {
+    .goal-card, .hud-card-merged {
       /* min() statt fixer px, damit die Karten auch in schmalen/krummen
          Viewports schrumpfen koennen, statt garantiert zu ueberlappen. */
       min-width: min(calc(var(--vu) * 132), 34vw);
     }
     .goal-card { padding: calc(var(--vu) * 11) calc(var(--vu) * 14) calc(var(--vu) * 10); }
-    .wanted-card { padding: calc(var(--vu) * 9) calc(var(--vu) * 13) calc(var(--vu) * 8); min-width: min(calc(var(--vu) * 110), 30vw); }
-    .stats-card { padding: calc(var(--vu) * 9) calc(var(--vu) * 13) calc(var(--vu) * 8); }
+
+    /* Wanted-Level + Stats/Rang liegen jetzt in EINER gemeinsamen Karte
+       (.hud-card-merged) statt in zwei einzeln gerahmten Karten - wirkt
+       kompakter/professioneller als zwei separate Panels mit Luecke
+       dazwischen (Nutzer-Feedback nach Runde 5). .wanted-card/.stats-card
+       sind dadurch keine eigenstaendigen Karten mehr, sondern nur noch
+       interne Abschnitte innerhalb der gemeinsamen Karte, getrennt durch
+       .hud-divider. */
+    .hud-card-merged {
+      min-width: min(calc(var(--vu) * 110), 30vw);
+      padding: calc(var(--vu) * 9) calc(var(--vu) * 13) calc(var(--vu) * 8);
+      gap: calc(var(--vu) * 6);
+    }
+    .wanted-card, .stats-card {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--vu) * 4);
+    }
+    .hud-divider {
+      height: 1px;
+      flex-shrink: 0;
+      background: linear-gradient(90deg, transparent, var(--blood) 15%, var(--gold) 50%, var(--blood) 85%, transparent);
+      opacity: 0.55;
+    }
 
     .goal-header {
       display: flex;
@@ -554,6 +576,13 @@
       -webkit-backdrop-filter: blur(calc(var(--vu) * 6));
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
     }
+    /* Weiche Kanten NUR waehrend des Scrollens (siehe .is-scrolling unten) -
+       ohne diese Maske wuerde der laufende Text hart am overflow:hidden-Rand
+       abgeschnitten wirken statt sauber rein-/rauszulaufen. */
+    .soundtrack-badge.is-scrolling {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--vu) * 10), #000 calc(100% - var(--vu) * 10), transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--vu) * 10), #000 calc(100% - var(--vu) * 10), transparent 100%);
+    }
     .soundtrack-text {
       display: inline-block;
       white-space: nowrap;
@@ -563,6 +592,12 @@
       letter-spacing: 0.3px;
       color: var(--gold);
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+    /* Laeuft nur, wenn setupSoundtrackMarquee() (siehe JS) erkennt, dass der
+       Text breiter als die Badge ist - passt der Text hinein, bleibt er
+       statisch stehen und zentriert, statt permanent (und ohne Not) zu
+       scrollen und dabei an beiden Raendern abgeschnitten zu wirken. */
+    .soundtrack-text.is-scrolling {
       padding-left: 100%;
       animation: soundtrackMarquee 16s linear infinite;
     }
@@ -755,49 +790,53 @@
 
   <div id="shake-root">
 
-    <!-- Linker Rand, vertikal zentriert: Wanted-Level + Session-Stats/Rang gestapelt -->
+    <!-- Linker Rand, vertikal zentriert: Wanted-Level + Session-Stats/Rang als
+         EIN gemeinsames Panel (siehe .hud-card-merged) statt zwei einzeln
+         gerahmter Karten. -->
     <div class="left-edge-stack">
       <div class="shimmer-frame">
-        <div class="hud-card wanted-card" id="wantedContainer">
+        <div class="hud-card hud-card-merged" id="hudLeftCard">
           <div class="tape-corner"></div>
-          <div class="wanted-title">Wanted Level</div>
-          <div class="wanted-stars" id="wantedStars">
-            <span class="wanted-star">★</span>
-            <span class="wanted-star">★</span>
-            <span class="wanted-star">★</span>
-            <span class="wanted-star">★</span>
-            <span class="wanted-star">★</span>
-          </div>
-          <span class="hud-watermark">DAN</span>
-        </div>
-      </div>
 
-      <div class="shimmer-frame">
-        <div class="hud-card stats-card" id="statsContainer">
-          <div class="tape-corner"></div>
-          <div class="stats-header">
-            <span class="stats-status-dot" id="statusDot"></span>
-            <span class="stats-title" id="statusLabel">Session Stats</span>
-          </div>
-          <div class="stats-row">
-            <div class="stat"><span class="stat-value val-win" id="wins">0</span><span class="stat-label">Wins</span></div>
-            <div class="stat"><span class="stat-value val-loss" id="losses">0</span><span class="stat-label">Losses</span></div>
-            <div class="stat"><span class="stat-value val-rate" id="winrate">0%</span><span class="stat-label">Winrate</span></div>
-          </div>
-          <div class="rank-row" id="rankBlock" style="display: none;">
-            <img class="rank-icon" id="rankIcon" src="" alt="" onerror="this.style.display='none';">
-            <div class="rank-text">
-              <span class="rank-tier" id="rankTier">-</span>
-              <span class="rank-mmr" id="rankMmr">-</span>
+          <div class="wanted-card" id="wantedContainer">
+            <div class="wanted-title">Wanted Level</div>
+            <div class="wanted-stars" id="wantedStars">
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
             </div>
           </div>
-          <!-- Faellt automatisch ein, sobald api/stats.js dauerhaft nicht
-               erreichbar ist (siehe setStatsStatus() in JS) - stylisches
-               Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige. -->
-          <div class="stats-offline-panel" id="statsOfflinePanel">
-            <span class="offline-tag">D5</span>
-            <span class="offline-sub">DaN · DANGSXR1000</span>
+
+          <div class="hud-divider"></div>
+
+          <div class="stats-card" id="statsContainer">
+            <div class="stats-header">
+              <span class="stats-status-dot" id="statusDot"></span>
+              <span class="stats-title" id="statusLabel">Session Stats</span>
+            </div>
+            <div class="stats-row">
+              <div class="stat"><span class="stat-value val-win" id="wins">0</span><span class="stat-label">Wins</span></div>
+              <div class="stat"><span class="stat-value val-loss" id="losses">0</span><span class="stat-label">Losses</span></div>
+              <div class="stat"><span class="stat-value val-rate" id="winrate">0%</span><span class="stat-label">Winrate</span></div>
+            </div>
+            <div class="rank-row" id="rankBlock" style="display: none;">
+              <img class="rank-icon" id="rankIcon" src="" alt="" onerror="this.style.display='none';">
+              <div class="rank-text">
+                <span class="rank-tier" id="rankTier">-</span>
+                <span class="rank-mmr" id="rankMmr">-</span>
+              </div>
+            </div>
+            <!-- Faellt automatisch ein, sobald api/stats.js dauerhaft nicht
+                 erreichbar ist (siehe setStatsStatus() in JS) - stylisches
+                 Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige. -->
+            <div class="stats-offline-panel" id="statsOfflinePanel">
+              <span class="offline-tag">D5</span>
+              <span class="offline-sub">DaN · DANGSXR1000</span>
+            </div>
           </div>
+
           <span class="hud-watermark">DANGSXR1000</span>
         </div>
       </div>
@@ -844,7 +883,7 @@
 
     <!-- Unten mittig: Soundtrack-Badge -->
     <div class="soundtrack-position">
-      <div class="soundtrack-badge">
+      <div class="soundtrack-badge" id="soundtrackBadge">
         <span class="soundtrack-text" id="soundtrackText">🎵 SOUNDTRACK: StreamBeats Hip-Hop (DMCA-Safe)</span>
       </div>
     </div>
@@ -894,6 +933,26 @@
     if (TRACK_PARAM) {
       document.getElementById('soundtrackText').innerText = TRACK_PARAM;
     }
+
+    // Laufschrift nur aktivieren, wenn der Text tatsaechlich breiter als die
+    // Badge ist - passt er hinein, bleibt er statisch stehen und wird nie
+    // hart am overflow:hidden-Rand abgeschnitten. Erst nach document.fonts.
+    // ready messen, sonst verfaelscht die Fallback-Schrift (vor dem Google-
+    // Fonts-Swap) die Breitenmessung. Bei Resize erneut pruefen, falls sich
+    // die 18vw-Badge-Breite mit der tatsaechlichen Viewport-Groesse aendert.
+    function setupSoundtrackMarquee() {
+      const textEl = document.getElementById('soundtrackText');
+      const badgeEl = document.getElementById('soundtrackBadge');
+      const isOverflowing = textEl.scrollWidth > badgeEl.clientWidth;
+      textEl.classList.toggle('is-scrolling', isOverflowing);
+      badgeEl.classList.toggle('is-scrolling', isOverflowing);
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(setupSoundtrackMarquee);
+    } else {
+      setupSoundtrackMarquee();
+    }
+    window.addEventListener('resize', setupSoundtrackMarquee);
 
     // ---------- Follower-Goal-Fortschritt ----------
     let currentFollowers = 209;
