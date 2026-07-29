@@ -7,33 +7,46 @@
   <!-- Eigenstaendige "Starting Soon"-Szene fuer Streamlabs (eigene Browser-
        Quelle, eigene Szene - liegt NICHT wie goal.html/chat.html transparent
        ueber dem Gameplay, sondern ersetzt es kurz vor Stream-Start). Deckend
-       schwarzer Hintergrund ist deshalb bewusst kein Bug, sondern Absicht.
-       "Urban Blackout"-Look wie der Rest des Projekts, aber bewusst OHNE die
-       VHS-Scanline/CRT-Textur aus goal.html/chat.html/overlay.html - der
-       Nutzer wollte hier explizit "clean, keine alten Retro-Elemente".
-       Bärenkopf-Bild: assets/images/bear_head_lowpoly.png - Datei muss noch
-       manuell hochgeladen werden (siehe CLAUDE.md), bis dahin greift ein
-       eingebauter Platzhalter (kein kaputtes Bildsymbol). -->
+       schwarzer/radialer Hintergrund ist deshalb bewusst kein Bug, sondern
+       Absicht.
+
+       Diese Version ist die Umsetzung eines vom Nutzer in Claude Design
+       gebauten Prototyps ("Twitch Start Countdown.dc.html", Komponente
+       CountdownPiece aus countdown-piece.jsx) - ersetzt die vorherige,
+       selbst entworfene Version von start.html vollstaendig. Jede feste
+       px-Position/-Groesse aus dem 1920x1080-Design wurde 1:1 nach
+       calc(var(--vu) * N) uebersetzt (siehe --vu-Definition unten) statt
+       sie woertlich als px zu uebernehmen - exakt dasselbe Verfahren wie in
+       overlay.html, wo feste px-Werte in der echten Streamlabs-Mobile-
+       WebView nachweislich zu falscher Groesse/Unschaerfe fuehrten.
+
+       Bewusste Abweichung vom Rest des Projekts: diese Szene nutzt 'Chakra
+       Petch' + 'JetBrains Mono' statt der sonst ueberall verwendeten 'Bebas
+       Neue' + 'Montserrat' - das war eine explizite Typografie-Entscheidung
+       im Original-Design, hier bewusst uebernommen statt uebersteuert.
+
+       animations-v2.jsx und tweaks-panel.jsx (die beiden anderen vom Design
+       importierten Dateien) sind NICHT mitportiert - das sind interne
+       Engine-/Editor-Werkzeuge von Claude Design selbst (Szenen-Timeline,
+       Scrubbing, Video-Export, ein schwebendes Tweaks-Panel), nicht Teil der
+       eigentlichen Szene. Die "localTime"-Animationsmathematik aus
+       countdown-piece.jsx (reine Math.sin()-Funktionen, kein
+       Animationsframework noetig) liess sich 1:1 in eine einzige
+       requestAnimationFrame-Schleife unten uebertragen. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Gleiche Token-Basis wie goal.html/chat.html/overlay.html - siehe
-         CLAUDE.md Styling-Guide "Urban Blackout" fuer die volle Doku. Diese
-         Szene nutzt bewusst fast nur die rote Akzentfarbe (kein Gold) -
-         passend zum reinen Schwarz/Rot-Look des gelieferten Baerenkopfs. */
-      --asphalt: #08090a;
-      --chrome-1: #eef0f2;
-      --chrome-2: #8b8d93;
       --blood: #ff1a1a;
-      --blood-glow: rgba(255, 26, 26, 0.65);
+      --chrome-1: #f4f4f4;
       --text-muted: #9a9ca3;
-      /* Fluide Basis-Einheit statt fixer px/transform:scale() - siehe
-         overlay.html-Kommentar fuer die volle Begruendung: loest sich zu 1px
-         bei 1920px Browser-Quellen-Breite auf, schrumpft aber proportional
-         mit einer kleineren TATSAECHLICHEN Breite mit (Boden 0.5px), bleibt
-         dabei nativ scharf (calc() wird vor dem Rendern aufgeloest). */
+      /* Fluide Basis-Einheit statt fixer px/transform:scale() - loest sich
+         zu 1px bei 1920px Browser-Quellen-Breite auf, schrumpft aber
+         proportional mit einer kleineren TATSAECHLICHEN Breite mit (Boden
+         0.5px), bleibt dabei nativ scharf (calc() wird vor dem Rendern
+         aufgeloest, kein nachtraegliches Herunterskalieren). Jeder Wert aus
+         dem 1920x1080-Design unten ist calc(var(--vu) * <Original-px>). */
       --vu: clamp(0.5px, 0.0521vw, 1px);
     }
 
@@ -42,9 +55,8 @@
     html, body {
       width: 100%;
       height: 100%;
-      background: var(--asphalt);
+      background: #050505;
       overflow: hidden;
-      font-family: 'Montserrat', 'Segoe UI', sans-serif;
     }
 
     @keyframes blink {
@@ -56,148 +68,104 @@
     #stage {
       position: fixed;
       inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background:
-        radial-gradient(ellipse 55% 48% at 50% 58%, rgba(255, 26, 26, 0.16), transparent 70%),
-        radial-gradient(ellipse 90% 60% at 50% 105%, rgba(255, 26, 26, 0.06), transparent 60%),
-        var(--asphalt);
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 40%, #14161a 0%, #0a0b0c 55%, #050505 100%);
+      font-family: 'Chakra Petch', sans-serif;
     }
 
-    /* Sehr dezenter, langsamer Scan-Sweep - bewusst NICHT die dichte VHS-
-       Scanline-Textur aus den anderen Widgets, sondern eine einzelne, kaum
-       sichtbare Linie fuer etwas Umgebungsbewegung ohne "Retro"-Look. */
+    /* Durchlaufender Scan-Sweep (Position wird jeden Frame per JS aus
+       localTime gesetzt, siehe Script) statt der dichten VHS-Textur der
+       anderen Widgets. */
     #scan-sweep {
-      position: fixed;
+      position: absolute;
       left: 0;
       right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 26, 26, 0.35), transparent);
-      animation: scanSweep 7s ease-in-out infinite;
+      height: calc(var(--vu) * 2);
+      background: linear-gradient(90deg, transparent, rgba(255, 26, 26, 0.12), transparent);
       pointer-events: none;
       z-index: 1;
     }
-    @keyframes scanSweep {
-      0% { top: 8%; opacity: 0; }
-      10% { opacity: 0.8; }
-      50% { top: 92%; opacity: 0.8; }
-      60% { opacity: 0; }
-      100% { top: 92%; opacity: 0; }
-    }
 
-    /* ---------- HUD-Ecken-Klammern statt geschlossenem Kasten ---------- */
+    /* ---------- HUD-Ecken-Klammern (statisch, wie im Original-Design) ---------- */
     .hud-corner {
-      position: fixed;
-      width: clamp(26px, 3.2vw, 60px);
-      height: clamp(26px, 3.2vw, 60px);
-      border: 0 solid var(--blood);
-      filter: drop-shadow(0 0 calc(var(--vu) * 4) var(--blood-glow));
-      opacity: 0.8;
-      animation: cornerPulse 5s ease-in-out infinite;
+      position: absolute;
+      width: calc(var(--vu) * 34);
+      height: calc(var(--vu) * 34);
       pointer-events: none;
       z-index: 2;
     }
-    .hud-corner.tl { top: 3.2vh; left: 2vw; border-top-width: 1px; border-left-width: 1px; }
-    .hud-corner.tr { top: 3.2vh; right: 2vw; border-top-width: 1px; border-right-width: 1px; }
-    .hud-corner.bl { bottom: 3.2vh; left: 2vw; border-bottom-width: 1px; border-left-width: 1px; }
-    .hud-corner.br { bottom: 3.2vh; right: 2vw; border-bottom-width: 1px; border-right-width: 1px; }
-    @keyframes cornerPulse {
-      0%, 100% { opacity: 0.55; }
-      50% { opacity: 0.95; }
+    .hud-corner.tl { top: calc(var(--vu) * 20); left: calc(var(--vu) * 20); border-top: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); border-left: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); }
+    .hud-corner.tr { top: calc(var(--vu) * 20); right: calc(var(--vu) * 20); border-top: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); border-right: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); }
+    .hud-corner.bl { bottom: calc(var(--vu) * 20); left: calc(var(--vu) * 20); border-bottom: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); border-left: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); }
+    .hud-corner.br { bottom: calc(var(--vu) * 20); right: calc(var(--vu) * 20); border-bottom: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); border-right: calc(var(--vu) * 2) solid rgba(255, 26, 26, 0.8); }
+
+    /* ---------- Twitch-Handle, permanent oben sichtbar ---------- */
+    .handle-bar {
+      position: absolute;
+      top: calc(var(--vu) * 40);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: calc(var(--vu) * 10);
+      z-index: 3;
+    }
+    .handle-dot {
+      width: calc(var(--vu) * 10);
+      height: calc(var(--vu) * 10);
+      border-radius: 50%;
+      background: var(--blood);
+      box-shadow: 0 0 calc(var(--vu) * 12) rgba(255, 26, 26, 0.9);
+    }
+    .handle-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: calc(var(--vu) * 32);
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--chrome-1);
     }
 
     /* ---------- Baerenkopf: dominantes Zentralelement ---------- */
+    /* Position/Transform (Sway, Glitch, "Eye-Contact-Lock", Atmen) werden
+       komplett per JS aus localTime berechnet, siehe animFrame() im Script -
+       identische Formeln wie in GlitchBear() aus countdown-piece.jsx. */
     .bear-wrap {
-      position: relative;
-      width: clamp(200px, 26vw, 560px);
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      width: calc(var(--vu) * 460);
       /* Echtes Seitenverhaeltnis des freigestellten Bildes (714x804) statt
-         eines erzwungenen Quadrats - object-fit:contain wuerde sonst links/
-         rechts Luft lassen und die Prozent-Positionierung des Augen-Glows
-         unten aus dem Ruder laufen lassen. */
+         eines erzwungenen Quadrats wie im Original-Design (dessen Platzhalter-
+         Asset quadratisch war) - object-fit:contain haette bei unserem
+         echten, nicht-quadratischen Bild sonst Luft links/rechts gelassen. */
       aspect-ratio: 714 / 804;
       z-index: 3;
     }
-    .bear-head {
+    .bear-head, .bear-ghost {
+      position: absolute;
+      inset: 0;
       display: block;
       width: 100%;
       height: 100%;
-      /* Folgt der echten Alpha-Silhouette des Bildes statt eines simplen
-         Kreis-Glows dahinter - zwei gestapelte drop-shadows fuer einen
-         weicheren, tieferen Rotschimmer. */
-      filter:
-        drop-shadow(0 0 calc(var(--vu) * 22) var(--blood-glow))
-        drop-shadow(0 0 calc(var(--vu) * 55) rgba(255, 26, 26, 0.28));
-      animation: bearBreathe 4.6s ease-in-out infinite;
+      object-fit: contain;
     }
-    @keyframes bearBreathe {
-      0%, 100% {
-        transform: scale(1);
-        filter:
-          drop-shadow(0 0 calc(var(--vu) * 22) var(--blood-glow))
-          drop-shadow(0 0 calc(var(--vu) * 55) rgba(255, 26, 26, 0.28));
-      }
-      50% {
-        transform: scale(1.018);
-        filter:
-          drop-shadow(0 0 calc(var(--vu) * 30) var(--blood-glow))
-          drop-shadow(0 0 calc(var(--vu) * 75) rgba(255, 26, 26, 0.4));
-      }
-    }
-
-    /* Eigener, schnellerer Glueh-Puls NUR ueber der Augen-Region (per
-       Bildanalyse lokalisiert: ~66%/26% der Bildflaeche) - laeuft
-       unabhaengig vom langsamen Gesamt-Atmen, damit die Augen wirken, als
-       wuerden sie eigenstaendig aufflackern statt nur der ganze Kopf zu
-       pulsieren. mix-blend-mode:screen addiert nur Licht, statt eine Flaeche
-       zu ueberdecken. */
-    .eye-glow {
-      position: absolute;
-      left: 66%;
-      top: 26%;
-      width: 46%;
-      height: 26%;
-      transform: translate(-50%, -50%);
-      background: radial-gradient(ellipse, rgba(255, 40, 40, 0.95), rgba(255, 20, 20, 0.35) 55%, transparent 75%);
-      mix-blend-mode: screen;
+    .bear-ghost {
+      display: none;
       pointer-events: none;
-      animation: eyeFlicker 2.3s ease-in-out infinite;
+      mix-blend-mode: screen;
     }
-    @keyframes eyeFlicker {
-      0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
-      45% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
-      55% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
-      65% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.03); }
-      75% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-      85% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
-    }
-
-    /* Dezenter Glitch-Ausreisser, per JS in unregelmaessigen Abstaenden kurz
-       (~180ms) auf .bear-wrap gezuendet (siehe triggerGlitch() im Script) -
-       simuliert einen kurzen Signal-Aussetzer statt eines Dauereffekts. */
-    .bear-wrap.is-glitching .bear-head {
-      animation: none;
-      filter:
-        drop-shadow(2px 0 0 rgba(255, 26, 26, 0.85))
-        drop-shadow(-2px 0 0 rgba(120, 200, 255, 0.55))
-        drop-shadow(0 0 calc(var(--vu) * 30) var(--blood-glow));
-    }
-    .bear-wrap.is-glitching { animation: glitchJitter 0.18s steps(2, jump-none); }
-    @keyframes glitchJitter {
-      0% { clip-path: inset(0 0 0 0); transform: translateX(0); }
-      25% { clip-path: inset(8% 0 62% 0); transform: translateX(-6px); }
-      50% { clip-path: inset(48% 0 12% 0); transform: translateX(5px); }
-      75% { clip-path: inset(20% 0 40% 0); transform: translateX(-3px); }
-      100% { clip-path: inset(0 0 0 0); transform: translateX(0); }
-    }
+    /* Zwei eingefaerbte "Geister"-Kopien, die nur waehrend eines Glitch-
+       Fensters sichtbar werden (per JS) und seitlich auseinanderdriften -
+       klassischer Rot/Cyan-Kanaltrennungs-Trick: brightness(0) reduziert das
+       Bild auf eine reine Alpha-Silhouette, invert()+sepia()+saturate()
+       faerbt sie danach einheitlich ein. */
+    .bear-ghost-red { filter: brightness(0) saturate(100%) invert(13%) sepia(89%) saturate(6000%) hue-rotate(-2deg); opacity: 0.55; }
+    .bear-ghost-cyan { filter: brightness(0) saturate(100%) invert(80%) sepia(56%) saturate(4000%) hue-rotate(150deg); opacity: 0.35; }
 
     /* Platzhalter, bis assets/images/bear_head_lowpoly.png hochgeladen ist -
        zeigt absichtlich KEIN kaputtes Bildsymbol, sondern einen klar
        beschrifteten, stilistisch passenden Hinweis. Wird per onerror auf dem
-       <img> eingeblendet (siehe Script unten). Eigenes, quadratisches
-       Seitenverhaeltnis statt des Bild-Verhaeltnisses, da hier kein Bild
-       vorliegt, an das sich die Form anpassen koennte. */
+       <img> eingeblendet (siehe Script unten). */
     .bear-placeholder {
       display: none;
       position: absolute;
@@ -208,10 +176,9 @@
       justify-content: center;
       text-align: center;
       padding: calc(var(--vu) * 16);
-      animation: bearBreathe 4.6s ease-in-out infinite;
     }
     .bear-placeholder span {
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'Chakra Petch', sans-serif;
       font-weight: 700;
       font-size: clamp(10px, 1vw, 14px);
       letter-spacing: 0.5px;
@@ -222,116 +189,144 @@
     .bear-placeholder code {
       display: block;
       color: var(--blood);
-      font-family: 'Montserrat', monospace;
+      font-family: 'JetBrains Mono', monospace;
       font-size: clamp(9px, 0.85vw, 12px);
       margin-top: calc(var(--vu) * 4);
     }
 
-    /* ---------- Text-/Countdown-Stapel ---------- */
-    .info-stack {
+    /* ---------- Linkes HUD: Hype-Level + Zuschauerzahl ---------- */
+    .side-hud {
+      position: absolute;
+      top: calc(var(--vu) * 96);
+      left: calc(var(--vu) * 40);
+      width: calc(var(--vu) * 216);
+      background: rgba(6, 6, 7, 0.62);
+      backdrop-filter: blur(calc(var(--vu) * 10));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 10));
+      border-right: calc(var(--vu) * 1.5) solid rgba(255, 20, 20, 0.9);
+      padding: calc(var(--vu) * 18) calc(var(--vu) * 20) calc(var(--vu) * 20) calc(var(--vu) * 20);
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--vu) * 14);
+      z-index: 3;
+      /* opacity ("hudBreathe") wird per JS gesetzt */
+    }
+    .side-hud-block { display: flex; flex-direction: column; gap: calc(var(--vu) * 10); }
+    .side-hud-block.tight { gap: calc(var(--vu) * 3); }
+    .side-hud-label {
+      font-size: calc(var(--vu) * 11);
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: rgba(255, 255, 255, 0.55);
+      white-space: nowrap;
+    }
+    .side-hud-label.small {
+      font-size: calc(var(--vu) * 10);
+      letter-spacing: 0.14em;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    .side-hud-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: calc(var(--vu) * 20);
+      color: var(--chrome-1);
+    }
+    .side-hud-divider {
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255, 26, 26, 0.5), rgba(255, 255, 255, 0.06));
+    }
+
+    .wanted-stars { display: flex; gap: calc(var(--vu) * 6); }
+    .wanted-star {
+      font-size: calc(var(--vu) * 22);
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.12);
+    }
+    .wanted-star.filled { color: var(--blood); }
+
+    /* ---------- Countdown-Block ---------- */
+    .countdown-block {
+      position: absolute;
+      left: 50%;
+      bottom: calc(var(--vu) * 150);
+      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: clamp(14px, 2.4vh, 34px);
+      gap: calc(var(--vu) * 8);
       z-index: 3;
     }
-
-    .eyebrow {
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 700;
-      font-size: clamp(11px, 1.05vw, 16px);
-      letter-spacing: 3px;
-      color: var(--blood);
-      text-transform: uppercase;
-      opacity: 0.85;
-      /* Text wird per JS alle paar Sekunden ausgetauscht (rotierende Status-
-         Meldungen, siehe cycleEyebrow() im Script) - weiche Ein-/Ausblendung
-         statt hartem Text-Sprung. */
-      transition: opacity 0.35s ease;
+    .countdown-label {
+      font-size: calc(var(--vu) * 13);
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      color: rgba(255, 255, 255, 0.5);
     }
-    .eyebrow.is-swapping { opacity: 0; }
-    .eyebrow::after {
-      content: '_';
-      animation: blink 1s steps(1) infinite;
-    }
-
-    /* ---------- Simulierter Audio-Visualizer ----------
-       Rein dekorativ/prozedural (Noise-gesteuert) statt echt audio-reaktiv -
-       fuer diese Start-Szene gibt es keine echte Audioquelle zum Analysieren
-       (kein Mikro, kein Player), anders als der AudioAnalysisRig in
-       goal.html. Sorgt trotzdem fuer durchgehende Bewegung waehrend der
-       5-Minuten-Wartezeit. */
-    #visualizer {
-      position: fixed;
-      left: 50%;
-      bottom: 7.4vh;
-      transform: translateX(-50%);
-      width: min(64vw, 720px);
-      height: clamp(22px, 3.4vh, 42px);
-      z-index: 2;
-      opacity: 0.55;
-      pointer-events: none;
-    }
-
-    .headline {
-      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-weight: 400;
-      font-size: clamp(30px, 4.4vw, 76px);
-      letter-spacing: 2px;
-      color: var(--chrome-1);
-      text-transform: uppercase;
-      text-align: center;
-      max-width: 90vw;
-      text-wrap: balance;
-      text-shadow: 0 0 calc(var(--vu) * 26) var(--blood-glow), 2px 2px 0 rgba(0, 0, 0, 0.85);
-      margin-top: clamp(4px, 0.8vh, 10px);
-    }
-
-    .countdown {
+    .countdown-digits {
       display: flex;
       align-items: baseline;
-      gap: calc(var(--vu) * 2);
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 900;
-      font-variant-numeric: tabular-nums;
-      font-size: clamp(42px, 6.6vw, 122px);
-      color: var(--chrome-1);
-      text-shadow: 0 0 calc(var(--vu) * 30) var(--blood-glow), 2px 2px 0 rgba(0, 0, 0, 0.85);
-      margin-top: clamp(8px, 1.6vh, 20px);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: calc(var(--vu) * 88);
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.04em;
       line-height: 1;
+      /* text-shadow ("pulse") wird per JS gesetzt */
     }
-    .countdown .colon { animation: blink 1s steps(1) infinite; color: var(--blood); }
-    .countdown.is-live { color: var(--blood); }
-
-    .progress-track {
-      width: min(46vw, 460px);
-      max-width: 90vw;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.08);
-      margin-top: clamp(14px, 2.2vh, 28px);
-      position: relative;
-      z-index: 3;
-    }
-    .progress-fill {
-      height: 100%;
-      width: 100%;
-      background: var(--blood);
-      box-shadow: 0 0 calc(var(--vu) * 6) 1px var(--blood-glow);
-      transform-origin: left center;
+    .countdown-digits .colon { animation: blink 1s steps(1) infinite; }
+    .countdown-digits.is-live { color: var(--blood); }
+    .status-ticker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: calc(var(--vu) * 13);
+      letter-spacing: 0.14em;
+      color: rgba(255, 255, 255, 0.55);
+      white-space: nowrap;
+      /* opacity (Crossfade zwischen Meldungen) wird per JS gesetzt */
     }
 
-    /* ---------- Branding-Wasserzeichen ---------- */
-    .watermark {
-      position: fixed;
-      bottom: 2.4vh;
+    /* ---------- Soundtrack-Leiste mit Audio-Visualizer ---------- */
+    .soundtrack-bar {
+      position: absolute;
+      bottom: calc(var(--vu) * 32);
       left: 50%;
       transform: translateX(-50%);
-      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: clamp(11px, 1vw, 15px);
-      letter-spacing: 3px;
-      color: var(--chrome-2);
-      opacity: 0.45;
+      width: calc(var(--vu) * 460);
+      max-width: 90vw;
+      display: flex;
+      align-items: center;
+      gap: calc(var(--vu) * 16);
+      padding: calc(var(--vu) * 10) calc(var(--vu) * 18);
+      background: rgba(6, 6, 7, 0.62);
+      backdrop-filter: blur(calc(var(--vu) * 10));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 10));
+      border-top: calc(var(--vu) * 1.5) solid rgba(255, 20, 20, 0.9);
       z-index: 3;
+    }
+    .soundtrack-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--vu) * 3); }
+    .soundtrack-title {
+      font-size: calc(var(--vu) * 12);
+      font-weight: 600;
+      color: var(--chrome-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .soundtrack-artist {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: calc(var(--vu) * 10);
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    /* Rein dekorativ/prozedural (Sinus-Wellen aus localTime) statt echt
+       audio-reaktiv - fuer diese Start-Szene gibt es keine echte Audioquelle
+       zum Analysieren (kein Mikro, kein Player), anders als der
+       AudioAnalysisRig in goal.html. */
+    .visualizer { display: flex; align-items: flex-end; gap: calc(var(--vu) * 4); height: calc(var(--vu) * 32); flex-shrink: 0; }
+    .viz-bar {
+      width: calc(var(--vu) * 3);
+      background: var(--blood);
+      box-shadow: 0 0 calc(var(--vu) * 5) rgba(255, 26, 26, 0.8);
+      border-radius: calc(var(--vu) * 1);
+      /* height wird per JS gesetzt */
     }
   </style>
 </head>
@@ -344,7 +339,14 @@
     <div class="hud-corner bl"></div>
     <div class="hud-corner br"></div>
 
+    <div class="handle-bar">
+      <span class="handle-dot"></span>
+      <span class="handle-name">DaNgsxr1000</span>
+    </div>
+
     <div class="bear-wrap" id="bearWrap">
+      <img class="bear-ghost bear-ghost-red" id="ghostRed" src="assets/images/bear_head_lowpoly.png" alt="">
+      <img class="bear-ghost bear-ghost-cyan" id="ghostCyan" src="assets/images/bear_head_lowpoly.png" alt="">
       <img
         id="bearHead"
         class="bear-head"
@@ -352,168 +354,235 @@
         alt="DaN Low-Poly Baer"
         onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';"
       >
-      <div class="eye-glow"></div>
       <div class="bear-placeholder" id="bearPlaceholder">
         <span>BAER-BILD FEHLT NOCH<code>assets/images/bear_head_lowpoly.png</code></span>
       </div>
     </div>
 
-    <div class="info-stack">
-      <div class="eyebrow" id="eyebrowText">SYSTEM INITIALIZING</div>
-      <div class="headline" id="headlineText">GLEICH GEHT ES LOS</div>
-      <div class="countdown" id="countdown">
-        <span id="cdMin">05</span><span class="colon">:</span><span id="cdSec">00</span>
+    <div class="side-hud" id="sideHud">
+      <div class="side-hud-block">
+        <span class="side-hud-label">HYPE LEVEL</span>
+        <div class="wanted-stars" id="wantedStars">
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+        </div>
       </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progressFill"></div>
+      <div class="side-hud-divider"></div>
+      <div class="side-hud-block tight">
+        <span class="side-hud-label small">VIEWERS</span>
+        <span class="side-hud-value">—</span>
       </div>
     </div>
 
-    <canvas id="visualizer"></canvas>
-    <div class="watermark">DANGSXR1000</div>
+    <div class="countdown-block">
+      <span class="countdown-label" id="countdownLabel">STREAM STARTS IN</span>
+      <span class="countdown-digits" id="countdown">
+        <span id="cdMin">05</span><span class="colon">:</span><span id="cdSec">00</span>
+      </span>
+      <span class="status-ticker" id="statusTicker"></span>
+    </div>
+
+    <div class="soundtrack-bar">
+      <div class="soundtrack-info">
+        <span class="soundtrack-title" id="soundtrackTitle">MIDNIGHT PROTOCOL</span>
+        <span class="soundtrack-artist" id="soundtrackArtist">BLACKOUT SYNDICATE</span>
+      </div>
+      <div class="visualizer" id="visualizer">
+        <div class="viz-bar"></div><div class="viz-bar"></div><div class="viz-bar"></div>
+        <div class="viz-bar"></div><div class="viz-bar"></div><div class="viz-bar"></div>
+        <div class="viz-bar"></div><div class="viz-bar"></div><div class="viz-bar"></div>
+      </div>
+    </div>
   </div>
 
   <script>
     // Konfigurierbar per URL-Parameter, gleiches Prinzip wie ?channel=/
     // ?track= in chat.html/goal.html - ohne Parameter laeuft alles mit
-    // sinnvollen Defaults (5 Minuten, deutscher Standard-Text).
+    // sinnvollen Defaults (5 Minuten = 300s, identisch zur "dur":300 im
+    // Original-Design).
     const params = new URLSearchParams(location.search);
     const durationMinutes = parseFloat(params.get('minutes')) || 5;
-    const statusText = params.get('status');
-    if (statusText) {
-      document.getElementById('headlineText').innerText = statusText;
+    const labelOverride = params.get('status');
+    if (labelOverride) {
+      document.getElementById('countdownLabel').textContent = labelOverride;
     }
+    const trackParam = params.get('track');
+    if (trackParam) document.getElementById('soundtrackTitle').textContent = trackParam;
+    const artistParam = params.get('artist');
+    if (artistParam) document.getElementById('soundtrackArtist').textContent = artistParam;
 
     const totalMs = durationMinutes * 60 * 1000;
     const endAt = performance.now() + totalMs;
+    const pageStart = performance.now();
 
+    function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+    // ---------- Hype-Level: echte Wanted-Level-Punkte aus goal.html ----------
+    // Gleicher localStorage-Key/dieselbe 1-Punkt-pro-Stern-Logik wie in
+    // goal.html (WANTED_STORAGE_KEY) - einmalig beim Laden gelesen (die
+    // Start-Szene und goal.html laufen normalerweise nie gleichzeitig als
+    // sichtbare Szene, ein Live-Abgleich waere unnoetiger Aufwand).
+    (function initWantedStars() {
+      let points = 0;
+      try {
+        points = parseFloat(localStorage.getItem('dangsxr_wanted_points') || '0') || 0;
+      } catch (e) { /* Storage nicht verfuegbar - bleibt bei 0 */ }
+      const filled = Math.min(5, Math.floor(points));
+      document.querySelectorAll('.wanted-star').forEach((el, idx) => {
+        el.classList.toggle('filled', idx < filled);
+      });
+    })();
+
+    const STATUS_MESSAGES = [
+      'INITIALIZING FEED...',
+      'SYNCING CHAT UPLINK...',
+      'LOADING HYPE METER...',
+      'CALIBRATING WANTED SCANNER...',
+      'ARMING SOUNDTRACK MODULE...',
+      'STANDBY FOR BROADCAST...',
+    ];
+
+    const scanSweepEl = document.getElementById('scan-sweep');
+    const bearWrap = document.getElementById('bearWrap');
+    const bearHead = document.getElementById('bearHead');
+    const ghostRed = document.getElementById('ghostRed');
+    const ghostCyan = document.getElementById('ghostCyan');
+    const sideHud = document.getElementById('sideHud');
+    const starEls = document.querySelectorAll('.wanted-star');
+    const vizBars = document.querySelectorAll('.viz-bar');
+    const statusTickerEl = document.getElementById('statusTicker');
     const cdMin = document.getElementById('cdMin');
     const cdSec = document.getElementById('cdSec');
     const countdownEl = document.getElementById('countdown');
-    const progressFill = document.getElementById('progressFill');
-    const headlineEl = document.getElementById('headlineText');
+    const countdownLabelEl = document.getElementById('countdownLabel');
 
     let lastRenderedSecond = -1;
+    let lastTickerIdx = -1;
     let wentLive = false;
 
-    // rAF statt setInterval: die Fortschritts-Linie laeuft dadurch bei jedem
-    // Frame (60fps) sichtbar fluessig leer, waehrend die MM:SS-Ziffern nur
-    // beim tatsaechlichen Sekundenwechsel aktualisiert werden (kein
-    // unnoetiges DOM-Geflacker, bleibt gestochen scharf statt weich
-    // ueberzublenden).
-    function tick(now) {
-      const remainingMs = Math.max(0, endAt - now);
-      const remainingSeconds = Math.ceil(remainingMs / 1000);
+    // Eine einzige requestAnimationFrame-Schleife treibt ALLES (Baer,
+    // Scanline, Visualizer, Sterne-Twinkle, HUD-Atmen, Countdown-Puls) aus
+    // einem gemeinsamen "localTime" - identisches Prinzip zum Original-
+    // Design, wo jede Komponente denselben Szenen-Takt aus useScene() liest,
+    // statt eigener, potenziell asynchron laufender CSS-Animationen/Timer.
+    function animFrame(nowMs) {
+      const localTime = (nowMs - pageStart) / 1000;
 
+      // ---- Scanline: durchlaufend von oben nach unten ----
+      const scanY = (localTime * 40) % 1080;
+      scanSweepEl.style.top = 'calc(var(--vu) * ' + scanY.toFixed(2) + ')';
+
+      // ---- Baer: Glitch-Zyklus (alle 7s, ~180ms) ----
+      const cyclePos = localTime % 7;
+      const glitching = cyclePos < 0.18;
+      const gT = glitching ? cyclePos / 0.18 : 0;
+      const jitter = glitching ? Math.sin(localTime * 220) * 6 * (1 - gT) : 0;
+
+      // ---- Baer: ambientes Augen-Gluehen (kontinuierlich) ----
+      const glow = 0.55 + 0.45 * Math.sin(localTime * 1.6);
+      const glowSize = 26 + glow * 30;
+      const glowAlpha = 0.35 + glow * 0.45;
+
+      // ---- Baer: periodischer "Blickkontakt"-Moment (alle 8s, 1.4s lang) ----
+      const lockCycle = localTime % 8;
+      const isLocking = lockCycle < 1.4;
+      const lockT = isLocking
+        ? (lockCycle < 0.4 ? lockCycle / 0.4 : (lockCycle < 1.0 ? 1 : (1.4 - lockCycle) / 0.4))
+        : 0;
+      const lockGlowSize = glowSize + lockT * 55;
+      const lockGlowAlpha = Math.min(1, glowAlpha + lockT * 0.6);
+      const breathe = 1 + Math.sin(localTime * 0.5) * 0.015;
+
+      // ---- Baer: Idle-Schaukeln + gelegentlicher Seitenblick ----
+      const swayXBase = Math.sin(localTime * 0.35) * 10;
+      const swayYBase = Math.sin(localTime * 0.5 + 1.2) * 6;
+      const rotBase = Math.sin(localTime * 0.35) * 2.2;
+      const swayX = isLocking ? swayXBase * (1 - lockT) : swayXBase;
+      const swayY = isLocking ? swayYBase * (1 - lockT) : swayYBase;
+      const rot = isLocking ? rotBase * (1 - lockT) : rotBase;
+      const lookCycle = localTime % 9;
+      const look = lookCycle > 6 ? Math.sin((lookCycle - 6) / 3 * Math.PI) * 8 : 0;
+      const lockScale = 1 + lockT * 0.18;
+
+      bearWrap.style.transform =
+        'translate(calc(-50% + var(--vu) * ' + (swayX + look).toFixed(2) + '), ' +
+        'calc(-50% + var(--vu) * ' + swayY.toFixed(2) + ')) ' +
+        'scale(' + (breathe * lockScale).toFixed(4) + ') rotate(' + rot.toFixed(2) + 'deg)';
+
+      if (glitching) {
+        ghostRed.style.display = 'block';
+        ghostRed.style.transform = 'translate(calc(var(--vu) * ' + jitter.toFixed(2) + '), 0)';
+        ghostCyan.style.display = 'block';
+        ghostCyan.style.transform = 'translate(calc(var(--vu) * ' + (-jitter).toFixed(2) + '), 0)';
+        bearHead.style.transform = 'translate(calc(var(--vu) * ' + (jitter * 0.4).toFixed(2) + '), 0)';
+      } else {
+        ghostRed.style.display = 'none';
+        ghostCyan.style.display = 'none';
+        bearHead.style.transform = 'none';
+      }
+      bearHead.style.filter =
+        'drop-shadow(0 0 calc(var(--vu) * ' + lockGlowSize.toFixed(1) + ') rgba(255,20,20,' + lockGlowAlpha.toFixed(3) + ')) ' +
+        'drop-shadow(0 0 calc(var(--vu) * ' + (lockGlowSize * 0.4).toFixed(1) + ') rgba(255,20,20,' + (lockGlowAlpha * 0.6).toFixed(3) + '))';
+
+      // ---- Audio-Visualizer: 9 Balken, je eigene Phase/Geschwindigkeit ----
+      vizBars.forEach((bar, i) => {
+        const phase = i * 0.7;
+        const speed = 3.1 + (i % 3) * 0.6;
+        const amp = 0.5 + 0.5 * Math.sin(localTime * speed + phase);
+        const h = 6 + amp * 26;
+        bar.style.height = 'calc(var(--vu) * ' + h.toFixed(2) + ')';
+      });
+
+      // ---- Status-Ticker: 10s-Takt, letzte/erste 0.6s ueberblenden ----
+      const bucket = 10;
+      const tIdx = Math.floor(localTime / bucket) % STATUS_MESSAGES.length;
+      const tLocal = localTime % bucket;
+      const fade = tLocal < 0.6 ? tLocal / 0.6 : (tLocal > bucket - 0.6 ? (bucket - tLocal) / 0.6 : 1);
+      if (tIdx !== lastTickerIdx) {
+        lastTickerIdx = tIdx;
+        statusTickerEl.textContent = STATUS_MESSAGES[tIdx];
+      }
+      statusTickerEl.style.opacity = fade;
+
+      // ---- Wanted-Stars: Twinkle nur auf gefuellten Sternen ----
+      starEls.forEach((el, i) => {
+        if (!el.classList.contains('filled')) return;
+        const twinkle = 0.85 + 0.15 * Math.sin(localTime * 2.2 + i);
+        el.style.textShadow = '0 0 calc(var(--vu) * ' + (8 * twinkle).toFixed(2) + ') rgba(255,26,26,0.9)';
+      });
+
+      // ---- Linkes HUD: leises Ein-/Ausatmen ----
+      sideHud.style.opacity = (0.85 + 0.15 * Math.sin(localTime * 0.9)).toFixed(3);
+
+      // ---- Countdown: Puls-Glow + tatsaechliche verbleibende Zeit ----
+      const pulse = 0.7 + 0.3 * Math.sin(localTime * 1.6);
+      countdownEl.style.textShadow = '0 0 calc(var(--vu) * ' + (18 + pulse * 22).toFixed(1) + ') rgba(255,26,26,' + (0.55 + pulse * 0.3).toFixed(3) + ')';
+
+      const remainingMs = Math.max(0, endAt - nowMs);
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
       if (remainingSeconds !== lastRenderedSecond) {
         lastRenderedSecond = remainingSeconds;
-        const mm = Math.floor(remainingSeconds / 60);
-        const ss = remainingSeconds % 60;
-        cdMin.textContent = String(mm).padStart(2, '0');
-        cdSec.textContent = String(ss).padStart(2, '0');
+        cdMin.textContent = pad2(remainingSeconds / 60);
+        cdSec.textContent = pad2(remainingSeconds % 60);
       }
-
-      progressFill.style.width = (remainingMs / totalMs * 100).toFixed(3) + '%';
-
       if (remainingMs <= 0 && !wentLive) {
         wentLive = true;
         countdownEl.classList.add('is-live');
-        // Bleibt bewusst NICHT bei "00:00" stehen (wirkt kaputt, falls die
-        // Szene nach Ablauf noch kurz sichtbar ist, bevor manuell auf die
-        // Gameplay-Szene umgeschaltet wird), sondern faellt auf einen
-        // ruhigen "LIVE"-Zustand zurueck - kein harter Modus-Wechsel im JS
-        // noetig, die Fortschritts-Linie bleibt einfach leer stehen.
-        headlineEl.textContent = 'ON AIR';
+        // Bleibt bewusst NICHT bei "00:00"/"STREAM STARTS IN" haengen (wirkt
+        // kaputt, falls die Szene nach Ablauf noch kurz sichtbar ist, bevor
+        // manuell auf die Gameplay-Szene umgeschaltet wird) - kein
+        // Gegenstueck im Original-Design (das dort als Endlosschleife fuer
+        // die Vorschau im Design-Tool laeuft), aber fuer den echten
+        // Stream-Einsatz noetig.
+        countdownLabelEl.textContent = 'ON AIR';
       }
 
-      requestAnimationFrame(tick);
+      requestAnimationFrame(animFrame);
     }
-    requestAnimationFrame(tick);
-
-    // ---------- Rotierende Status-Meldungen ----------
-    // Ersetzt das statische "SYSTEM INITIALIZING" durch mehrere kurze
-    // Tech-Meldungen, die im Wechsel durchlaufen - sorgt dafuer, dass die
-    // Szene ueber die vollen 5 Minuten hinweg nicht wie eingefroren wirkt.
-    const EYEBROW_MESSAGES = [
-      'SYSTEM INITIALIZING',
-      'LOADING STREAM MODULES',
-      'TWITCH CONNECTION: OK',
-      'AUDIO ENGINE: STANDBY',
-      'OVERLAY MODULES: READY',
-      'STAND BY',
-    ];
-    let eyebrowIndex = 0;
-    const eyebrowEl = document.getElementById('eyebrowText');
-    setInterval(() => {
-      eyebrowEl.classList.add('is-swapping');
-      setTimeout(() => {
-        eyebrowIndex = (eyebrowIndex + 1) % EYEBROW_MESSAGES.length;
-        eyebrowEl.textContent = EYEBROW_MESSAGES[eyebrowIndex];
-        eyebrowEl.classList.remove('is-swapping');
-      }, 350);
-    }, 3400);
-
-    // ---------- Dezenter Glitch-Ausreisser ----------
-    // Feuert in unregelmaessigen Abstaenden (6-11s) einen kurzen (~180ms)
-    // Signal-Aussetzer auf dem Baerenkopf - simuliert einen kleinen
-    // "Live-Feed"-Zucker statt eines Dauereffekts (siehe .is-glitching-CSS).
-    const bearWrap = document.getElementById('bearWrap');
-    function scheduleGlitch() {
-      const delay = 6000 + Math.random() * 5000;
-      setTimeout(() => {
-        bearWrap.classList.add('is-glitching');
-        setTimeout(() => bearWrap.classList.remove('is-glitching'), 180);
-        scheduleGlitch();
-      }, delay);
-    }
-    scheduleGlitch();
-
-    // ---------- Simulierter Audio-Visualizer ----------
-    // Rein dekorativ/prozedural: mehrschichtiges Sinus-Rauschen statt
-    // echter Audioanalyse, da diese Szene keine Audioquelle hat (kein
-    // Mikro, kein Player). Liefert trotzdem durchgehende, organisch
-    // wirkende Bewegung fuer die 5-Minuten-Wartezeit.
-    const vizCanvas = document.getElementById('visualizer');
-    const vizCtx = vizCanvas.getContext('2d');
-    const BAR_COUNT = 40;
-
-    function resizeVisualizer() {
-      const rect = vizCanvas.getBoundingClientRect();
-      vizCanvas.width = Math.round(rect.width * devicePixelRatio);
-      vizCanvas.height = Math.round(rect.height * devicePixelRatio);
-    }
-    resizeVisualizer();
-    window.addEventListener('resize', resizeVisualizer);
-
-    function barHeight(i, t) {
-      // Ueberlagerte Sinus-Wellen mit leicht unterschiedlichen Frequenzen/
-      // Phasen pro Balken statt echtem Noise-Modul - genuegt fuer einen
-      // rein dekorativen "atmenden" Balken-Teppich, ohne eine zusaetzliche
-      // Bibliothek/Klasse einzubinden.
-      const a = Math.sin(t * 1.7 + i * 0.6) * 0.5 + 0.5;
-      const b = Math.sin(t * 3.1 + i * 1.3 + 2.0) * 0.5 + 0.5;
-      const c = Math.sin(t * 0.6 + i * 0.15) * 0.5 + 0.5;
-      return 0.12 + (a * 0.5 + b * 0.3 + c * 0.2) * 0.88;
-    }
-
-    function drawVisualizer(now) {
-      const t = now / 1000;
-      const w = vizCanvas.width;
-      const h = vizCanvas.height;
-      vizCtx.clearRect(0, 0, w, h);
-      const gap = w / BAR_COUNT;
-      const barW = gap * 0.42;
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const frac = barHeight(i, t);
-        const barH = Math.max(2, frac * h);
-        const x = i * gap + (gap - barW) / 2;
-        const y = h - barH;
-        vizCtx.fillStyle = 'rgba(255, 26, 26, ' + (0.35 + frac * 0.5).toFixed(2) + ')';
-        vizCtx.fillRect(x, y, barW, barH);
-      }
-      requestAnimationFrame(drawVisualizer);
-    }
-    requestAnimationFrame(drawVisualizer);
+    requestAnimationFrame(animFrame);
   </script>
 
 </body>
