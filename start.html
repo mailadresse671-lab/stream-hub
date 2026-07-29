@@ -133,7 +133,10 @@
       position: absolute;
       left: 50%;
       top: 46%;
-      width: calc(var(--vu) * 460);
+      /* Etwas groesser als zuvor (460 -> 500), seit das linke Hype-Level-HUD
+         entfernt wurde und der Baer als alleiniges zentrales Element den
+         freigewordenen Platz bekommt. */
+      width: calc(var(--vu) * 500);
       /* Echtes Seitenverhaeltnis des freigestellten Bildes (714x804) statt
          eines erzwungenen Quadrats wie im Original-Design (dessen Platzhalter-
          Asset quadratisch war) - object-fit:contain haette bei unserem
@@ -193,55 +196,6 @@
       font-size: clamp(9px, 0.85vw, 12px);
       margin-top: calc(var(--vu) * 4);
     }
-
-    /* ---------- Linkes HUD: Hype-Level + Zuschauerzahl ---------- */
-    .side-hud {
-      position: absolute;
-      top: calc(var(--vu) * 96);
-      left: calc(var(--vu) * 40);
-      width: calc(var(--vu) * 216);
-      background: rgba(6, 6, 7, 0.62);
-      backdrop-filter: blur(calc(var(--vu) * 10));
-      -webkit-backdrop-filter: blur(calc(var(--vu) * 10));
-      border-right: calc(var(--vu) * 1.5) solid rgba(255, 20, 20, 0.9);
-      padding: calc(var(--vu) * 18) calc(var(--vu) * 20) calc(var(--vu) * 20) calc(var(--vu) * 20);
-      display: flex;
-      flex-direction: column;
-      gap: calc(var(--vu) * 14);
-      z-index: 3;
-      /* opacity ("hudBreathe") wird per JS gesetzt */
-    }
-    .side-hud-block { display: flex; flex-direction: column; gap: calc(var(--vu) * 10); }
-    .side-hud-block.tight { gap: calc(var(--vu) * 3); }
-    .side-hud-label {
-      font-size: calc(var(--vu) * 11);
-      font-weight: 600;
-      letter-spacing: 0.16em;
-      color: rgba(255, 255, 255, 0.55);
-      white-space: nowrap;
-    }
-    .side-hud-label.small {
-      font-size: calc(var(--vu) * 10);
-      letter-spacing: 0.14em;
-      color: rgba(255, 255, 255, 0.4);
-    }
-    .side-hud-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: calc(var(--vu) * 20);
-      color: var(--chrome-1);
-    }
-    .side-hud-divider {
-      height: 1px;
-      background: linear-gradient(90deg, rgba(255, 26, 26, 0.5), rgba(255, 255, 255, 0.06));
-    }
-
-    .wanted-stars { display: flex; gap: calc(var(--vu) * 6); }
-    .wanted-star {
-      font-size: calc(var(--vu) * 22);
-      line-height: 1;
-      color: rgba(255, 255, 255, 0.12);
-    }
-    .wanted-star.filled { color: var(--blood); }
 
     /* ---------- Countdown-Block ---------- */
     .countdown-block {
@@ -359,24 +313,6 @@
       </div>
     </div>
 
-    <div class="side-hud" id="sideHud">
-      <div class="side-hud-block">
-        <span class="side-hud-label">HYPE LEVEL</span>
-        <div class="wanted-stars" id="wantedStars">
-          <span class="wanted-star">★</span>
-          <span class="wanted-star">★</span>
-          <span class="wanted-star">★</span>
-          <span class="wanted-star">★</span>
-          <span class="wanted-star">★</span>
-        </div>
-      </div>
-      <div class="side-hud-divider"></div>
-      <div class="side-hud-block tight">
-        <span class="side-hud-label small">VIEWERS</span>
-        <span class="side-hud-value">—</span>
-      </div>
-    </div>
-
     <div class="countdown-block">
       <span class="countdown-label" id="countdownLabel">STREAM STARTS IN</span>
       <span class="countdown-digits" id="countdown">
@@ -420,27 +356,11 @@
 
     function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
 
-    // ---------- Hype-Level: echte Wanted-Level-Punkte aus goal.html ----------
-    // Gleicher localStorage-Key/dieselbe 1-Punkt-pro-Stern-Logik wie in
-    // goal.html (WANTED_STORAGE_KEY) - einmalig beim Laden gelesen (die
-    // Start-Szene und goal.html laufen normalerweise nie gleichzeitig als
-    // sichtbare Szene, ein Live-Abgleich waere unnoetiger Aufwand).
-    (function initWantedStars() {
-      let points = 0;
-      try {
-        points = parseFloat(localStorage.getItem('dangsxr_wanted_points') || '0') || 0;
-      } catch (e) { /* Storage nicht verfuegbar - bleibt bei 0 */ }
-      const filled = Math.min(5, Math.floor(points));
-      document.querySelectorAll('.wanted-star').forEach((el, idx) => {
-        el.classList.toggle('filled', idx < filled);
-      });
-    })();
-
     const STATUS_MESSAGES = [
       'INITIALIZING FEED...',
       'SYNCING CHAT UPLINK...',
-      'LOADING HYPE METER...',
-      'CALIBRATING WANTED SCANNER...',
+      'CALIBRATING VISUAL FEED...',
+      'PRIMING GLITCH MATRIX...',
       'ARMING SOUNDTRACK MODULE...',
       'STANDBY FOR BROADCAST...',
     ];
@@ -450,8 +370,6 @@
     const bearHead = document.getElementById('bearHead');
     const ghostRed = document.getElementById('ghostRed');
     const ghostCyan = document.getElementById('ghostCyan');
-    const sideHud = document.getElementById('sideHud');
-    const starEls = document.querySelectorAll('.wanted-star');
     const vizBars = document.querySelectorAll('.viz-bar');
     const statusTickerEl = document.getElementById('statusTicker');
     const cdMin = document.getElementById('cdMin');
@@ -546,16 +464,6 @@
         statusTickerEl.textContent = STATUS_MESSAGES[tIdx];
       }
       statusTickerEl.style.opacity = fade;
-
-      // ---- Wanted-Stars: Twinkle nur auf gefuellten Sternen ----
-      starEls.forEach((el, i) => {
-        if (!el.classList.contains('filled')) return;
-        const twinkle = 0.85 + 0.15 * Math.sin(localTime * 2.2 + i);
-        el.style.textShadow = '0 0 calc(var(--vu) * ' + (8 * twinkle).toFixed(2) + ') rgba(255,26,26,0.9)';
-      });
-
-      // ---- Linkes HUD: leises Ein-/Ausatmen ----
-      sideHud.style.opacity = (0.85 + 0.15 * Math.sin(localTime * 0.9)).toFixed(3);
 
       // ---- Countdown: Puls-Glow + tatsaechliche verbleibende Zeit ----
       const pulse = 0.7 + 0.3 * Math.sin(localTime * 1.6);
