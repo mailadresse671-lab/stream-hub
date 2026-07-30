@@ -2,24 +2,13 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DaN - In-Game HUD (Gold-Bling Edition)</title>
+  <title>DaN - In-Game HUD (Live)</title>
   
+  <!-- ECHTE TWITCH CHAT VERBINDUNG -->
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/dist/tmi.min.js"></script>
   
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Courier+Prime:wght@400;700&display=swap');
-
-    :root {
-      --vu: clamp(0.5px, 0.0521vw, 1px);
-      --leather-mid: rgba(36, 18, 9, 0.85);
-      --brass-1: #d4a24c;
-      --brass-2: #8c6a2f;
-      --gold-bling: #ffd45e;
-      --gold-glow: rgba(255, 212, 94, 0.6);
-      --cream: #f4e8d0;
-      --cut: calc(var(--vu) * 12);
-    }
 
     body {
       margin: 0;
@@ -29,61 +18,41 @@
       overflow: hidden;
       background: transparent;
       font-family: 'Courier Prime', monospace;
-      color: var(--cream);
+      color: #f4e8d0;
     }
 
-    #shake-root {
-      position: fixed;
-      inset: 0;
-    }
-
-    .cassette-panel {
-      background: var(--leather-mid);
-      border: calc(var(--vu) * 2) solid var(--brass-2);
-      box-shadow: 0 0 calc(var(--vu) * 10) rgba(0,0,0,0.8);
-      clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%, 0 var(--cut));
-      padding: calc(var(--vu) * 15);
-    }
-
-    /* --- GANZKÖRPER-BÄR IM GOLDRAHMEN --- */
+    /* --- DER ECHTE SCHARFE BÄR IM GOLDRAHMEN --- */
     .bear-frame {
       position: absolute;
       top: 5vh;
       left: 1.5vw;
-      width: calc(var(--vu) * 280);
-      height: calc(var(--vu) * 320);
+      width: 280px;
+      height: 320px;
       background: rgba(10, 5, 5, 0.9);
-      border: calc(var(--vu) * 3) solid var(--gold-bling);
-      box-shadow: 0 0 calc(var(--vu) * 20) rgba(255, 212, 94, 0.2);
+      border: 3px solid #ffd45e;
+      box-shadow: 0 0 20px rgba(255, 212, 94, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    
-    .bear-frame::after {
-      content: '';
-      position: absolute;
-      inset: calc(var(--vu) * 6);
-      border: calc(var(--vu) * 1) solid var(--brass-2);
-      pointer-events: none;
-    }
 
     .live-dot {
       position: absolute;
-      top: calc(var(--vu) * 15);
-      left: calc(var(--vu) * 15);
+      top: 15px;
+      left: 15px;
       color: #ff2340;
       font-family: 'Bungee', cursive;
-      font-size: calc(var(--vu) * 14);
+      font-size: 14px;
       display: flex;
       align-items: center;
-      gap: calc(var(--vu) * 5);
+      gap: 5px;
       z-index: 10;
     }
+
     .live-dot::before {
       content: '';
-      width: calc(var(--vu) * 10);
-      height: calc(var(--vu) * 10);
+      width: 10px;
+      height: 10px;
       background: #ff2340;
       border-radius: 50%;
       box-shadow: 0 0 10px #ff2340;
@@ -91,154 +60,86 @@
     }
 
     .bear-avatar {
-      width: 85%;
-      height: 85%;
-      background-image: url('../assets/images/avatar_idle.png'); /* Hier wird dein Gangster-Bär geladen */
+      width: 90%;
+      height: 90%;
+      /* Hier greifen wir auf dein echtes, hochauflösendes Bild im Repo zu */
+      background-image: url('../bear_avatar.png'); 
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
-      filter: drop-shadow(0 0 calc(var(--vu) * 8) rgba(255, 255, 255, 0.1));
-      transition: transform 0.1s ease-out;
     }
 
-    /* --- WIDGETS --- */
-    .event-widgets-stack {
-      position: absolute;
-      top: 2.2vh;
-      right: 1.25vw;
-      display: flex;
-      gap: calc(var(--vu) * 10);
-    }
-    .widget {
-      text-align: center;
-      min-width: calc(var(--vu) * 120);
-    }
-    .widget-title {
-      font-size: calc(var(--vu) * 11);
-      color: var(--brass-1);
-      margin-bottom: calc(var(--vu) * 5);
-    }
-    .widget-value {
-      font-family: 'Bungee', cursive;
-      font-size: calc(var(--vu) * 22);
-      color: var(--gold-bling);
-    }
-
-    /* --- CHAT --- */
+    /* --- DER ECHTE LIVE CHAT --- */
     .chat-position {
       position: absolute;
       top: 30vh;
-      right: 1.25vw;
-      width: calc(var(--vu) * 350);
+      right: 1.5vw;
+      width: 350px;
       height: 45vh;
+      background: rgba(36, 18, 9, 0.85);
+      border: 2px solid #8c6a2f;
+      padding: 15px;
       display: flex;
       flex-direction: column;
     }
+
     .chat-header {
       font-family: 'Bungee', cursive;
-      font-size: calc(var(--vu) * 16);
-      color: var(--brass-1);
-      margin-bottom: calc(var(--vu) * 10);
+      font-size: 16px;
+      color: #d4a24c;
+      margin-bottom: 10px;
       text-align: right;
-      border-bottom: calc(var(--vu) * 1) solid var(--brass-2);
-      padding-bottom: calc(var(--vu) * 5);
+      border-bottom: 1px solid #8c6a2f;
+      padding-bottom: 5px;
     }
+
     #chat-container {
       flex: 1;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      gap: calc(var(--vu) * 8);
+      gap: 8px;
     }
-    .chat-msg {
-      background: rgba(20, 16, 12, 0.6);
-      border-left: calc(var(--vu) * 3) solid var(--gold-bling);
-      padding: calc(var(--vu) * 8);
-      font-size: calc(var(--vu) * 14);
-    }
-    .chat-user { color: var(--brass-1); font-weight: bold; }
 
-    /* --- WANTED LEVEL --- */
-    .wanted-position {
-      position: absolute;
-      bottom: 6vh;
-      left: 1.5vw;
-      border: calc(var(--vu) * 2) solid #ff2340;
-      background: rgba(20, 0, 0, 0.8);
-      padding: calc(var(--vu) * 15);
-      box-shadow: 0 0 calc(var(--vu) * 15) rgba(255, 35, 64, 0.3);
+    .chat-msg {
+      background: rgba(20, 16, 12, 0.8);
+      border-left: 3px solid #ffd45e;
+      padding: 8px;
+      font-size: 14px;
+      animation: slideIn 0.3s ease-out forwards;
     }
-    .wanted-title {
-      font-family: 'Bungee', cursive;
-      color: #ff2340;
-      font-size: calc(var(--vu) * 18);
-      margin-bottom: calc(var(--vu) * 5);
-    }
-    .star {
-      font-size: calc(var(--vu) * 25);
-      color: rgba(255, 255, 255, 0.2);
-    }
-    .star.active {
-      color: #ff2340;
-      text-shadow: 0 0 calc(var(--vu) * 8) #ff2340;
-    }
+
+    .chat-user { color: #d4a24c; font-weight: bold; }
 
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   </style>
 </head>
 <body>
 
-<div id="shake-root">
-
-  <!-- GANZKÖRPER-BÄR -->
   <div class="bear-frame">
     <div class="live-dot">LIVE</div>
-    <div id="bear" class="bear-avatar"></div>
+    <div class="bear-avatar" id="bear"></div>
   </div>
 
-  <!-- EVENT WIDGETS -->
-  <div class="event-widgets-stack">
-    <div class="cassette-panel widget" id="widget-follow">
-      <div class="widget-title">LETZTER FOLLOWER</div>
-      <div class="widget-value" id="val-follow">-</div>
-    </div>
-    <div class="cassette-panel widget" id="widget-sub">
-      <div class="widget-title">GANG (SUB)</div>
-      <div class="widget-value" id="val-sub">0</div>
-    </div>
-    <div class="cassette-panel widget" id="widget-bits">
-      <div class="widget-title">BLING (BITS)</div>
-      <div class="widget-value" id="val-bits">0</div>
-    </div>
-  </div>
-
-  <!-- CHAT -->
-  <div class="chat-position cassette-panel">
-    <div class="chat-header">CHAT VIBES</div>
+  <div class="chat-position">
+    <div class="chat-header">LIVE CHAT VIBES</div>
     <div id="chat-container"></div>
   </div>
 
-  <!-- WANTED LEVEL -->
-  <div class="wanted-position">
-    <div class="wanted-title">HYPE LEVEL</div>
-    <div id="stars-container">
-      <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
-    </div>
-  </div>
-
-</div>
-
 <script>
-  // Chat Integration
+  // --- ECHTE TWITCH CHAT LOGIK ---
   const chatContainer = document.getElementById('chat-container');
   const bearAvatar = document.getElementById('bear');
+  
+  // Verbindet sich mit DEINEM Kanal
   const client = new tmi.Client({ channels: [ 'dangsxr1000' ] });
   client.connect();
 
   client.on('message', (channel, tags, message, self) => {
-    // Bär wackelt bei Nachricht
-    bearAvatar.style.transform = `scale(1.05) rotate(${Math.random() > 0.5 ? 2 : -2}deg)`;
+    // Bär wackelt minimal, wenn jemand im Chat schreibt
+    bearAvatar.style.transform = `scale(1.02) rotate(${Math.random() > 0.5 ? 1 : -1}deg)`;
     setTimeout(() => bearAvatar.style.transform = 'scale(1) rotate(0deg)', 150);
 
     const msgEl = document.createElement('div');
@@ -246,16 +147,11 @@
     msgEl.innerHTML = `<span class="chat-user">${tags['display-name']}:</span> ${message}`;
     chatContainer.appendChild(msgEl);
 
+    // Behält maximal die letzten 7 Nachrichten im Bild
     if (chatContainer.children.length > 7) {
       chatContainer.removeChild(chatContainer.firstChild);
     }
   });
-
-  // Test-Werte
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('test') === 'follow') {
-    document.getElementById('val-follow').innerText = "TestUser";
-  }
 </script>
 </body>
 </html>
