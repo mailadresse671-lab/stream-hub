@@ -5,16 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DaN - In-Game HUD (Gold-Bling Edition)</title>
   
-  <!-- TMI.js für Twitch Chat -->
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/dist/tmi.min.js"></script>
   
   <style>
-    /* SCHRITT 1: Design-Tokens & Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Courier+Prime:wght@400;700&display=swap');
 
     :root {
-      --vu: clamp(0.5px, 0.0521vw, 1px); /* Skalierungs-System für perfekte Schärfe */
-      --leather: #241209;
+      --vu: clamp(0.5px, 0.0521vw, 1px);
       --leather-mid: rgba(36, 18, 9, 0.85);
       --brass-1: #d4a24c;
       --brass-2: #8c6a2f;
@@ -30,7 +27,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background: transparent; /* Transparent für OBS/Streamlabs */
+      background: transparent;
       font-family: 'Courier Prime', monospace;
       color: var(--cream);
     }
@@ -40,55 +37,71 @@
       inset: 0;
     }
 
-    /* Kassetten-Inlay Design (Geometrischer Clip-Path) */
     .cassette-panel {
       background: var(--leather-mid);
       border: calc(var(--vu) * 2) solid var(--brass-2);
       box-shadow: 0 0 calc(var(--vu) * 10) rgba(0,0,0,0.8);
-      clip-path: polygon(
-        var(--cut) 0, 
-        calc(100% - var(--cut)) 0, 
-        100% var(--cut), 
-        100% 100%, 
-        0 100%, 
-        0 var(--cut)
-      );
+      clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%, 0 var(--cut));
       padding: calc(var(--vu) * 15);
     }
 
-    /* --- BÄREN POSITION (Oben Links) --- */
-    .bear-position {
+    /* --- GANZKÖRPER-BÄR IM GOLDRAHMEN --- */
+    .bear-frame {
       position: absolute;
-      top: 9vh;
+      top: 5vh;
       left: 1.5vw;
-      width: calc(var(--vu) * 250);
-      height: calc(var(--vu) * 250);
+      width: calc(var(--vu) * 280);
+      height: calc(var(--vu) * 320);
+      background: rgba(10, 5, 5, 0.9);
+      border: calc(var(--vu) * 3) solid var(--gold-bling);
+      box-shadow: 0 0 calc(var(--vu) * 20) rgba(255, 212, 94, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .bear-head {
-      width: 100%;
-      height: 100%;
-      background-image: url('../assets/images/bear_head_lowpoly.png'); /* Pfad anpassen falls nötig */
-      background-size: contain;
-      background-repeat: no-repeat;
-      position: relative;
-      z-index: 2;
-      filter: drop-shadow(0 0 calc(var(--vu) * 5) var(--gold-bling));
-    }
-    .bear-glow {
+    
+    .bear-frame::after {
+      content: '';
       position: absolute;
-      width: 60%;
-      height: 40%;
-      top: 30%;
-      background: radial-gradient(circle, rgba(255,0,0,0.8) 0%, transparent 70%);
-      opacity: 0;
-      z-index: 3;
-      transition: opacity 0.1s;
+      inset: calc(var(--vu) * 6);
+      border: calc(var(--vu) * 1) solid var(--brass-2);
+      pointer-events: none;
     }
 
-    /* --- EVENT WIDGETS (Oben Rechts) --- */
+    .live-dot {
+      position: absolute;
+      top: calc(var(--vu) * 15);
+      left: calc(var(--vu) * 15);
+      color: #ff2340;
+      font-family: 'Bungee', cursive;
+      font-size: calc(var(--vu) * 14);
+      display: flex;
+      align-items: center;
+      gap: calc(var(--vu) * 5);
+      z-index: 10;
+    }
+    .live-dot::before {
+      content: '';
+      width: calc(var(--vu) * 10);
+      height: calc(var(--vu) * 10);
+      background: #ff2340;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #ff2340;
+      animation: pulse 2s infinite;
+    }
+
+    .bear-avatar {
+      width: 85%;
+      height: 85%;
+      background-image: url('../assets/images/avatar_idle.png'); /* Hier wird dein Gangster-Bär geladen */
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      filter: drop-shadow(0 0 calc(var(--vu) * 8) rgba(255, 255, 255, 0.1));
+      transition: transform 0.1s ease-out;
+    }
+
+    /* --- WIDGETS --- */
     .event-widgets-stack {
       position: absolute;
       top: 2.2vh;
@@ -101,36 +114,33 @@
       min-width: calc(var(--vu) * 120);
     }
     .widget-title {
-      font-size: calc(var(--vu) * 12);
+      font-size: calc(var(--vu) * 11);
       color: var(--brass-1);
       margin-bottom: calc(var(--vu) * 5);
     }
     .widget-value {
       font-family: 'Bungee', cursive;
-      font-size: calc(var(--vu) * 24);
+      font-size: calc(var(--vu) * 22);
       color: var(--gold-bling);
-      text-shadow: 0 0 calc(var(--vu) * 5) var(--gold-glow);
     }
-    .flash { animation: flashAnim 0.5s ease-out; }
-    @keyframes flashAnim { 0% { background: var(--gold-bling); color: #000; } 100% { background: var(--leather-mid); color: var(--gold-bling); } }
 
-    /* --- CHAT VIBES (Rechts) --- */
+    /* --- CHAT --- */
     .chat-position {
       position: absolute;
       top: 30vh;
       right: 1.25vw;
       width: calc(var(--vu) * 350);
-      height: 50vh;
+      height: 45vh;
       display: flex;
       flex-direction: column;
     }
     .chat-header {
       font-family: 'Bungee', cursive;
-      font-size: calc(var(--vu) * 18);
+      font-size: calc(var(--vu) * 16);
       color: var(--brass-1);
       margin-bottom: calc(var(--vu) * 10);
       text-align: right;
-      border-bottom: calc(var(--vu) * 2) solid var(--brass-2);
+      border-bottom: calc(var(--vu) * 1) solid var(--brass-2);
       padding-bottom: calc(var(--vu) * 5);
     }
     #chat-container {
@@ -142,81 +152,56 @@
       gap: calc(var(--vu) * 8);
     }
     .chat-msg {
-      background: rgba(20, 16, 12, 0.8);
-      border-left: calc(var(--vu) * 4) solid var(--gold-bling);
+      background: rgba(20, 16, 12, 0.6);
+      border-left: calc(var(--vu) * 3) solid var(--gold-bling);
       padding: calc(var(--vu) * 8);
       font-size: calc(var(--vu) * 14);
-      animation: slideIn 0.3s ease-out forwards;
     }
     .chat-user { color: var(--brass-1); font-weight: bold; }
-    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-    /* --- WANTED LEVEL (Unten Links) --- */
+    /* --- WANTED LEVEL --- */
     .wanted-position {
       position: absolute;
-      bottom: 2.2vh;
-      left: 1.25vw;
-      display: flex;
-      align-items: center;
-      gap: calc(var(--vu) * 15);
+      bottom: 6vh;
+      left: 1.5vw;
+      border: calc(var(--vu) * 2) solid #ff2340;
+      background: rgba(20, 0, 0, 0.8);
+      padding: calc(var(--vu) * 15);
+      box-shadow: 0 0 calc(var(--vu) * 15) rgba(255, 35, 64, 0.3);
+    }
+    .wanted-title {
+      font-family: 'Bungee', cursive;
+      color: #ff2340;
+      font-size: calc(var(--vu) * 18);
+      margin-bottom: calc(var(--vu) * 5);
     }
     .star {
-      font-size: calc(var(--vu) * 30);
+      font-size: calc(var(--vu) * 25);
       color: rgba(255, 255, 255, 0.2);
-      transition: color 0.3s, text-shadow 0.3s;
     }
     .star.active {
-      color: var(--gold-bling);
-      text-shadow: 0 0 calc(var(--vu) * 10) var(--gold-glow);
-    }
-    #hype-toast {
-      display: none;
-      font-family: 'Bungee', cursive;
-      color: #ff003c;
-      font-size: calc(var(--vu) * 20);
-      text-shadow: 0 0 calc(var(--vu) * 10) red;
-      margin-left: calc(var(--vu) * 20);
+      color: #ff2340;
+      text-shadow: 0 0 calc(var(--vu) * 8) #ff2340;
     }
 
-    /* --- MUSIC TICKER (Unten) --- */
-    .ticker-bar {
-      position: absolute;
-      bottom: 0;
-      left: 20vw;
-      width: 58vw; /* Lässt rechts Platz für RL Boost */
-      height: calc(var(--vu) * 40);
-      background: var(--tape-black);
-      border-top: calc(var(--vu) * 2) solid var(--brass-2);
-      display: flex;
-      align-items: center;
-      overflow: hidden;
-      white-space: nowrap;
-    }
-    .ticker-text {
-      font-family: 'Bungee', cursive;
-      font-size: calc(var(--vu) * 16);
-      color: var(--gold-bling);
-      padding-left: 100%;
-      animation: scrollTicker 15s linear infinite;
-    }
-    @keyframes scrollTicker { 0% { transform: translateX(0); } 100% { transform: translateX(-200%); } }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
   </style>
 </head>
 <body>
 
 <div id="shake-root">
-  <!-- BÄR -->
-  <div class="bear-position">
-    <div id="bear" class="bear-head">
-      <div id="bear-glow" class="bear-glow"></div>
-    </div>
+
+  <!-- GANZKÖRPER-BÄR -->
+  <div class="bear-frame">
+    <div class="live-dot">LIVE</div>
+    <div id="bear" class="bear-avatar"></div>
   </div>
 
   <!-- EVENT WIDGETS -->
   <div class="event-widgets-stack">
     <div class="cassette-panel widget" id="widget-follow">
-      <div class="widget-title">NEW VIBE (FOLLOW)</div>
-      <div class="widget-value" id="val-follow">0</div>
+      <div class="widget-title">LETZTER FOLLOWER</div>
+      <div class="widget-value" id="val-follow">-</div>
     </div>
     <div class="cassette-panel widget" id="widget-sub">
       <div class="widget-title">GANG (SUB)</div>
@@ -235,113 +220,41 @@
   </div>
 
   <!-- WANTED LEVEL -->
-  <div class="wanted-position cassette-panel">
-    <div class="widget-title" style="margin:0;">HYPE LEVEL:</div>
+  <div class="wanted-position">
+    <div class="wanted-title">HYPE LEVEL</div>
     <div id="stars-container">
       <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
     </div>
-    <div id="hype-toast">HYPE MAXED!</div>
   </div>
 
-  <!-- TICKER -->
-  <div class="ticker-bar">
-    <div class="ticker-text" id="ticker-content">Lädt...</div>
-  </div>
 </div>
 
 <script>
-  // --- SCHRITT 2: BÄREN REAKTIVITÄT ---
-  const bearHead = document.getElementById('bear');
-  const bearGlow = document.getElementById('bear-glow');
-  let reactionUntil = 0;
-  let currentIntensity = 0;
-
-  function triggerBearReaction() {
-    reactionUntil = performance.now() + 3000; // Leuchtet für 3 Sekunden auf
-  }
-
-  function animFrame() {
-    const now = performance.now();
-    // Bären Wackeln (Sway)
-    const swayX = Math.sin(now * 0.001) * 5;
-    const swayY = Math.cos(now * 0.0015) * 5;
-    
-    // Reaktions-Intensität berechnen
-    currentIntensity += ((now < reactionUntil ? 1 : 0) - currentIntensity) * 0.1;
-    
-    // Glow und Zoom anwenden
-    bearGlow.style.opacity = currentIntensity;
-    const scale = 1 + (currentIntensity * 0.15); // Bär wird leicht größer bei Hype
-    
-    bearHead.style.transform = `translate(${swayX}px, ${swayY}px) scale(${scale})`;
-    requestAnimationFrame(animFrame);
-  }
-  requestAnimationFrame(animFrame);
-
-  // --- SCHRITT 3: WANTED LEVEL LOGIK ---
-  let wantedPoints = parseInt(localStorage.getItem('dangsxr_wanted_points')) || 0;
-  const stars = document.querySelectorAll('.star');
-  const hypeToast = document.getElementById('hype-toast');
-
-  function updateWantedLevel() {
-    if (wantedPoints >= 5) {
-      wantedPoints = 0;
-      localStorage.setItem('dangsxr_wanted_points', 0);
-      hypeToast.style.display = 'block';
-      triggerBearReaction();
-      setTimeout(() => hypeToast.style.display = 'none', 4000);
-    }
-    stars.forEach((star, index) => {
-      star.classList.toggle('active', index < wantedPoints);
-    });
-  }
-  updateWantedLevel();
-
-  // --- SCHRITT 4: TWITCH CHAT (TMI.JS) ---
+  // Chat Integration
   const chatContainer = document.getElementById('chat-container');
+  const bearAvatar = document.getElementById('bear');
   const client = new tmi.Client({ channels: [ 'dangsxr1000' ] });
   client.connect();
 
   client.on('message', (channel, tags, message, self) => {
-    // Bei jeder Nachricht reagiert der Bär minimal!
-    triggerBearReaction();
+    // Bär wackelt bei Nachricht
+    bearAvatar.style.transform = `scale(1.05) rotate(${Math.random() > 0.5 ? 2 : -2}deg)`;
+    setTimeout(() => bearAvatar.style.transform = 'scale(1) rotate(0deg)', 150);
 
     const msgEl = document.createElement('div');
     msgEl.className = 'chat-msg';
     msgEl.innerHTML = `<span class="chat-user">${tags['display-name']}:</span> ${message}`;
     chatContainer.appendChild(msgEl);
 
-    if (chatContainer.children.length > 6) {
-      chatContainer.removeChild(chatContainer.firstChild); // Deckelung auf 6 Nachrichten
+    if (chatContainer.children.length > 7) {
+      chatContainer.removeChild(chatContainer.firstChild);
     }
   });
 
-  // --- SCHRITT 5: WIDGETS & TICKER ---
-  // Ticker Logic (URL Parameter)
+  // Test-Werte
   const urlParams = new URLSearchParams(window.location.search);
-  const track = urlParams.get('track') || "Live Beats";
-  const artist = urlParams.get('artist') || "DaN";
-  
-  const statusMessages = [
-    `🎧 NOW SPINNING: ${artist} - ${track}`,
-    "🔥 WILLKOMMEN IM STREAM - LASS EIN FOLLOW DA!",
-    "⚠️ ROCKET LEAGUE GRIND ACTIVATED"
-  ];
-  let statusIndex = 0;
-  const tickerEl = document.getElementById('ticker-content');
-
-  setInterval(() => {
-    tickerEl.innerText = statusMessages[statusIndex];
-    statusIndex = (statusIndex + 1) % statusMessages.length;
-  }, 10000);
-  tickerEl.innerText = statusMessages[0];
-
-  // Simuliertes EventSub Testing per URL (?test=follow etc.)
-  const testEvent = urlParams.get('test');
-  if (testEvent === 'follow') {
-    document.getElementById('val-follow').innerText = "1";
-    document.getElementById('widget-follow').classList.add('flash');
-    triggerBearReaction();
+  if (urlParams.get('test') === 'follow') {
+    document.getElementById('val-follow').innerText = "TestUser";
   }
 </script>
 </body>
