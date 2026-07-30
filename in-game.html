@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In-Game HUD</title>
+  <!-- Zusaetzliche, eigenstaendige Gameplay-Szene (1920x1080, transparent,
+       liegt wie goal.html/chat.html/overlay.html UEBER dem Gameplay) - kein
+       Ersatz fuer overlay.html, sondern eine zweite, alternative Browser-
+       Quellen-URL mit komplett neuem visuellem System: "Vintage Hip-Hop /
+       Gold-Bling" (warme Leder-/Messing-Materialitaet statt overlay.htmls
+       kaltem "Urban Blackout"-Asphalt/Neon-Rot, und statt start.htmls
+       Chakra-Petch/JetBrains-Mono-Typografie). Nutzt dasselbe --vu-Fluid-
+       Unit-System wie overlay.html/start.html fuer scharfe Darstellung in
+       der Streamlabs-Mobile-WebView (kein transform:scale() - siehe
+       CLAUDE.md fuer die Historie, warum das dort zu Unschaerfe fuehrte).
+
+       RL-HUD-Kollisionszonen (bestaetigt: oben links = In-Match-Chat, oben
+       Mitte = Tor/Zeit, unten rechts = Boost-Anzeige):
+       - Baer oben links ist NEU platziert (overlay.html vermeidet diese
+         Zone bewusst) - deshalb bewusst NICHT flush in die Ecke, sondern
+         mit top:9vh/left:1.5vw eingerueckt. Ungetestete Annahme, braucht
+         Live-Validierung in Streamlabs Mobile.
+       - Event-Widgets oben rechts nutzen dieselbe Zone wie overlay.htmls
+         .goal-position (dort bislang kollisionsfrei).
+       - Wanted-Level unten links nutzt dieselbe Zone wie overlay.htmls
+         .avatar-position (dort bislang kollisionsfrei).
+       - Chat rechter Rand, vertikal versetzt unterhalb der Event-Widgets -
+         neuer Bereich, braucht Live-Validierung.
+       - Ticker-Leiste unten spannt bewusst NICHT die volle Breite
+         (width:78vw), laesst Platz zur Boost-Anzeige frei - ungetestete
+         Annahme, braucht Live-Validierung.
+
+       Kein Audio-Alert-System in dieser ersten Version (kein follow.mp3/
+       sub.mp3/etc. Playback) - rein visuelle Reaktionen (Baer-Glow-Puls,
+       Widget-Flash, Hype-Toast). Bei Bedarf spaeter trivial nachruestbar
+       durch Wiederverwendung von overlay.htmls preloadSounds()/
+       playFileSound(). -->
+  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* "Vintage Hip-Hop / Gold-Bling" - drittes eigenstaendiges Farbsystem
+         im Repo, neben "Urban Blackout" (goal.html/chat.html/overlay.html)
+         und start.htmls Schwarz/Rot/Chakra-Petch-Look. Warme Leder-/
+         Messing-Toene statt kaltem Asphalt/Gunmetal. */
+      --leather: #241209;
+      --leather-mid: rgba(36, 18, 9, 0.92);
+      --leather-raw: rgba(58, 32, 18, 0.55);
+      --tape-black: #14100c;
+      --hairline: rgba(255, 224, 168, 0.14);
+      --brass-1: #d4a24c;
+      --brass-2: #8c6a2f;
+      --gold-bling: #ffd45e;
+      --gold-glow: rgba(255, 212, 94, 0.55);
+      --cream: #f4e8d0;
+      --cream-muted: #b8a888;
+      --wine: #7a1f2b;
+      --wine-glow: rgba(122, 31, 43, 0.55);
+      --success: #6fae5a;
+      /* Gleiches Fluid-Unit-Prinzip wie overlay.html/start.html: loest sich
+         zu 1px bei 1920px Browser-Quellen-Breite auf, schrumpft proportional
+         mit einer kleineren tatsaechlichen Breite mit (Boden 0.5px), bleibt
+         dabei nativ scharf. */
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+      --cut: calc(var(--vu) * 8);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      font-family: 'Courier Prime', 'Courier New', monospace;
+      color: var(--cream);
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+
+    #shake-root { position: fixed; inset: 0; }
+
+    /* ---------- Wiederverwendbares "Kassettenhuelle"-Panel-Motiv ---------- */
+    /* Ersatz fuer Urban Blackouts Chamfer-Ecke: abgerundete Ecken +
+       trapezfoermiger Ausschnitt oben, mimt die Schreibschutz-Lasche einer
+       Kassette. Auf allen Karten konsistent angewendet, als wiederkehrendes
+       Einheits-Motiv. */
+    .cassette-panel {
+      position: relative;
+      background: linear-gradient(155deg, var(--leather-mid), var(--leather-raw));
+      border: calc(var(--vu) * 1.5) solid var(--brass-1);
+      border-radius: calc(var(--vu) * 4);
+      clip-path: polygon(0 0, 38% 0, 42% calc(var(--vu) * 6), 58% calc(var(--vu) * 6), 62% 0, 100% 0, 100% 100%, 0 100%);
+      box-shadow: 0 calc(var(--vu) * 6) calc(var(--vu) * 20) rgba(0, 0, 0, 0.55);
+    }
+
+    /* ---------- Baer (oben links, ersetzt die Webcam) ---------- */
+    .bear-position {
+      position: absolute;
+      top: 9vh;
+      left: 1.5vw;
+      width: clamp(140px, 16vw, 320px);
+      aspect-ratio: 714 / 804;
+      z-index: 6;
+    }
+    .bear-wrap { position: absolute; inset: 0; }
+    .bear-head, .bear-ghost {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .bear-ghost { display: none; pointer-events: none; mix-blend-mode: screen; }
+    /* Gold/Wein statt Rot/Cyan eingefaerbte "Geister"-Kopien, passend zum
+       Vintage-Hip-Hop-Palette (gleicher Kanaltrennungs-Trick wie in
+       start.html: brightness(0) reduziert auf reine Alpha-Silhouette,
+       invert()+sepia()+saturate() faerbt danach einheitlich ein). */
+    .bear-ghost-red { filter: brightness(0) saturate(100%) invert(80%) sepia(55%) saturate(700%) hue-rotate(0deg) brightness(1.3); opacity: 0.5; }
+    .bear-ghost-cyan { filter: brightness(0) saturate(100%) invert(15%) sepia(45%) saturate(2000%) hue-rotate(300deg); opacity: 0.4; }
+    .bear-placeholder {
+      display: none;
+      position: absolute;
+      inset: 8% 12%;
+      border-radius: 50%;
+      border: 1px dashed var(--brass-1);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: calc(var(--vu) * 16);
+    }
+    .bear-placeholder span {
+      font-family: 'Courier Prime', monospace;
+      font-weight: 700;
+      font-size: clamp(9px, 0.9vw, 13px);
+      letter-spacing: 0.5px;
+      color: var(--cream-muted);
+      text-transform: uppercase;
+      line-height: 1.6;
+    }
+    .bear-placeholder code {
+      display: block;
+      color: var(--gold-bling);
+      font-family: 'Courier Prime', monospace;
+      font-size: clamp(8px, 0.8vw, 11px);
+      margin-top: calc(var(--vu) * 4);
+    }
+
+    /* ---------- Event-Widgets ("Kassetten-Inlay", oben rechts) ---------- */
+    .event-widgets-stack {
+      position: absolute;
+      top: 2.2vh;
+      right: 1.25vw;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: calc(var(--vu) * 7);
+    }
+    .widget-card {
+      padding: calc(var(--vu) * 8) calc(var(--vu) * 14);
+      min-width: min(calc(var(--vu) * 130), 24vw);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: calc(var(--vu) * 10);
+    }
+    .widget-label {
+      font-family: 'Courier Prime', monospace;
+      font-weight: 700;
+      font-size: calc(var(--vu) * 7);
+      letter-spacing: 0.1em;
+      color: var(--cream-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .widget-value {
+      font-family: 'Bungee', cursive;
+      font-size: calc(var(--vu) * 14);
+      color: var(--gold-bling);
+      font-variant-numeric: tabular-nums;
+    }
+    .widget-card.flash { animation: widgetFlash 0.5s ease; }
+    @keyframes widgetFlash {
+      0% { box-shadow: 0 calc(var(--vu) * 6) calc(var(--vu) * 20) rgba(0, 0, 0, 0.55); }
+      35% { box-shadow: 0 0 calc(var(--vu) * 26) var(--gold-glow); }
+      100% { box-shadow: 0 calc(var(--vu) * 6) calc(var(--vu) * 20) rgba(0, 0, 0, 0.55); }
+    }
+
+    /* ---------- Chat "CHAT VIBES" (rechter Rand, unterhalb der Widgets) ---------- */
+    .chat-position {
+      position: absolute;
+      top: 30vh;
+      right: 1.25vw;
+      width: min(calc(var(--vu) * 230), 19vw);
+      height: 44vh;
+      z-index: 9;
+    }
+    .chat-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: calc(var(--vu) * 10);
+      background: var(--leather-mid);
+      backdrop-filter: blur(calc(var(--vu) * 8));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 8));
+      overflow: hidden;
+    }
+    .chat-header {
+      font-family: 'Bungee', cursive;
+      font-size: calc(var(--vu) * 9);
+      letter-spacing: 0.08em;
+      color: var(--gold-bling);
+      text-transform: uppercase;
+      margin-bottom: calc(var(--vu) * 8);
+      flex-shrink: 0;
+    }
+    .chat-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--vu) * 6);
+      overflow: hidden;
+    }
+    .chat-msg {
+      display: flex;
+      flex-wrap: wrap;
+      column-gap: calc(var(--vu) * 4);
+      padding: calc(var(--vu) * 6) calc(var(--vu) * 8);
+      border-left: calc(var(--vu) * 3) solid var(--brass-1);
+      background: var(--leather-raw);
+      border-radius: calc(var(--vu) * 3);
+      opacity: 0;
+      transform: translateX(calc(var(--vu) * 24));
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      font-size: calc(var(--vu) * 8);
+      line-height: 1.4;
+    }
+    .chat-msg.visible { opacity: 1; transform: translateX(0); }
+    .chat-msg.fade-out { opacity: 0; }
+    .chat-username { font-weight: 700; }
+    .chat-text { color: var(--cream); }
+    .chat-emote { height: calc(var(--vu) * 16); vertical-align: middle; }
+
+    /* ---------- Wanted-/Hype-Level (unten links) ---------- */
+    .wanted-position {
+      position: absolute;
+      bottom: 2.2vh;
+      left: 1.25vw;
+      z-index: 10;
+    }
+    .wanted-card {
+      padding: calc(var(--vu) * 10) calc(var(--vu) * 16) calc(var(--vu) * 9);
+      min-width: min(calc(var(--vu) * 150), 26vw);
+    }
+    .wanted-title {
+      font-family: 'Bungee', cursive;
+      font-size: calc(var(--vu) * 9);
+      letter-spacing: 0.05em;
+      color: var(--cream);
+      text-transform: uppercase;
+      margin-bottom: calc(var(--vu) * 6);
+    }
+    .wanted-stars { display: flex; gap: calc(var(--vu) * 5); font-size: calc(var(--vu) * 13); line-height: 1; }
+    .wanted-star { color: var(--brass-2); text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85); transition: color 0.3s ease, text-shadow 0.3s ease; }
+    .wanted-star.filled { color: var(--gold-bling); text-shadow: 0 0 calc(var(--vu) * 8) var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85); }
+
+    /* ---------- Hype-Maxed-Toast (leichtgewichtiger Ersatz fuer den vollen
+       #party-popup/SpraySystem-Stack aus goal.html/overlay.html - passt
+       stilistisch nicht zum warmen Leder/Messing-Look und ist mehr Umfang
+       als im Layout-Wunsch verlangt) ---------- */
+    .hype-toast {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -60%);
+      z-index: 50;
+      padding: calc(var(--vu) * 14) calc(var(--vu) * 28);
+      background: linear-gradient(155deg, var(--wine), var(--leather));
+      border: calc(var(--vu) * 2) solid var(--gold-bling);
+      border-radius: calc(var(--vu) * 6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      box-shadow: 0 0 calc(var(--vu) * 40) var(--gold-glow);
+    }
+    .hype-toast.show { opacity: 1; transform: translate(-50%, -50%); }
+    .hype-toast-text {
+      font-family: 'Bungee', cursive;
+      font-size: calc(var(--vu) * 22);
+      letter-spacing: 0.08em;
+      color: var(--gold-bling);
+      text-shadow: 0 0 calc(var(--vu) * 12) var(--gold-glow);
+      white-space: nowrap;
+    }
+
+    /* ---------- Musik-/Status-Ticker (unten, laesst Boost-Zone UND die
+       Wanted-Level-Karte unten links frei - beide sitzen auf derselben
+       Bottom-Zeile, deshalb ueber left/right statt left+width positioniert,
+       damit die Karte nicht mehr optisch mit dem Ticker kollidiert) ---------- */
+    .ticker-bar {
+      position: absolute;
+      bottom: 2vh;
+      left: 14vw;
+      right: 22vw;
+      z-index: 8;
+      padding: calc(var(--vu) * 7) calc(var(--vu) * 18);
+      background: linear-gradient(90deg, var(--leather-mid), var(--leather-raw));
+      border-top: calc(var(--vu) * 2) solid var(--brass-1);
+      border-radius: calc(var(--vu) * 3);
+      overflow: hidden;
+    }
+    .ticker-bar.is-scrolling {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--vu) * 14), #000 calc(100% - var(--vu) * 14), transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--vu) * 14), #000 calc(100% - var(--vu) * 14), transparent 100%);
+    }
+    .ticker-text {
+      display: inline-block;
+      white-space: nowrap;
+      font-family: 'Courier Prime', monospace;
+      font-weight: 700;
+      font-size: calc(var(--vu) * 9);
+      letter-spacing: 0.05em;
+      color: var(--gold-bling);
+    }
+    .ticker-text.is-scrolling {
+      padding-left: 100%;
+      animation: tickerMarquee 18s linear infinite;
+    }
+    @keyframes tickerMarquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="shake-root">
+
+    <div class="bear-position">
+      <div class="bear-wrap" id="bearWrap">
+        <img class="bear-ghost bear-ghost-red" id="ghostRed" src="assets/images/bear_head_lowpoly.png" alt="">
+        <img class="bear-ghost bear-ghost-cyan" id="ghostCyan" src="assets/images/bear_head_lowpoly.png" alt="">
+        <img
+          id="bearHead"
+          class="bear-head"
+          src="assets/images/bear_head_lowpoly.png"
+          alt="DaN Low-Poly Baer"
+          onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';"
+        >
+        <div class="bear-placeholder" id="bearPlaceholder">
+          <span>BÄR-BILD FEHLT<code>assets/images/bear_head_lowpoly.png</code></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="event-widgets-stack">
+      <div class="widget-card cassette-panel" id="cardFollows">
+        <span class="widget-label">Follower</span>
+        <span class="widget-value" id="widgetFollows">0</span>
+      </div>
+      <div class="widget-card cassette-panel" id="cardSubs">
+        <span class="widget-label">Abos</span>
+        <span class="widget-value" id="widgetSubs">0</span>
+      </div>
+      <div class="widget-card cassette-panel" id="cardBits">
+        <span class="widget-label">Spenden (Bits)</span>
+        <span class="widget-value" id="widgetBits">0</span>
+      </div>
+    </div>
+
+    <div class="chat-position">
+      <div class="chat-card cassette-panel">
+        <div class="chat-header">Chat Vibes</div>
+        <div class="chat-list" id="chatList"></div>
+      </div>
+    </div>
+
+    <div class="wanted-position">
+      <div class="wanted-card cassette-panel" id="wantedContainer">
+        <div class="wanted-title">Hype Level</div>
+        <div class="wanted-stars" id="wantedStars">
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+          <span class="wanted-star">★</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticker-bar" id="tickerBar">
+      <span class="ticker-text" id="tickerText"></span>
+    </div>
+
+    <div class="hype-toast" id="hypeToast">
+      <span class="hype-toast-text">HYPE MAXED!</span>
+    </div>
+
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const OVERLAY_CHANNEL = 'dangsxr1000';
+
+    // =====================================================================
+    // Baer: Idle-Animation 1:1 aus start.html uebernommen (Sway/Glitch/
+    // "Blickkontakt"-Zyklus, reine Math.sin()-Formeln aus einer einzigen
+    // requestAnimationFrame-Schleife), erweitert um eine neue Reaktions-
+    // schicht (siehe unten) - da es nur ein Baer-Bild gibt (kein zweites
+    // "Action"-Bild wie in avatar.html), wird bei Events der bestehende
+    // Augen-Glow/"Blickkontakt"-Mechanismus verstaerkt statt ein Bild-
+    // Crossfade auszuloesen.
+    // =====================================================================
+    const pageStart = performance.now();
+    const bearWrap = document.getElementById('bearWrap');
+    const bearHead = document.getElementById('bearHead');
+    const ghostRed = document.getElementById('ghostRed');
+    const ghostCyan = document.getElementById('ghostCyan');
+
+    const BEAR_REACTION_DURATION_MS = 3500;
+    const BEAR_PULSE_COOLDOWN_MS = 350;
+    let bearReactionUntil = 0;
+    let lastBearPulseAt = 0;
+    let reactionIntensity = 0;
+
+    // Wird bei jeder Chat-Nachricht, jedem Twitch-Event und (Bonus-Pfad) bei
+    // Mikro-Pegel-Ueberschreitung aufgerufen. Erneuter Aufruf waehrend der
+    // Anzeigedauer verlaengert die Deadline einfach weiter nach hinten -
+    // gleiches "Verlaengern-waehrend-aktiv"-Verhalten wie triggerAvatarReaction()
+    // in avatar.html/overlay.html.
+    function triggerBearReaction() {
+      const now = performance.now();
+      bearReactionUntil = now + BEAR_REACTION_DURATION_MS;
+      if (now - lastBearPulseAt >= BEAR_PULSE_COOLDOWN_MS) {
+        lastBearPulseAt = now;
+      }
+    }
+
+    function animFrame(nowMs) {
+      const localTime = (nowMs - pageStart) / 1000;
+      const nowPerf = performance.now();
+
+      // ---- Glitch-Zyklus (alle 7s, ~180ms) - unveraendert zeitbasiert ----
+      const cyclePos = localTime % 7;
+      const glitching = cyclePos < 0.18;
+      const gT = glitching ? cyclePos / 0.18 : 0;
+      const jitter = glitching ? Math.sin(localTime * 220) * 6 * (1 - gT) : 0;
+
+      // ---- Ambientes Augen-Gluehen (kontinuierlich) ----
+      const glow = 0.55 + 0.45 * Math.sin(localTime * 1.6);
+      const glowSize = 26 + glow * 30;
+      const glowAlpha = 0.35 + glow * 0.45;
+
+      // ---- "Blickkontakt"-Moment: natuerlicher 8s-Zyklus, per Reaktions-
+      //      schicht zusaetzlich von aussen anhebbar (Max aus beiden) ----
+      const lockCycle = localTime % 8;
+      const naturalLocking = lockCycle < 1.4;
+      const naturalLockT = naturalLocking
+        ? (lockCycle < 0.4 ? lockCycle / 0.4 : (lockCycle < 1.0 ? 1 : (1.4 - lockCycle) / 0.4))
+        : 0;
+      reactionIntensity += ((nowPerf < bearReactionUntil ? 1 : 0) - reactionIntensity) * 0.08;
+      const lockT = Math.max(naturalLockT, reactionIntensity);
+      const isLocking = lockT > 0.001;
+      const lockGlowSize = glowSize + lockT * 55;
+      const lockGlowAlpha = Math.min(1, glowAlpha + lockT * 0.6);
+      const breathe = 1 + Math.sin(localTime * 0.5) * 0.015;
+
+      // ---- Idle-Schaukeln + gelegentlicher Seitenblick ----
+      const swayXBase = Math.sin(localTime * 0.35) * 10;
+      const swayYBase = Math.sin(localTime * 0.5 + 1.2) * 6;
+      const rotBase = Math.sin(localTime * 0.35) * 2.2;
+      const swayX = isLocking ? swayXBase * (1 - lockT) : swayXBase;
+      const swayY = isLocking ? swayYBase * (1 - lockT) : swayYBase;
+      const rot = isLocking ? rotBase * (1 - lockT) : rotBase;
+      const lookCycle = localTime % 9;
+      const look = lookCycle > 6 ? Math.sin((lookCycle - 6) / 3 * Math.PI) * 8 : 0;
+      const lockScale = 1 + lockT * 0.18;
+
+      bearWrap.style.transform =
+        'translate(calc(var(--vu) * ' + (swayX + look).toFixed(2) + '), ' +
+        'calc(var(--vu) * ' + swayY.toFixed(2) + ')) ' +
+        'scale(' + (breathe * lockScale).toFixed(4) + ') rotate(' + rot.toFixed(2) + 'deg)';
+
+      if (glitching) {
+        ghostRed.style.display = 'block';
+        ghostRed.style.transform = 'translate(calc(var(--vu) * ' + jitter.toFixed(2) + '), 0)';
+        ghostCyan.style.display = 'block';
+        ghostCyan.style.transform = 'translate(calc(var(--vu) * ' + (-jitter).toFixed(2) + '), 0)';
+        bearHead.style.transform = 'translate(calc(var(--vu) * ' + (jitter * 0.4).toFixed(2) + '), 0)';
+      } else {
+        ghostRed.style.display = 'none';
+        ghostCyan.style.display = 'none';
+        bearHead.style.transform = 'none';
+      }
+      // Warmer Gold/Amber-Glow statt start.htmls Rot - passend zum
+      // "Gold-Bling"-Akzent dieser Szene.
+      bearHead.style.filter =
+        'drop-shadow(0 0 calc(var(--vu) * ' + lockGlowSize.toFixed(1) + ') rgba(255,180,70,' + lockGlowAlpha.toFixed(3) + ')) ' +
+        'drop-shadow(0 0 calc(var(--vu) * ' + (lockGlowSize * 0.4).toFixed(1) + ') rgba(255,180,70,' + (lockGlowAlpha * 0.6).toFixed(3) + '))';
+
+      requestAnimationFrame(animFrame);
+    }
+    requestAnimationFrame(animFrame);
+
+    // =====================================================================
+    // Mikro-Reaktivitaet (kostenloser Bonus-Pfad, 1:1 aus overlay.html
+    // uebernommen) - in der Streamlabs-Mobile-Android-WebView bestaetigt
+    // blockiert (getUserMedia() -> NotAllowedError, kein Berechtigungs-
+    // dialog). Chat-/Event-Reaktivitaet (siehe unten) bleibt davon
+    // unabhaengig voll funktionsfaehig.
+    // =====================================================================
+    const MIC_SPEAK_THRESHOLD = 0.08;
+
+    function startMicVisualLoop(getLevel) {
+      function step() {
+        const level = getLevel();
+        if (level > MIC_SPEAK_THRESHOLD) triggerBearReaction();
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function startMicTestMode() {
+      let t = 0;
+      startMicVisualLoop(() => {
+        t += 0.05;
+        return Math.max(0, Math.sin(t) * 0.5 + 0.5) * (0.6 + Math.random() * 0.4);
+      });
+    }
+
+    async function tryStartMic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = micCtx.createMediaStreamSource(stream);
+        const analyser = micCtx.createAnalyser();
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        // Bewusst NICHT mit micCtx.destination verbunden - sonst waere das
+        // eigene Mikrofon im Stream als Echo/Feedback zu hoeren.
+        source.connect(analyser);
+        startMicVisualLoop(() => {
+          analyser.getByteTimeDomainData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += Math.abs(dataArray[i] - 128);
+          return Math.min(1, (sum / dataArray.length) / 40);
+        });
+      } catch (err) {
+        console.log('[Baer] Mikrofon-Bonus nicht verfuegbar (' + (err.name || 'Fehler') + ') - Chat-/Event-Reaktion laeuft normal weiter.');
+      }
+    }
+
+    if (new URLSearchParams(location.search).get('test') === 'speak') startMicTestMode();
+    else tryStartMic();
+
+    // =====================================================================
+    // Wanted-/Hype-Level: woertliche Wiederverwendung der localStorage-
+    // Logik aus goal.html/overlay.html (identischer Key, damit der
+    // Fortschritt szenenuebergreifend konsistent bleibt).
+    // =====================================================================
+    const WANTED_STARS_MAX = 5;
+    const WANTED_POINTS_PER_SUB = 1;
+    const WANTED_POINTS_PER_100_BITS = 1;
+    const WANTED_STORAGE_KEY = 'dangsxr_wanted_points';
+
+    function getWantedPoints() {
+      try { return parseFloat(localStorage.getItem(WANTED_STORAGE_KEY) || '0') || 0; }
+      catch (e) { return 0; }
+    }
+    function setWantedPoints(points) {
+      try { localStorage.setItem(WANTED_STORAGE_KEY, String(points)); }
+      catch (e) { console.warn('[Wanted] localStorage nicht beschreibbar:', e.message); }
+    }
+    function renderWantedStars(stars) {
+      document.querySelectorAll('.wanted-star').forEach((el, idx) => el.classList.toggle('filled', idx < stars));
+    }
+    function loadWantedState() {
+      renderWantedStars(Math.min(WANTED_STARS_MAX, Math.floor(getWantedPoints())));
+    }
+
+    let hypeToastTimer = null;
+    function showHypeMaxedToast() {
+      const toast = document.getElementById('hypeToast');
+      toast.classList.add('show');
+      triggerBearReaction();
+      clearTimeout(hypeToastTimer);
+      hypeToastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function addWantedProgress(type, amount) {
+      let delta = 0;
+      if (type === 'sub') delta = WANTED_POINTS_PER_SUB;
+      else if (type === 'bits') delta = (Number(amount) || 0) / 100 * WANTED_POINTS_PER_100_BITS;
+      if (delta <= 0) return;
+
+      let points = getWantedPoints() + delta;
+      const triggered = points >= WANTED_STARS_MAX;
+      if (triggered) points = 0;
+
+      setWantedPoints(points);
+      renderWantedStars(Math.floor(points));
+      // Statt des vollen #party-popup/SpraySystem-Stacks (goal.html/
+      // overlay.html) - leichtes Toast, passt besser zum ruhigeren Vintage-
+      // Look und ist naeher am Layout-Wunsch fuer diese Szene.
+      if (triggered) showHypeMaxedToast();
+    }
+
+    // =====================================================================
+    // Event-Widgets ("Kassetten-Inlay" Follower/Abos/Spenden) - neue,
+    // rein clientseitige Session-Zaehler, kein Persistieren noetig (analog
+    // zu overlay.htmls sessionWins/sessionLosses).
+    // =====================================================================
+    let sessionFollows = 0, sessionSubs = 0, sessionBits = 0;
+
+    function renderEventWidgets() {
+      document.getElementById('widgetFollows').innerText = sessionFollows;
+      document.getElementById('widgetSubs').innerText = sessionSubs;
+      document.getElementById('widgetBits').innerText = sessionBits;
+    }
+    function flashWidget(cardId) {
+      const el = document.getElementById(cardId);
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+    }
+
+    // =====================================================================
+    // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
+    // aus overlay.html uebernommen) - "Spenden"-Widget mappt bewusst auf
+    // Bits/Cheers, da im gesamten Projekt keine echte Spenden-/Tip-
+    // Plattform-Anbindung existiert (kein Ko-fi/PayPal/Streamlabs-Tip-
+    // Webhook). channel.raid hat in dieser Szene bewusst kein eigenes
+    // Widget (Layout-Wunsch nannte nur Follower/Subs/Spenden).
+    // =====================================================================
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let twitchSocket = null;
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function formatErrorDetail(err) {
+      if (!err) return 'unbekannter Fehler';
+      if (typeof err === 'string') return err;
+      if (err.message) return err.message;
+      try { return JSON.stringify(err); } catch (e) { return String(err); }
+    }
+
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', formatErrorDetail(e));
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+
+      if (type === 'channel.follow') {
+        sessionFollows++;
+        renderEventWidgets();
+        flashWidget('cardFollows');
+        triggerBearReaction();
+        return;
+      }
+      if (type === 'channel.subscribe' || type === 'channel.subscription.message') {
+        sessionSubs++;
+        renderEventWidgets();
+        flashWidget('cardSubs');
+        addWantedProgress('sub');
+        triggerBearReaction();
+        return;
+      }
+      if (type === 'channel.cheer') {
+        sessionBits += (event.bits || 0);
+        renderEventWidgets();
+        flashWidget('cardBits');
+        addWantedProgress('bits', event.bits || 0);
+        triggerBearReaction();
+        return;
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          const sessionId = data.payload.session.id;
+          twitchSocket = ws;
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(sessionId);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|react|hype|speak) ----------
+    function runTestMode() {
+      const testParam = new URLSearchParams(location.search).get('test');
+      if (!testParam) return;
+      if (testParam === 'react') { triggerBearReaction(); return; }
+      if (testParam === 'hype') { showHypeMaxedToast(); return; }
+      const typeMap = {
+        follow: 'channel.follow',
+        sub: 'channel.subscribe',
+        resub: 'channel.subscription.message',
+        bits: 'channel.cheer',
+        cheer: 'channel.cheer'
+      };
+      const type = typeMap[testParam.toLowerCase()];
+      if (!type) return;
+      const fakeEvent = type === 'channel.cheer' ? { bits: 100 } : {};
+      handleTwitchNotification({ subscription: { type }, event: fakeEvent });
+    }
+
+    // =====================================================================
+    // Chat ("CHAT VIBES") - vereinfachte Slide/Fade-Liste statt der Fall-
+    // physik aus chat.html/overlay.html (passt tonal besser zum ruhigeren
+    // Vintage-Look, spart Komplexitaet). Emote-Rendering/XSS-Escaping 1:1
+    // aus overlay.html uebernommen.
+    // =====================================================================
+    const MAX_VISIBLE_MESSAGES = 6;
+    const AUTO_HIDE_MS = 15000;
+    const chatList = document.getElementById('chatList');
+    const chatMsgs = [];
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderMessageHtml(message, emotesTag) {
+      if (!emotesTag || Object.keys(emotesTag).length === 0) return escapeHtml(message);
+      const ranges = [];
+      for (const id in emotesTag) {
+        emotesTag[id].forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          ranges.push({ id, start, end });
+        });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+      let html = '';
+      let cursor = 0;
+      ranges.forEach(({ id, start, end }) => {
+        if (start < cursor) return;
+        if (start > cursor) html += escapeHtml(message.slice(cursor, start));
+        const code = message.slice(start, end + 1);
+        const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        html += `<img class="chat-emote" src="${src}" alt="${escapeHtml(code)}" title="${escapeHtml(code)}" draggable="false">`;
+        cursor = end + 1;
+      });
+      if (cursor < message.length) html += escapeHtml(message.slice(cursor));
+      return html;
+    }
+
+    function removeChatMsg(msgDiv) {
+      const idx = chatMsgs.indexOf(msgDiv);
+      if (idx !== -1) chatMsgs.splice(idx, 1);
+      if (msgDiv.parentNode === chatList) chatList.removeChild(msgDiv);
+    }
+
+    function addChatMessage(username, text, color, emotesTag) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-msg';
+      msgDiv.style.borderLeftColor = color || 'var(--brass-1)';
+      msgDiv.innerHTML = `<span class="chat-username" style="color:${color}">${username}:</span> <span class="chat-text">${renderMessageHtml(text, emotesTag)}</span>`;
+      chatList.appendChild(msgDiv);
+      chatMsgs.push(msgDiv);
+      requestAnimationFrame(() => msgDiv.classList.add('visible'));
+
+      while (chatMsgs.length > MAX_VISIBLE_MESSAGES) {
+        const oldest = chatMsgs[0];
+        oldest.classList.add('fade-out');
+        setTimeout(() => removeChatMsg(oldest), 400);
+      }
+      setTimeout(() => {
+        msgDiv.classList.add('fade-out');
+        setTimeout(() => removeChatMsg(msgDiv), 400);
+      }, AUTO_HIDE_MS);
+    }
+
+    try {
+      const twitchChat = new tmi.Client({
+        options: { debug: false },
+        connection: { secure: true, reconnect: true },
+        channels: [OVERLAY_CHANNEL]
+      });
+      twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
+      twitchChat.on('message', (channel, tags, message, self) => {
+        if (self) return;
+        const userColor = tags.color || '#ffd45e';
+        const displayName = tags['display-name'] || tags.username;
+        addChatMessage(displayName, message, userColor, tags.emotes);
+        triggerBearReaction();
+      });
+    } catch (e) {
+      console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Baer-Reaktion darueber deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
+    }
+
+    // =====================================================================
+    // Musik-/Status-Ticker: woertliche Wiederverwendung von overlay.htmls
+    // bedingter Marquee-Technik (nur scrollen, wenn der Text tatsaechlich
+    // breiter als die Leiste ist), erweitert um eine rotierende Status-
+    // Meldung (gleiches 10s-Rotationsprinzip wie start.htmls
+    // STATUS_MESSAGES) - da sich der Inhalt periodisch aendert, muss die
+    // Marquee-Neumessung bei jedem String-Rebuild erneut laufen, nicht nur
+    // einmal beim Laden/Resize.
+    // =====================================================================
+    const params = new URLSearchParams(location.search);
+    const TRACK_PARAM = params.get('track') || 'BOOMBOX BEATS';
+    const ARTIST_PARAM = params.get('artist') || 'OLD SCHOOL SESSION';
+    const TICKER_STATUS_MESSAGES = [
+      'LIVE JETZT',
+      'CHAT IST OFFEN',
+      'HYPE LEVEL CHECKEN',
+      'FOLLOW FÜR MEHR',
+      'ZOCKEN MIT DaN'
+    ];
+    let lastTickerStatusIdx = -1;
+    const tickerTextEl = document.getElementById('tickerText');
+    const tickerBarEl = document.getElementById('tickerBar');
+
+    function setupTickerMarquee() {
+      const isOverflowing = tickerTextEl.scrollWidth > tickerBarEl.clientWidth;
+      tickerTextEl.classList.toggle('is-scrolling', isOverflowing);
+      tickerBarEl.classList.toggle('is-scrolling', isOverflowing);
+    }
+
+    function refreshTicker() {
+      const bucket = 10;
+      const idx = Math.floor(performance.now() / 1000 / bucket) % TICKER_STATUS_MESSAGES.length;
+      if (idx === lastTickerStatusIdx) return;
+      lastTickerStatusIdx = idx;
+      tickerTextEl.textContent = `🎧 NOW SPINNING: ${TRACK_PARAM} — ${ARTIST_PARAM}  ◆  ${TICKER_STATUS_MESSAGES[idx]}`;
+      setupTickerMarquee();
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(refreshTicker);
+    } else {
+      refreshTicker();
+    }
+    window.addEventListener('resize', setupTickerMarquee);
+    setInterval(refreshTicker, 1000);
+
+    // ---------- Bootstrap ----------
+    loadWantedState();
+    connectTwitchEventSub();
+    runTestMode();
+  </script>
+
+</body>
+</html>
