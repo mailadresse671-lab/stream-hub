@@ -63,10 +63,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Anfrage direkt vom Vercel-Cloudserver an die Tracker-API (wird nicht geblockt)
+    // Anfrage direkt vom Vercel-Cloudserver an die Tracker-API. Tracker.gg blockt
+    // Anfragen von Cloud-/Datacenter-IPs (wie Vercels) per Cloudflare mit einer
+    // eigenen "You've Been Blocked"-Seite (HTTP 403) - vollstaendigere,
+    // browser-aehnliche Header (Accept/Referer/Origin statt nur User-Agent)
+    // erhoehen die Chance, nicht als Bot erkannt zu werden. Greift diese Sperre
+    // auf reiner IP-Ebene, hilft das moeglicherweise trotzdem nicht dauerhaft.
     const response = await fetch(`https://api.tracker.gg/api/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Referer': 'https://rocketleague.tracker.gg/',
+        'Origin': 'https://rocketleague.tracker.gg'
       }
     });
 
