@@ -1,6 +1,7 @@
 const PLAYER_NAME = "DaNgsxR";
 const PLATFORM = "epic";
 const CACHE_TTL_MS = 30 * 1000;
+const TRACKER_API_KEY = process.env.TRACKER_API_KEY;
 
 // Modul-weiter In-Memory-Cache: bleibt zwischen Aufrufen erhalten, solange
 // Vercel dieselbe (warme) Function-Instanz wiederverwendet.
@@ -62,20 +63,28 @@ export default async function handler(req, res) {
     return res.status(200).json({ ...cache.data, cached: true, stale: false });
   }
 
+  if (!TRACKER_API_KEY) {
+    if (cache.data) {
+      return res.status(200).json({ ...cache.data, cached: true, stale: true });
+    }
+    return res.status(200).json({
+      success: false,
+      message: 'TRACKER_API_KEY fehlt als Vercel-Umgebungsvariable.'
+    });
+  }
+
   try {
-    // Anfrage direkt vom Vercel-Cloudserver an die Tracker-API. Tracker.gg blockt
-    // Anfragen von Cloud-/Datacenter-IPs (wie Vercels) per Cloudflare mit einer
-    // eigenen "You've Been Blocked"-Seite (HTTP 403) - vollstaendigere,
-    // browser-aehnliche Header (Accept/Referer/Origin statt nur User-Agent)
-    // erhoehen die Chance, nicht als Bot erkannt zu werden. Greift diese Sperre
-    // auf reiner IP-Ebene, hilft das moeglicherweise trotzdem nicht dauerhaft.
-    const response = await fetch(`https://api.tracker.gg/api/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`, {
+    // Offizielle Tracker-Network-API statt der frueheren privaten/
+    // undokumentierten api.tracker.gg-Adresse - die wurde von Tracker.gg
+    // per Cloudflare-Bot-Schutz pauschal fuer Cloud-/Datacenter-IPs wie
+    // Vercels gesperrt (HTTP 403 "You've Been Blocked"), unabhaengig von
+    // Request-Headern. Der offizielle Endpoint auf public-api.tracker.gg
+    // ist per API-Key authentifiziert und dadurch nicht von dieser Sperre
+    // betroffen.
+    const response = await fetch(`https://public-api.tracker.gg/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Referer': 'https://rocketleague.tracker.gg/',
-        'Origin': 'https://rocketleague.tracker.gg'
+        'TRN-Api-Key': TRACKER_API_KEY,
+        'Accept': 'application/json'
       }
     });
 
@@ -83,11 +92,10 @@ export default async function handler(req, res) {
       if (cache.data) {
         return res.status(200).json({ ...cache.data, cached: true, stale: true });
       }
-      // Detaillierte Diagnose statt der frueheren generischen "Tracker
-      // laedt noch..."-Meldung, die nie erkennen liess, WARUM der Aufruf
-      // an tracker.gg fehlschlaegt (z.B. 403 = blockiert/Rate-Limit,
-      // 404 = Spieler/Plattform nicht gefunden, 5xx = tracker.gg-seitiges
-      // Problem) - der Body-Ausschnitt zeigt oft direkt die Ursache.
+      // Detaillierte Diagnose statt einer generischen Meldung - 401/403 =
+      // API-Key fehlt/ungueltig, 404 = Spieler/Plattform nicht gefunden,
+      // 5xx = tracker.gg-seitiges Problem. Der Body-Ausschnitt zeigt oft
+      // direkt die Ursache.
       const errorBody = await response.text().catch(() => '');
       return res.status(200).json({
         success: false,
