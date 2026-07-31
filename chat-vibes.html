@@ -43,8 +43,10 @@
     .chat-knob { width: calc(var(--vu) * 13); height: calc(var(--vu) * 13); border-radius: 50%; background: radial-gradient(circle, #2a2a2a 0%, #0d0d0d 70%); border: 1px solid rgba(217,184,114,.5); flex: none; }
     .chat-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 22); letter-spacing: 2px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; text-shadow: 0 1px 0 rgba(58,38,10,.7); }
     .chat-header-right { display: flex; align-items: center; gap: calc(var(--vu) * 6); }
-    .chat-header-right .dot { width: calc(var(--vu) * 6); height: calc(var(--vu) * 6); border-radius: 50%; background: var(--tan); box-shadow: 0 0 6px rgba(217,184,114,.7); }
-    .chat-header-right span { font-size: calc(var(--vu) * 12); letter-spacing: 1.5px; color: rgba(244,241,234,.55); }
+    .chat-header-right .dot { width: calc(var(--vu) * 6); height: calc(var(--vu) * 6); border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,.7); }
+    .chat-header-right .dot.connecting { background: rgba(244,241,234,.35); box-shadow: none; }
+    .chat-header-right .dot.error { background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .chat-header-right span { font-size: calc(var(--vu) * 12); letter-spacing: 1.5px; color: rgba(244,241,234,.55); white-space: nowrap; }
     .chat-list { position: relative; flex: 1 1 auto; overflow: hidden; padding: calc(var(--vu) * 10) calc(var(--vu) * 8); display: flex; flex-direction: column; gap: 2px; -webkit-mask-image: linear-gradient(180deg, transparent 0, black 26px, black calc(100% - 8px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, black 26px, black calc(100% - 8px), transparent 100%); }
     .chat-msg { padding: calc(var(--vu) * 11) calc(var(--vu) * 10); font-size: calc(var(--vu) * 15); line-height: 1.3; word-break: break-word; opacity: 0; transform: translateY(6px); transition: opacity .3s ease, transform .3s ease; }
     .chat-msg.visible { opacity: 1; transform: translateY(0); }
@@ -69,8 +71,8 @@
           <div class="chat-knob"></div>
         </div>
         <div class="chat-header-right">
-          <div class="dot"></div>
-          <span id="chatViewerCount">0</span>
+          <div class="dot connecting" id="chatStatusDot"></div>
+          <span id="chatStatusText">Verbinde…</span>
         </div>
       </div>
       <div class="chat-list" id="chatList">
@@ -89,7 +91,6 @@
     const chatList = document.getElementById('chatList');
     const chatEmpty = document.getElementById('chatEmpty');
     const chatMsgs = [];
-    let viewerCountSim = 0;
 
     function escapeHtml(str) {
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -134,17 +135,40 @@
       while (chatMsgs.length > MAX_VISIBLE_MESSAGES) removeChatMsg(chatMsgs[0]);
       setTimeout(() => removeChatMsg(msgDiv), AUTO_HIDE_MS);
 
-      viewerCountSim = Math.min(999, viewerCountSim + 1);
-      document.getElementById('chatViewerCount').textContent = viewerCountSim;
+    }
+
+    // Sichtbarer Verbindungsstatus statt stillem console.warn - Nutzer
+    // meldete, die Karte zeige seinen echten Chat nicht an, ohne dass aus
+    // einem leeren "WARTE AUF NACHRICHTEN"-Zustand ersichtlich war, ob die
+    // tmi.js-Verbindung ueberhaupt zustande kam. Ersetzt die vorherige
+    // simulierte "Zuschauerzahl" (die ohnehin nur die Anzahl gerenderter
+    // Chat-Nachrichten war, keine echte Twitch-Viewer-Zahl).
+    function setChatStatus(status) {
+      const dot = document.getElementById('chatStatusDot');
+      const text = document.getElementById('chatStatusText');
+      const labels = { connecting: 'Verbinde…', connected: 'Verbunden', error: 'Fehler' };
+      dot.className = 'dot ' + status;
+      text.textContent = labels[status] || status;
     }
 
     try {
+      if (typeof tmi === 'undefined') {
+        throw new Error('tmi.js wurde nicht geladen (CDN nicht erreichbar?)');
+      }
       const twitchChat = new tmi.Client({
         options: { debug: false },
         connection: { secure: true, reconnect: true },
         channels: [OVERLAY_CHANNEL]
       });
-      twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
+      twitchChat.on('connected', () => setChatStatus('connected'));
+      twitchChat.on('disconnected', (reason) => {
+        setChatStatus('error');
+        console.warn('[Chat] Verbindung getrennt:', reason);
+      });
+      twitchChat.connect().catch(err => {
+        setChatStatus('error');
+        console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err);
+      });
       twitchChat.on('message', (channel, tags, message, self) => {
         if (self) return;
         const userColor = tags.color || '#f2c94c';
@@ -152,6 +176,7 @@
         addChatMessage(displayName, message, userColor, tags.emotes);
       });
     } catch (e) {
+      setChatStatus('error');
       console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed deaktiviert:', e.message);
     }
   </script>
