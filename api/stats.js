@@ -80,8 +80,12 @@ export default async function handler(req, res) {
     // Vercels gesperrt (HTTP 403 "You've Been Blocked"), unabhaengig von
     // Request-Headern. Der offizielle Endpoint auf public-api.tracker.gg
     // ist per API-Key authentifiziert und dadurch nicht von dieser Sperre
-    // betroffen.
-    const response = await fetch(`https://public-api.tracker.gg/v2/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`, {
+    // betroffen. URL-Pfad exakt nach dem Code-Beispiel aus der offiziellen
+    // Tracker-Network-Dokumentation (tracker.gg/developers/docs/data-ingest):
+    // /api/v1/{titleSlug}/standard/profile/{platform}/{playerId} - der
+    // vorherige Versuch ohne "/api/"-Praefix und mit "/v2/" statt "/api/v1/"
+    // fuehrte zu HTTP 401 "Invalid authentication credentials".
+    const response = await fetch(`https://public-api.tracker.gg/api/v1/rocket-league/standard/profile/${PLATFORM}/${encodeURIComponent(PLAYER_NAME)}`, {
       headers: {
         'TRN-Api-Key': TRACKER_API_KEY,
         'Accept': 'application/json'
