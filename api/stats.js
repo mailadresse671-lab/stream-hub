@@ -74,7 +74,18 @@ export default async function handler(req, res) {
       if (cache.data) {
         return res.status(200).json({ ...cache.data, cached: true, stale: true });
       }
-      return res.status(200).json({ success: false, message: 'Tracker lädt noch...' });
+      // Detaillierte Diagnose statt der frueheren generischen "Tracker
+      // laedt noch..."-Meldung, die nie erkennen liess, WARUM der Aufruf
+      // an tracker.gg fehlschlaegt (z.B. 403 = blockiert/Rate-Limit,
+      // 404 = Spieler/Plattform nicht gefunden, 5xx = tracker.gg-seitiges
+      // Problem) - der Body-Ausschnitt zeigt oft direkt die Ursache.
+      const errorBody = await response.text().catch(() => '');
+      return res.status(200).json({
+        success: false,
+        message: `Tracker.gg antwortete mit HTTP ${response.status} ${response.statusText}`,
+        trackerStatus: response.status,
+        trackerBodySnippet: errorBody.slice(0, 300)
+      });
     }
 
     const data = await response.json();
@@ -100,7 +111,12 @@ export default async function handler(req, res) {
     if (cache.data) {
       return res.status(200).json({ ...cache.data, cached: true, stale: true });
     }
-    return res.status(200).json({ success: false, message: 'Keine Stats gefunden' });
+    const foundSegmentTypes = Array.isArray(data?.data?.segments) ? data.data.segments.map(s => s.type) : [];
+    return res.status(200).json({
+      success: false,
+      message: 'Keine Stats gefunden (Antwort kam an, aber ohne "overview"-Segment)',
+      foundSegmentTypes
+    });
   } catch (err) {
     if (cache.data) {
       return res.status(200).json({ ...cache.data, cached: true, stale: true });
