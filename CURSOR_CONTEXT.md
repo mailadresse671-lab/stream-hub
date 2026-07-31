@@ -33,6 +33,7 @@
   | `TWITCH_REFRESH_TOKEN` | Einmalig per OAuth-Authorization-Code-Flow beschafft (Scopes: `moderator:read:followers`, `channel:read:subscriptions`, `bits:read`); Access-Token wird bei jedem Aufruf frisch daraus erzeugt |
   | ~~`STREAMLABS_SOCKET_TOKEN`~~ | **Entfernt** — Streamlabs-Socket-Anbindung wurde komplett durch native Twitch-EventSub ersetzt |
   | ~~`GOAL_API_SECRET`~~ / KV-Variablen | **Entfernt** — Wanted-Level lief kurz über Vercel KV, wurde bewusst wieder auf `localStorage` zurückgebaut |
+  | `TRACKER_API_KEY` | Offizieller Tracker-Network-API-Key (tracker.gg/developers) für `api/stats.js` — löste die zuvor blockierte private Tracker.gg-Adresse ab |
 
 ---
 
@@ -126,7 +127,7 @@ Holt zuvor per Refresh-Token einen frischen Access-Token (`getAccessToken()`) un
 
 Beide cachen 30–60s In-Memory (modulweite Variable, gilt nur pro warmer Vercel-Function-Instanz).
 
-**Bekanntes Problem bei `api/stats.js`**: Tracker.gg blockt Anfragen von der Vercel-Server-IP-Range aktiv mit einer eigenen "You've Been Blocked"-Seite (HTTP 403) — ein Cloudflare-artiger Bot-/Datacenter-Schutz, keine Rate-Limit-Verzögerung. Ein Fix-Versuch mit vollständigeren Browser-Headern (`Accept`, `Referer`, `Origin`) ist deployed, aber **nicht garantiert wirksam**, falls die Sperre rein IP-basiert ist. Siehe Abschnitt 10.
+**`api/stats.js` nutzt jetzt die offizielle Tracker-Network-API** (`public-api.tracker.gg`, Header `TRN-Api-Key`, Env-Var `TRACKER_API_KEY`) statt der früheren privaten/undokumentierten `api.tracker.gg`-Adresse — letztere wurde von Tracker.gg per Cloudflare-Bot-Schutz pauschal für Cloud-/Datacenter-IPs wie Vercels gesperrt (HTTP 403 "You've Been Blocked", auch mit vollständigen Browser-Headern nicht umgehbar). Siehe Abschnitt 10 für Details und den noch offenen Verifikations-Punkt.
 
 ---
 
@@ -194,7 +195,7 @@ Kein CI, keine automatisierten Tests im Repo selbst. Jede Änderung wird währen
 - **Neues Widget `rl-daily.html`** — Tagesbilanz Siege/Niederlagen mit Mitternachts-Reset, gerade fertiggestellt.
 
 ### Offen / bekannte Baustellen
-1. **`api/stats.js` / Rocket-League-Stats-Offline-Status**: Tracker.gg blockt Vercel-IPs (HTTP 403, Bot-Schutz). Header-Fix deployed, aber Wirksamkeit ungewiss. **Nächster Schritt bei Fortbestand**: offizielle Tracker.gg-Developer-API-Registrierung (tracker.gg/developers, API-Key-basiert) als einzig verlässlicher Weg, oder das bereits vorhandene Offline-Fallback-Panel als dauerhaft akzeptierter Zustand.
+1. **`api/stats.js` / Rocket-League-Stats-Offline-Status — gelöst, aber noch nicht live verifiziert**: Header-Fix gegen die Tracker.gg-Bot-Sperre bestätigt wirkungslos, daraufhin auf die offizielle Tracker-Network-API umgestellt (`TRACKER_API_KEY`, siehe Abschnitt 1/7). Die Segment-Parsing-Logik (`overview`/`playlist`) wurde unverändert übernommen, in der Annahme, dass die offizielle API dasselbe Datenformat wie die private Adresse liefert (laut Tracker-Network-Doku für alle Spiele identisch) — **aus der Sandbox nicht gegen den echten Key testbar**. Falls `/api/stats` nach diesem Deploy weiterhin `success:false` mit `foundSegmentTypes` statt echter Werte liefert, muss die Segment-Struktur der offiziellen Antwort manuell geprüft und `extractRank()`/die `overview`-Feldnamen ggf. angepasst werden.
 2. **`in-game.html`s RL-Stats-Karte nutzt noch Session-Logik**, nicht die neue `rl-daily.html`-Tageslogik — falls der Nutzer die Tagesbilanz auch im Bündel statt nur als Einzel-Widget will, muss `in-game.html` auf dieselbe `localStorage`-Baseline-Logik umgestellt werden.
 3. **Raid-Handling**: `channel.raid`-Subscription existiert in `api/twitch-eventsub.js` und wird in `goal.html`/`overlay.html`/`in-game.html` als Alert behandelt (Sound + Party-Popup) — aber es gibt **keine dedizierte Raid-Anzeige/Kartenslot** wie bei Follower/Sub/Cheer (`event-cards.html` hat keine "Letzter Raid"-Karte). Sollte geprüft/ergänzt werden, falls Raids ein relevanter Anwendungsfall für DaN sind.
 4. **`index.html`/`branding.html`** noch im alten Glassmorphism-Look, nicht auf "Urban Blackout" migriert (bewusst zurückgestellt).
