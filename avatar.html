@@ -6,16 +6,44 @@
   <title>Stream Avatar</title>
   <!-- Modul 3: eigenes Bild statt CSS-Maske (assets/images/avatar_idle.png /
        avatar_action.png, vom Nutzer bereitgestellt, echte RGBA-Transparenz).
-       Zwei Bild-Zustaende statt nur einem: IDLE (Dauerzustand, leichtes
-       CSS-Wippen) wechselt bei jedem Event (Chat-Nachricht) fuer ca. 3.5s
-       auf ACTION (Bild-Swap + Neon-Rot-Glow-Puls), dann fliessend
-       (Opacity-Crossfade) zurueck auf IDLE. Kein Mikro noetig, siehe
-       Modul-3-Historie in CLAUDE.md. -->
+       Zwei Bild-Zustaende statt nur einem: IDLE (Dauerzustand, permanentes
+       Wippen) wechselt bei jedem Event fuer ca. 3.5s auf ACTION (Bild-Swap +
+       Punch-Bounce), dann fliessend (Opacity-Crossfade) zurueck auf IDLE.
+
+       Runde 2 (aktuell): Nutzer wollte den Baeren als EIGENE, frei
+       positionierbare Streamlabs-Browser-Quelle nutzen koennen, statt fest
+       im CSS von in-game.html/overlay.html einprogrammiert zu sein - nach
+       drei Runden Kollisionen mit unterschiedlichen Rocket-League-Bildschirmen
+       (Lobby-Menue, Ingame-HUD, Nachspiel-Ergebnisliste) hat Rocket League
+       schlicht keinen Bereich, der auf JEDEM Bildschirm frei bleibt, und
+       Streamlabs' eigenes Transform-Panel (Drag/Resize) ist der zuverlaessigere
+       Ort dafuer als geratene CSS-Koordinaten. Diese Seite ist daher jetzt DIE
+       "voll funktionsfaehige" Baer-Quelle: zwei Aenderungen dafuer nachgezogen:
+       (a) Glow-Optik von einer separaten, nur waehrend Events sichtbaren
+       Kreis-Glow-Div (`--blood: #ff1a1a`) auf denselben permanenten, der
+       Silhouette folgenden Drop-Shadow-Glow umgestellt, den `in-game.html`
+       seit dessen Kasten-Entfernung nutzt (`--blood: #ff2340`, 3-stufiger
+       `filter: drop-shadow()` direkt auf dem PNG) - visuelle Parität mit dem
+       vom Nutzer bereits bestaetigten Look. (b) Reagierte bisher NUR auf
+       Chat-Nachrichten (kein EventSub hier, da als reine Chat-Reaktions-Seite
+       gedacht war) - jetzt zusaetzlich echte Twitch-EventSub-Anbindung
+       (Follow/Sub/Cheer), 1:1 dieselbe Verbindungs-/Reconnect-Logik wie
+       `overlay.html`/`in-game.html`, damit diese Seite bei Events genauso
+       reagiert wie zuvor nur innerhalb der grossen Bundle-Seiten.
+
+       Bewusst KEIN `--vu`-Fluid-Unit-System und KEIN fester px-Versatz mehr:
+       `.avatar-position` fuellt jetzt randlos die eigene Seite aus
+       (`inset: 0`), der Baer skaliert per `object-fit: contain` mit -
+       dadurch entscheidet AUSSCHLIESSLICH Streamlabs' eigenes Transform-
+       Panel (W/H/Position der Quelle) ueber Endgroesse/Platzierung auf dem
+       Canvas, keine zusaetzliche/verwirrende Positionslogik im Code. Siehe
+       STREAMLABS_SETUP.md fuer den allgemeinen Unterschied zwischen
+       vollflaechigen Master-Szenen (dort weiterhin `--vu`) und einzeln
+       positionierten Widget-Quellen (dieses Prinzip). -->
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <style>
     :root {
-      --blood: #ff1a1a;
-      --blood-glow: rgba(255, 26, 26, 0.65);
+      --blood: #ff2340;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,31 +54,14 @@
       height: 100vh;
     }
 
+    /* Fuellt die eigene Seite randlos aus (statt einer festen Ecken-Position
+       mit fester Breite) - dadurch entscheidet AUSSCHLIESSLICH Streamlabs'
+       eigenes Transform-Panel (W/H/Position der Quelle) ueber Groesse und
+       Platzierung auf dem Canvas, keine doppelte/verwirrende Kontrolle
+       durch zusaetzliche CSS-Offsets hier im Code. */
     .avatar-position {
       position: fixed;
-      bottom: 20px;
-      left: 20px;
-      width: 210px;
-    }
-
-    /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
-       kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
-    .avatar-glow-bg {
-      position: absolute;
-      inset: -26px;
-      border-radius: 50%;
-      background: radial-gradient(circle, var(--blood-glow), transparent 70%);
-      opacity: 0;
-      transition: opacity 0.25s ease;
-      pointer-events: none;
-    }
-    .avatar-glow-bg.action {
-      opacity: 1;
-      animation: avatarGlowPulse 0.8s ease-in-out infinite;
-    }
-    @keyframes avatarGlowPulse {
-      0%, 100% { transform: scale(1); opacity: 0.75; }
-      50% { transform: scale(1.4); opacity: 1; }
+      inset: 0;
     }
 
     /* Aeussere Huelle traegt das dauerhafte Idle-Wippen (CSS-Animation) -
@@ -63,6 +74,9 @@
        >95% Sendezeit ohne Event lebendig wirkt statt nur simpel zu
        huepfen. */
     .avatar-bob {
+      position: relative;
+      width: 100%;
+      height: 100%;
       animation: avatarIdleBounce 3.6s ease-in-out infinite;
       transform-origin: 50% 100%;
     }
@@ -80,6 +94,8 @@
        + mehr Scale) fuer mehr "Hype"-Gefuehl bei Interaktionen. */
     .avatar-punch {
       position: relative;
+      width: 100%;
+      height: 100%;
       transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
       transform-origin: 50% 100%;
     }
@@ -88,14 +104,16 @@
     }
 
     .avatar-layer {
-      display: block;
+      position: absolute;
+      inset: 0;
       width: 100%;
-      height: auto;
-      filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.65));
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 5px rgba(255,35,64,.95)) drop-shadow(0 0 20px rgba(255,35,64,.65)) drop-shadow(0 0 46px rgba(255,35,64,.35));
       transition: opacity 0.4s ease;
     }
-    .avatar-layer-idle { position: relative; opacity: 1; }
-    .avatar-layer-action { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+    .avatar-layer-idle { opacity: 1; }
+    .avatar-layer-action { opacity: 0; pointer-events: none; }
     .avatar-punch.action .avatar-layer-idle { opacity: 0; }
     .avatar-punch.action .avatar-layer-action { opacity: 1; }
   </style>
@@ -103,7 +121,6 @@
 <body>
 
   <div class="avatar-position">
-    <div class="avatar-glow-bg" id="avatarGlow"></div>
     <div class="avatar-bob">
       <div class="avatar-punch" id="avatarPunch">
         <img class="avatar-layer avatar-layer-idle" src="assets/images/avatar_idle.png" alt="DaN Avatar">
@@ -113,13 +130,15 @@
   </div>
 
   <script>
-    // ?test=speak simuliert einen Reaktions-Puls ohne echtes Mikro/Chat -
-    // gleiches Prinzip wie goal.html's ?test=.
-    const TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const params = new URLSearchParams(location.search);
+
+    // ?test=speak simuliert einen Reaktions-Puls ohne echtes Mikro/Chat,
+    // ?test=follow|sub|resub|bits simuliert ein EventSub-Event - gleiches
+    // Prinzip wie in-game.html/goal.html's ?test=.
     const MIC_SPEAK_THRESHOLD = 0.08;
 
     const avatarPunch = document.getElementById('avatarPunch');
-    const avatarGlow = document.getElementById('avatarGlow');
 
     const ACTION_DURATION_MS = 3500;
     let actionResetTimer = null;
@@ -136,15 +155,13 @@
         setTimeout(() => avatarPunch.classList.remove('punch'), 280);
       }
 
-      // Action-Bild + Glow-Puls halten ca. 3.5s; jedes weitere Event
-      // waehrenddessen verlaengert die Anzeigedauer (Baer bleibt "hyped",
-      // solange staendig Events reinkommen), statt hart abzuschneiden.
+      // Action-Bild haelt ca. 3.5s; jedes weitere Event waehrenddessen
+      // verlaengert die Anzeigedauer (Baer bleibt "hyped", solange staendig
+      // Events reinkommen), statt hart abzuschneiden.
       avatarPunch.classList.add('action');
-      avatarGlow.classList.add('action');
       clearTimeout(actionResetTimer);
       actionResetTimer = setTimeout(() => {
         avatarPunch.classList.remove('action');
-        avatarGlow.classList.remove('action');
       }, ACTION_DURATION_MS);
     }
 
@@ -169,6 +186,87 @@
     } catch (e) {
       console.warn('[Avatar] tmi.js nicht verfuegbar, Chat-Reaktivitaet deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
     }
+
+    // =====================================================================
+    // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
+    // aus overlay.html/in-game.html uebernommen) - NEU in dieser Runde,
+    // damit die eigenstaendige Baer-Quelle genauso auf Follows/Subs/Bits
+    // reagiert wie der Baer innerhalb der Bundle-Seiten.
+    // =====================================================================
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[Avatar/EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[Avatar/EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[Avatar/EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[Avatar/EventSub] Fehler:', e.message || e);
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      if (type === 'channel.follow' || type === 'channel.subscribe' || type === 'channel.subscription.message' || type === 'channel.cheer' || type === 'channel.raid') {
+        triggerReaction();
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[Avatar/EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+    connectTwitchEventSub();
 
     // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
     // In der Streamlabs-Mobile-WebView bestaetigt blockiert - bleibt im
@@ -217,9 +315,19 @@
       }
     }
 
-    if (TEST_MODE) {
-      startMicTestMode();
-    } else {
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|speak) ----------
+    function runTestMode() {
+      const testParam = params.get('test');
+      if (!testParam) return false;
+      if (testParam === 'speak') { startMicTestMode(); return true; }
+      const typeMap = { follow: 'channel.follow', sub: 'channel.subscribe', resub: 'channel.subscription.message', bits: 'channel.cheer', cheer: 'channel.cheer' };
+      const type = typeMap[testParam.toLowerCase()];
+      if (!type) return false;
+      handleTwitchNotification({ subscription: { type }, event: {} });
+      return true;
+    }
+
+    if (!runTestMode()) {
       tryStartMic();
     }
   </script>

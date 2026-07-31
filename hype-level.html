@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hype Level</title>
+  <!-- Eigenstaendige Hype-Level-Quelle (5-Sterne, Key dangsxr_hypeLevel), aus
+       in-game.html herausgeloest (siehe rl-stats.html fuer den vollen
+       Kontext dieser Modularisierungs-Runde). localStorage-Key bewusst
+       weiterhin NICHT vereinheitlicht mit goal.htmls dangsxr_wanted_points
+       (fruehere Nutzer-Entscheidung, siehe CLAUDE.md). Klickbare Sterne +
+       Cross-Tab-Sync per storage-Event, plus eigene Twitch-EventSub-
+       Verbindung fuer echten Auto-Increment bei Sub/Cheer. Fuellt die eigene
+       Seite randlos aus - Streamlabs' Transform-Panel entscheidet ueber
+       Endgroesse/Position. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: 1px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
+
+    @keyframes hypePulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(255,35,64,.5), 0 0 22px rgba(255,35,64,.35); } 50% { box-shadow: 0 0 0 1px rgba(255,35,64,.95), 0 0 46px rgba(255,35,64,.8); } }
+
+    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+
+    .hype-card { position: relative; width: 100%; padding: calc(var(--vu) * 16) calc(var(--vu) * 18); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .hype-corner { position: absolute; width: calc(var(--vu) * 16); height: calc(var(--vu) * 16); pointer-events: none; }
+    .hype-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .hype-corner.tr { top: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .hype-corner.bl { bottom: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .hype-corner.br { bottom: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .hype-header { display: flex; align-items: baseline; justify-content: space-between; }
+    .hype-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 22); letter-spacing: 1.5px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .hype-subtitle { font-size: calc(var(--vu) * 10); letter-spacing: 2px; color: rgba(244,241,234,.4); }
+    .hype-stars { display: flex; align-items: center; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 10); }
+    .hype-star { cursor: pointer; line-height: 1; user-select: none; font-size: calc(var(--vu) * 40); }
+    .hype-star .empty-glyph { color: transparent; -webkit-text-stroke: 1.5px rgba(244,241,234,.25); }
+    .hype-star .filled-glyph { display: none; background-image: linear-gradient(180deg,#fff6d9 0%,#f2c94c 25%,#b8860b 50%,#f6df9e 75%,#6b4c0c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; text-shadow: 0 0 16px rgba(255,35,64,.6); }
+    .hype-star.filled .empty-glyph { display: none; }
+    .hype-star.filled .filled-glyph { display: inline; }
+    .hype-flavor { margin-top: calc(var(--vu) * 10); font-size: calc(var(--vu) * 13); letter-spacing: 1.5px; color: var(--tan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hype-max-border { position: absolute; inset: 0; border: 1px solid rgba(255,35,64,.9); pointer-events: none; display: none; }
+    .hype-max-border.show { display: block; animation: hypePulse 1s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+
+  <div class="widget-position">
+    <div class="hype-card">
+      <div class="hype-header">
+        <span class="hype-title">HYPE LEVEL</span>
+        <span class="hype-subtitle">WANTED-METER</span>
+      </div>
+      <div class="hype-stars" id="hypeStars"></div>
+      <div class="hype-flavor" id="hypeFlavor">CHAT IST ENTSPANNT</div>
+      <div class="hype-corner tl"></div><div class="hype-corner tr"></div><div class="hype-corner bl"></div><div class="hype-corner br"></div>
+      <div class="hype-max-border" id="hypeMaxBorder"></div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const params = new URLSearchParams(location.search);
+
+    const HYPE_STORAGE_KEY = 'dangsxr_hypeLevel';
+    const HYPE_MAX = 5;
+    const HYPE_FLAVORS = [
+      'CHAT IST ENTSPANNT', 'LANGSAM WIRD ES LEBENDIG', 'HYPE STEIGT SPÜRBAR!',
+      'CHAT EXPLODIERT GERADE!', 'MAXIMALER HYPE – VOLLALARM!',
+    ];
+    const hypeStarsEl = document.getElementById('hypeStars');
+    for (let n = 1; n <= HYPE_MAX; n++) {
+      const star = document.createElement('span');
+      star.className = 'hype-star';
+      star.dataset.n = n;
+      star.innerHTML = '<span class="filled-glyph">★</span><span class="empty-glyph">★</span>';
+      star.addEventListener('click', () => setHypeLevel(n));
+      hypeStarsEl.appendChild(star);
+    }
+    function getHypeLevel() {
+      try {
+        const n = parseInt(localStorage.getItem(HYPE_STORAGE_KEY), 10);
+        if (n >= 1 && n <= HYPE_MAX) return n;
+      } catch (e) {}
+      return 1;
+    }
+    function renderHype(n) {
+      document.querySelectorAll('.hype-star').forEach((el) => {
+        el.classList.toggle('filled', parseInt(el.dataset.n, 10) <= n);
+      });
+      document.getElementById('hypeFlavor').textContent = HYPE_FLAVORS[Math.max(0, Math.min(4, n - 1))];
+      document.getElementById('hypeMaxBorder').classList.toggle('show', n >= HYPE_MAX);
+    }
+    function setHypeLevel(n) {
+      n = Math.max(1, Math.min(HYPE_MAX, n));
+      try { localStorage.setItem(HYPE_STORAGE_KEY, String(n)); } catch (e) {}
+      renderHype(n);
+    }
+    function addHypeProgress(type, amount) {
+      let delta = 0;
+      if (type === 'sub') delta = 1;
+      else if (type === 'bits') delta = Math.floor((Number(amount) || 0) / 100);
+      if (delta <= 0) return;
+      setHypeLevel(getHypeLevel() + delta);
+    }
+    window.addEventListener('storage', (e) => {
+      if (e.key === HYPE_STORAGE_KEY) {
+        const n = parseInt(e.newValue, 10);
+        if (n >= 1 && n <= HYPE_MAX) renderHype(n);
+      }
+    });
+    renderHype(getHypeLevel());
+
+    // =====================================================================
+    // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
+    // aus overlay.html/in-game.html uebernommen) - nur fuer den Auto-
+    // Increment bei Sub/Cheer, keine weiteren Widgets hier.
+    // =====================================================================
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      if (type === 'channel.subscribe' || type === 'channel.subscription.message') {
+        addHypeProgress('sub');
+        return;
+      }
+      if (type === 'channel.cheer') {
+        addHypeProgress('bits', event.bits || 0);
+        return;
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+    connectTwitchEventSub();
+
+    // ---------- Test-Modus (?test=hype|sub|bits) ----------
+    const testParam = params.get('test');
+    if (testParam === 'hype') setHypeLevel(HYPE_MAX);
+    else if (testParam === 'sub') addHypeProgress('sub');
+    else if (testParam === 'bits') addHypeProgress('bits', 100);
+  </script>
+
+</body>
+</html>

@@ -1,19 +1,34 @@
 # Szenen-Übersicht
 
-Kompakter Überblick über alle Streamlabs-Browser-Quellen ("Szenen") im Repo. Ausführliche Details, Historie und Begründungen stehen in [`CLAUDE.md`](./CLAUDE.md) — diese Tabelle ist die Kurzfassung zum schnellen Scannen.
+Kompakter Überblick über alle Streamlabs-Browser-Quellen ("Szenen") im Repo. Ausführliche Details, Historie und Begründungen stehen in [`CLAUDE.md`](./CLAUDE.md), Einrichtungs-Checkliste für neue Quellen in [`STREAMLABS_SETUP.md`](./STREAMLABS_SETUP.md) — diese Tabelle ist die Kurzfassung zum schnellen Scannen.
 
-| Szene-Nr. | Dateiname | Zweck | Visueller Stil | Status | Enthält |
-| :---: | :--- | :--- | :--- | :---: | :--- |
-| 1 | `overlay.html` | All-In-One Master-Szene zur Bündelung aller Widgets auf einer einzigen Browser-Quelle | Urban Blackout | 🟢 | Goal, Chat, Avatar, Stats, Branding |
-| 2 | `goal.html` | Follower-Ziel-Widget mit Event-Alert-, Physik- und Wanted-Level-System | Urban Blackout | 🟢 | EventSub, 5-Sterne-Wanted, Commands, Soundtrack |
-| 3 | `chat.html` | Chat-Overlay mit physikbasierten, abprallenden Nachrichten-Karten und Emotes | Urban Blackout | 🟢 | tmi.js, XSS-Escaping, Fall-Physik, Demo-Modus |
-| 4 | `start.html` | Eigenständige "Starting Soon"-Szene mit Countdown und lebendigen Animationen | Chakra Petch / JetBrains Mono | 🟢 | Bärenkopf-Idle, Countdown, Ticker, Visualizer |
-| 5 | `in-game.html` | Zusätzliche Gameplay-Szene im alternativen Look für den aktiven Stream | Vintage Hip-Hop / Gold-Bling | 🟢 | Kassetten-Panel, Session-Zähler, Wanted, Ticker |
-| 6 | `avatar.html` | Event-reaktiver Avatar als visueller Ersatz für Kamera und Mimik | Urban Blackout | 🟢 | Idle/Action-Bilder, Event-Reaktion, Neon-Glow |
-| 7 | `index.html` | Session-Stats-Widget für Wins, Losses, Winrate und Rocket-League-Rang/MMR | Glassmorphism (alt) | 🟢 | API-Polling (`/api/stats`), Rang-HUD, Status |
-| 8 | `branding.html` | Statisches Branding-Widget für die untere rechte Ecke des Streams | Glassmorphism (alt) | 🟢 | Statischer Schriftzug ("DaN \| LIVE STREAM") |
-| 9 | `in-game.html` (Refresh) | Ersatz von Szene 5 auf Basis eines in Claude Design gebauten Prototyps ("Twitch In-Game HUD") | Vintage Hip-Hop (Chrom/Gold-Glitzer, Laserlinien, Grunge) | 🟡 | Bär mit Augen-Glow, Chat, Hype-Anzeige (`dangsxr_hypeLevel`), RL-Stats/Rang-Widget (neu), Playlist/Status |
-| 10 | `start.html` (Refresh) | Möglicher Ersatz von Szene 4 auf Basis eines aktualisierten Claude-Design-Exports ("Twitch Starting Soon") | TBD — wird noch mit der Live-Version verglichen | 🟡 | *(Analyse noch nicht abgeschlossen)* |
+## Vollflächige Master-/Einzel-Szenen
+
+Randlos ausgelegt (`--vu`-Fluid-Unit-System), für die gesamte Streamlabs-Canvas gedacht.
+
+| Dateiname | Zweck | Visueller Stil | Status | Enthält |
+| :--- | :--- | :--- | :---: | :--- |
+| `overlay.html` | All-In-One Master-Szene zur Bündelung aller Widgets auf einer einzigen Browser-Quelle | Urban Blackout | 🟢 | Goal, Chat, Avatar, Stats, Branding |
+| `goal.html` | Follower-Ziel-Widget mit Event-Alert-, Physik- und Wanted-Level-System | Urban Blackout | 🟢 | EventSub, 5-Sterne-Wanted, Commands, Soundtrack |
+| `chat.html` | Chat-Overlay mit physikbasierten, abprallenden Nachrichten-Karten und Emotes | Urban Blackout | 🟢 | tmi.js, XSS-Escaping, Fall-Physik, Demo-Modus |
+| `start.html` | Eigenständige "Starting Soon"-Szene mit Countdown, aus Claude-Design-Export gebaut | Chrome/Gold-Bling (Anton + Share Tech Mono) | 🟢 | Bär-Idle, Countdown, Status-Ticker, EQ-Visualizer |
+| `in-game.html` | All-In-One Gameplay-HUD-Szene, aus Claude-Design-Export gebaut | Chrome/Gold-Bling (Anton + Share Tech Mono) | 🟢 | Bär (freistehend), Event-Karten, Chat Vibes, Hype-Level, RL-Stats, Bottom-Bar |
+| `index.html` | Session-Stats-Widget für Wins, Losses, Winrate und Rocket-League-Rang/MMR | Glassmorphism (alt) | 🟢 | API-Polling (`/api/stats`), Rang-HUD, Status |
+| `branding.html` | Statisches Branding-Widget für die untere rechte Ecke des Streams | Glassmorphism (alt) | 🟢 | Statischer Schriftzug ("DaN \| LIVE STREAM") |
+
+## Frei positionierbare Einzel-Widget-Quellen
+
+Füllen ihre eigene Seite randlos aus (`inset:0` + `object-fit:contain` bzw. `width/height:100%`), OHNE eigene feste Positions-Offsets im Code — Größe/Platzierung auf dem Canvas wird ausschließlich über Streamlabs' eigenes Transform-Panel gesteuert (siehe `STREAMLABS_SETUP.md`). Entstanden, weil ein einzelnes fest im Code positioniertes `in-game.html`-Bündel wiederholt mit unterschiedlichen Rocket-League-Bildschirmen (Lobby-Menü, Ingame-HUD, Nachspiel-Ergebnisliste) kollidierte — jedes Widget lässt sich jetzt unabhängig dorthin ziehen, wo auf dem jeweiligen Gerät/Bildschirm tatsächlich Platz ist. Inhaltlich/funktional identisch zu den entsprechenden Widgets in `in-game.html` (welches als Bündel-Option weiterhin unverändert bestehen bleibt).
+
+| Dateiname | Zweck | Status | Eigene Live-Verbindung |
+| :--- | :--- | :---: | :--- |
+| `avatar.html` | Event-reaktiver Bär als visueller Ersatz für Kamera und Mimik | 🟢 | tmi.js (Chat) + EventSub (Follow/Sub/Cheer/Raid) |
+| `rl-stats.html` | Rocket-League-Session-Stats-Karte (Siege/Niederlagen/Winrate/Rang) | 🟢 | Polling `/api/stats` |
+| `status-ticker.html` | Rotierende Status-Meldungen (`?ticker=`) | 🟢 | keine |
+| `event-cards.html` | "Letztes Event"-Kartenstapel (Follower/Sub/Bits) | 🟢 | EventSub |
+| `chat-vibes.html` | Chat-Panel im Chrome/Gold-Bling-Look (TV/Boombox-Rahmen) | 🟢 | tmi.js |
+| `hype-level.html` | 5-Sterne-Hype-Meter (`dangsxr_hypeLevel`) | 🟢 | EventSub (Auto-Increment) + Klick |
+| `status-bar.html` | EQ-Visualizer, Plattenspieler, Track-Marquee, MIC/CAM/NET-Status, Uptime | 🟢 | EventSub (nur NET-Status) |
 
 **Legende:**
 🟢 Live auf `main` · 🟡 In Prüfung/Planung · 🔴 Verworfen (mit Begründung)
