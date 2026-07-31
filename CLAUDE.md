@@ -57,6 +57,8 @@ Kurskorrektur-Rebrand: der alte braune, zerrissene "Schrottplatz/Western"-Look (
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — aus einer selbst registrierten App auf [dev.twitch.tv/console](https://dev.twitch.tv/console).
 - `TWITCH_REFRESH_TOKEN` — aus einem einmalig manuell durchgeführten OAuth-Authorization-Code-Flow des Broadcaster-Accounts (DaN) mit den Scopes `moderator:read:followers`, `channel:read:subscriptions`, `bits:read`. Der Access-Token selbst wird bei jedem `goal.html`-Laden frisch aus diesem Refresh-Token erzeugt, muss also nicht manuell erneuert werden — nur der Refresh-Token muss einmalig beschafft und als Env-Variable hinterlegt werden.
 
+**Streamlabs-Mobile-Browser-Quellen-Setup**: Für jede neue Browser-Quelle (egal welche Szene) gilt ein festes, recherchiertes + live-bestätigtes Einrichtungs-Preset (Transform-Werte W/H/Sc, Shutdown/Refresh-Optionen, Begründung + Troubleshooting-Tabelle) — siehe **`STREAMLABS_SETUP.md`**. Entstanden, damit die richtigen Einstellungen nicht bei jeder neuen Szene erneut per Trial-and-Error über Live-Screenshots gefunden werden müssen.
+
 ## System & Hardware Context
 
 - **Setup-Typ**: 100% Cloud- & Mobile-Streaming Setup (kein PC/Laptop).
@@ -64,7 +66,7 @@ Kurskorrektur-Rebrand: der alte braune, zerrissene "Schrottplatz/Western"-Look (
 - **Hauptgerät (Gaming & Stream-Regie)**: Samsung Galaxy Tab S11 Ultra (Streamlabs Mobile).
 - **Begleitgerät (Chat, Control & Twitch-App)**: Samsung Galaxy S26 Ultra.
 - **Entwicklungs-Umgebung**: Claude Code Cloud CLI (Web Browser).
-- **Canvas**: 1920x1080 (16:9 Aspect Ratio).
+- **Canvas (Design-Referenz)**: alle Overlays werden konzeptionell für 1920×1080 (16:9) entworfen und per `--vu`-Fluid-Unit-System darauf kalibriert — die tatsächliche Streamlabs-Mobile-Projekt-Canvas des Tab S11 Ultra ist davon abweichend (16:10, siehe `STREAMLABS_SETUP.md` für den zuletzt bestätigten realen Wert), was dank `--vu` keine Code-Anpassung erfordert, aber bei jeder neuen Browser-Quelle im Transform-Panel korrekt eingetragen werden muss.
 - **Streaming-Plattform**: Twitch.
 - **Twitch Kanal**: DaNgsxr1000.
 - **Ingame ID**: DaNgsxR (Epic Games).
