@@ -40,7 +40,7 @@
        STREAMLABS_SETUP.md fuer den allgemeinen Unterschied zwischen
        vollflaechigen Master-Szenen (dort weiterhin `--vu`) und einzeln
        positionierten Widget-Quellen (dieses Prinzip). -->
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <script src="/assets/js/tmi-loader.js"></script>
   <style>
     :root {
       --blood: #ff2340;
@@ -170,22 +170,26 @@
     // Ausfall die Idle-Animation nicht mitreisst). Jede eingehende
     // Nachricht loest einen kurzen Bounce+Glow-Puls aus.
     const CHAT_REACT_CHANNEL = 'dangsxr1000';
-    try {
-      const reactChatClient = new tmi.Client({
-        options: { debug: false },
-        connection: { secure: true, reconnect: true },
-        channels: [CHAT_REACT_CHANNEL]
-      });
-      reactChatClient.connect().catch(err => {
-        console.warn('[Avatar] Chat-Reaktivitaet: Verbindung fehlgeschlagen:', err.message || err);
-      });
-      reactChatClient.on('message', (channel, tags, message, self) => {
-        if (self) return;
-        triggerReaction();
-      });
-    } catch (e) {
-      console.warn('[Avatar] tmi.js nicht verfuegbar, Chat-Reaktivitaet deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
-    }
+    loadTmiWithFallback(function () {
+      try {
+        const reactChatClient = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [CHAT_REACT_CHANNEL]
+        });
+        reactChatClient.connect().catch(err => {
+          console.warn('[Avatar] Chat-Reaktivitaet: Verbindung fehlgeschlagen:', err.message || err);
+        });
+        reactChatClient.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          triggerReaction();
+        });
+      } catch (e) {
+        console.warn('[Avatar] tmi.js nicht verfuegbar, Chat-Reaktivitaet deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
+      }
+    }, function () {
+      console.warn('[Avatar] tmi.js konnte von keinem CDN geladen werden, Chat-Reaktivitaet deaktiviert (Idle-Animation laeuft unabhaengig davon weiter).');
+    });
 
     // =====================================================================
     // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik

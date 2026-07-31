@@ -15,7 +15,7 @@
        EINE gemeinsame Verbindung statt drei getrennter (das war in den
        Einzelseiten noetig, weil es dort getrennte Browser-Quellen waren -
        auf einer Seite gibt es diese Einschraenkung nicht mehr). -->
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <script src="/assets/js/tmi-loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2160,24 +2160,28 @@
       if (text === '!fail') { lastCommandAt = now; queuePopup('fail', { name: 'VERKACKT' }); return; }
     }
 
-    try {
-      const twitchChat = new tmi.Client({
-        options: { debug: false },
-        connection: { secure: true, reconnect: true },
-        channels: [OVERLAY_CHANNEL]
-      });
-      twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
-      twitchChat.on('message', (channel, tags, message, self) => {
-        if (self) return;
-        const userColor = tags.color || '#ffd700';
-        const displayName = tags['display-name'] || tags.username;
-        addChatMessage(displayName, message, userColor, false, tags.emotes);
-        handleChatCommand(tags, message);
-        triggerAvatarReaction();
-      });
-    } catch (e) {
-      console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Commands/Avatar-Reaktion deaktiviert (Idle-Animationen laufen unabhaengig davon weiter):', e.message);
-    }
+    loadTmiWithFallback(function () {
+      try {
+        const twitchChat = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [OVERLAY_CHANNEL]
+        });
+        twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
+        twitchChat.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          const userColor = tags.color || '#ffd700';
+          const displayName = tags['display-name'] || tags.username;
+          addChatMessage(displayName, message, userColor, false, tags.emotes);
+          handleChatCommand(tags, message);
+          triggerAvatarReaction();
+        });
+      } catch (e) {
+        console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Commands/Avatar-Reaktion deaktiviert (Idle-Animationen laufen unabhaengig davon weiter):', e.message);
+      }
+    }, function () {
+      console.warn('[Chat] tmi.js konnte von keinem CDN geladen werden, Chat-Feed/Commands/Avatar-Reaktion deaktiviert (Idle-Animationen laufen unabhaengig davon weiter).');
+    });
 
     // ---------- Bootstrap ----------
     syncRealFollowerCount();
