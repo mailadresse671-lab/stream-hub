@@ -143,17 +143,26 @@
     // tmi.js-Verbindung ueberhaupt zustande kam. Ersetzt die vorherige
     // simulierte "Zuschauerzahl" (die ohnehin nur die Anzahl gerenderter
     // Chat-Nachrichten war, keine echte Twitch-Viewer-Zahl).
+    // Runde 2: unterscheidet jetzt WO es scheitert - "CDN-Fehler" (tmi.js
+    // selbst kam nie vom CDN an) vs. "Verbindungsfehler" (tmi.js ist da,
+    // aber die IRC-WebSocket-Verbindung zu Twitch schlaegt fehl) - der
+    // Nutzer sah nach der ersten Version nur ein generisches "Fehler" und
+    // konnte damit nicht unterscheiden, welche der beiden Ursachen es ist -
+    // das entscheidet aber komplett unterschiedliche Fixes (CDN wechseln/
+    // selbst hosten vs. etwas ganz anderes).
     function setChatStatus(status) {
       const dot = document.getElementById('chatStatusDot');
       const text = document.getElementById('chatStatusText');
-      const labels = { connecting: 'Verbinde…', connected: 'Verbunden', error: 'Fehler' };
-      dot.className = 'dot ' + status;
+      const labels = { connecting: 'Verbinde…', connected: 'Verbunden', 'error-cdn': 'CDN-Fehler', 'error-connect': 'Verbindungsfehler' };
+      dot.className = 'dot ' + (status.indexOf('error') === 0 ? 'error' : status);
       text.textContent = labels[status] || status;
     }
 
     try {
       if (typeof tmi === 'undefined') {
-        throw new Error('tmi.js wurde nicht geladen (CDN nicht erreichbar?)');
+        const err = new Error('tmi.js wurde nicht vom CDN geladen');
+        err.isCdnError = true;
+        throw err;
       }
       const twitchChat = new tmi.Client({
         options: { debug: false },
@@ -162,11 +171,11 @@
       });
       twitchChat.on('connected', () => setChatStatus('connected'));
       twitchChat.on('disconnected', (reason) => {
-        setChatStatus('error');
+        setChatStatus('error-connect');
         console.warn('[Chat] Verbindung getrennt:', reason);
       });
       twitchChat.connect().catch(err => {
-        setChatStatus('error');
+        setChatStatus('error-connect');
         console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err);
       });
       twitchChat.on('message', (channel, tags, message, self) => {
@@ -176,7 +185,7 @@
         addChatMessage(displayName, message, userColor, tags.emotes);
       });
     } catch (e) {
-      setChatStatus('error');
+      setChatStatus(e && e.isCdnError ? 'error-cdn' : 'error-connect');
       console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed deaktiviert:', e.message);
     }
   </script>
