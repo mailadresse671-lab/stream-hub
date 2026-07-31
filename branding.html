@@ -12,6 +12,10 @@
       --text-primary: #f8fafc;
       --text-muted: #94a3b8;
       --danger: #ef4444;
+      /* Fluid-Unit: identische Formel wie goal.html/chat.html/overlay.html/
+         in-game.html/start.html - siehe dortigen Kommentar bzw.
+         STREAMLABS_SETUP.md fuer die volle Begruendung. */
+      --vu: clamp(0.5px, 0.0521vw, 1px);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,18 +26,18 @@
       color: var(--text-primary);
     }
 
-    body { padding: 18px; }
+    body { padding: calc(var(--vu) * 18); }
 
     .brand-position {
       position: fixed;
-      bottom: 18px;
-      right: 18px;
+      bottom: calc(var(--vu) * 18);
+      right: calc(var(--vu) * 18);
     }
 
     .shimmer-frame {
       position: relative;
-      border-radius: 16px;
-      padding: 1.5px;
+      border-radius: calc(var(--vu) * 16);
+      padding: calc(var(--vu) * 1.5);
       background: linear-gradient(120deg,
         rgba(56, 189, 248, 0.15),
         rgba(56, 189, 248, 0.95),
@@ -53,18 +57,18 @@
     .brand-card {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: calc(var(--vu) * 12);
       background: var(--bg-glass);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-radius: 14.5px;
-      padding: 10px 20px 10px 12px;
+      backdrop-filter: blur(calc(var(--vu) * 10));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 10));
+      border-radius: calc(var(--vu) * 14.5);
+      padding: calc(var(--vu) * 10) calc(var(--vu) * 20) calc(var(--vu) * 10) calc(var(--vu) * 12);
     }
 
     .logo-mark {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: calc(var(--vu) * 34);
+      height: calc(var(--vu) * 34);
+      border-radius: calc(var(--vu) * 10);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -74,10 +78,10 @@
     }
 
     .logo-mark span {
-      font-size: 16px;
+      font-size: calc(var(--vu) * 16);
       font-weight: 900;
       color: #0f172a;
-      letter-spacing: -0.5px;
+      letter-spacing: calc(var(--vu) * -0.5);
     }
 
     .brand-text {
@@ -87,16 +91,16 @@
     }
 
     .brand-name {
-      font-size: 15px;
+      font-size: calc(var(--vu) * 15);
       font-weight: 900;
       color: var(--text-primary);
-      letter-spacing: 0.3px;
+      letter-spacing: calc(var(--vu) * 0.3);
       white-space: nowrap;
     }
 
     .brand-name .pipe {
       color: var(--text-muted);
-      margin: 0 6px;
+      margin: 0 calc(var(--vu) * 6);
       font-weight: 400;
     }
 
@@ -107,13 +111,13 @@
     .brand-sub {
       display: flex;
       align-items: center;
-      gap: 5px;
-      margin-top: 2px;
+      gap: calc(var(--vu) * 5);
+      margin-top: calc(var(--vu) * 2);
     }
 
     .live-dot {
-      width: 6px;
-      height: 6px;
+      width: calc(var(--vu) * 6);
+      height: calc(var(--vu) * 6);
       border-radius: 50%;
       background: var(--danger);
       box-shadow: 0 0 7px var(--danger);
@@ -127,9 +131,9 @@
     }
 
     .brand-sub-text {
-      font-size: 8.5px;
+      font-size: calc(var(--vu) * 8.5);
       font-weight: 800;
-      letter-spacing: 1.4px;
+      letter-spacing: calc(var(--vu) * 1.4);
       color: var(--neon-blue);
       text-transform: uppercase;
     }
