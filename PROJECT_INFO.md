@@ -19,12 +19,12 @@ Ausführlicher Projektkontext (Historie, Design-Entscheidungen, offene Punkte): 
 
 | Feld | Wert |
 |---|---|
-| **Production-URL (maßgeblich)** | `https://stream-hub-three-gold.vercel.app` |
-| GitHub-Repo-„Homepage"-Feld (alternativer/möglicher Alias) | `https://stream-hub-da-n1.vercel.app` |
+| **Production-URL (bestätigt, einzige echte Domain)** | `https://stream-hub-three-gold.vercel.app` |
+| Vercel-Team-/Account-Slug (Teil der Dashboard-URL, KEINE Projekt-Domain) | `da-n1` |
 | GitHub-Repository | `https://github.com/mailadresse671-lab/stream-hub` (öffentlich) |
 | Standard-Branch | `main` (Auto-Deploy bei jedem Push) |
 
-**Wichtig zur Production-URL**: `https://stream-hub-three-gold.vercel.app` ist die Adresse, die **im Code selbst** fest hinterlegt ist (Konstante `VERCEL_URL`, referenziert u.a. in `goal.html`, `index.html`, `overlay.html`, `in-game.html`, `avatar.html`, `event-cards.html`, `hype-level.html`, `rl-stats.html`, `rl-daily.html` für die eigenen API-Calls) — diese muss also erreichbar sein, damit die Widgets funktionieren, und ist deshalb als primäre Adresse zu behandeln. `https://stream-hub-da-n1.vercel.app` taucht dagegen nur im „homepage"-Metadatenfeld des GitHub-Repos auf, wird im Code nirgends verwendet. Ob beide Adressen auf dasselbe Deployment zeigen (z.B. als Vercel-Alias) oder eine davon veraltet ist, ließ sich aus dieser Sandbox nicht prüfen (kein Netzwerkzugriff auf Vercel-Domains) — bei Bedarf im Browser gegenchecken.
+**Bestätigt am 31.07.2026** direkt im Vercel-Dashboard (Projekt „stream-hub" → Overview → „Production Deployment" → Feld „Domains"): einzig gelistete Domain ist `stream-hub-three-gold.vercel.app`. Das deckt sich mit der im Code fest hinterlegten `VERCEL_URL`-Konstante (u.a. in `goal.html`, `index.html`, `overlay.html`, `in-game.html`, `avatar.html`, `event-cards.html`, `hype-level.html`, `rl-stats.html`, `rl-daily.html`). Die zuvor vermutete Alternativ-Domain `stream-hub-da-n1.vercel.app` existiert **nicht** als echte Projekt-Domain — „da-n1" ist lediglich der Vercel-Team-/Account-Slug, der in der Dashboard-URL (`vercel.com/da-n1/stream-hub`) auftaucht, und wurde vermutlich daraus fälschlich als Domain ins GitHub-„Homepage"-Feld übernommen.
 
 ## 3. Rocket League / Epic Games
 
