@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stream Chat Overlay</title>
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <script src="/assets/js/tmi-loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -379,24 +379,33 @@
     } else {
       addMessage("SYSTEM", `Chat-Overlay geladen! Verbinde mit #${CHANNEL_PARAM} ...`, "#ffd700", true);
 
-      const client = new tmi.Client({
-        options: { debug: false },
-        connection: {
-          secure: true,
-          reconnect: true
-        },
-        channels: [ CHANNEL_PARAM ]
-      });
+      loadTmiWithFallback(function () {
+        try {
+          const client = new tmi.Client({
+            options: { debug: false },
+            connection: {
+              secure: true,
+              reconnect: true
+            },
+            channels: [ CHANNEL_PARAM ]
+          });
 
-      client.connect().catch(err => {
-        console.error("Verbindungsfehler:", err);
-        addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#ff1a1a", true);
-      });
+          client.connect().catch(err => {
+            console.error("Verbindungsfehler:", err);
+            addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#ff1a1a", true);
+          });
 
-      client.on('message', (channel, tags, message, self) => {
-        const userColor = tags.color || '#ffd700';
-        const displayName = tags['display-name'] || tags.username;
-        addMessage(displayName, message, userColor, false, tags.emotes);
+          client.on('message', (channel, tags, message, self) => {
+            const userColor = tags.color || '#ffd700';
+            const displayName = tags['display-name'] || tags.username;
+            addMessage(displayName, message, userColor, false, tags.emotes);
+          });
+        } catch (e) {
+          console.warn('[Chat] tmi.js nicht verfuegbar:', e.message);
+          addMessage("FEHLER", "Chat-Bibliothek konnte nicht geladen werden!", "#ff1a1a", true);
+        }
+      }, function () {
+        addMessage("FEHLER", "Chat-Bibliothek konnte von keinem CDN geladen werden!", "#ff1a1a", true);
       });
     }
   </script>

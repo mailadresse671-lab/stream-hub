@@ -8,7 +8,7 @@
        WebSocket (kein Drittanbieter-Socket, keine externe Client-Library
        noetig). tmi.js wird nur fuer die separate Chat-Commands-Verbindung
        gebraucht (!shoot/!siren/!tor/!fail), unabhaengig von chat.html. -->
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <script src="/assets/js/tmi-loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2070,24 +2070,28 @@
     // Sound-Preload, Twitch-EventSub-Verbindung) NICHT mitreissen - ohne
     // diese Kapselung wuerde ein einzelner ReferenceError hier die
     // restlichen synchronen Top-Level-Statements dieses Scripts abbrechen.
-    try {
-      const commandChatClient = new tmi.Client({
-        options: { debug: false },
-        connection: { secure: true, reconnect: true },
-        channels: [CHAT_COMMANDS_CHANNEL]
-      });
+    loadTmiWithFallback(function () {
+      try {
+        const commandChatClient = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [CHAT_COMMANDS_CHANNEL]
+        });
 
-      commandChatClient.connect().catch(err => {
-        console.warn('[Chat-Commands] Verbindung fehlgeschlagen:', err.message || err);
-      });
+        commandChatClient.connect().catch(err => {
+          console.warn('[Chat-Commands] Verbindung fehlgeschlagen:', err.message || err);
+        });
 
-      commandChatClient.on('message', (channel, tags, message, self) => {
-        if (self) return;
-        handleChatCommand(tags, message);
-      });
-    } catch (e) {
-      console.warn('[Chat-Commands] tmi.js nicht verfuegbar, Chat-Commands deaktiviert:', e.message);
-    }
+        commandChatClient.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          handleChatCommand(tags, message);
+        });
+      } catch (e) {
+        console.warn('[Chat-Commands] tmi.js nicht verfuegbar, Chat-Commands deaktiviert:', e.message);
+      }
+    }, function () {
+      console.warn('[Chat-Commands] tmi.js konnte von keinem CDN geladen werden, Chat-Commands deaktiviert.');
+    });
 
     syncRealFollowerCount();
     loadWantedState();

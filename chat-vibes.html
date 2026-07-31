@@ -20,7 +20,7 @@
        dieses Panels) - siehe rl-stats.html fuer die volle Begruendung
        (Streamlabs' Transform-Panel skaliert Inhalt NICHT proportional mit,
        sondern schneidet bei zu kleinem W/H schlicht ab). -->
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <script src="/assets/js/tmi-loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -158,36 +158,36 @@
       text.textContent = labels[status] || status;
     }
 
-    try {
-      if (typeof tmi === 'undefined') {
-        const err = new Error('tmi.js wurde nicht vom CDN geladen');
-        err.isCdnError = true;
-        throw err;
+    loadTmiWithFallback(function () {
+      try {
+        const twitchChat = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [OVERLAY_CHANNEL]
+        });
+        twitchChat.on('connected', () => setChatStatus('connected'));
+        twitchChat.on('disconnected', (reason) => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindung getrennt:', reason);
+        });
+        twitchChat.connect().catch(err => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err);
+        });
+        twitchChat.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          const userColor = tags.color || '#f2c94c';
+          const displayName = tags['display-name'] || tags.username;
+          addChatMessage(displayName, message, userColor, tags.emotes);
+        });
+      } catch (e) {
+        setChatStatus('error-connect');
+        console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed deaktiviert:', e.message);
       }
-      const twitchChat = new tmi.Client({
-        options: { debug: false },
-        connection: { secure: true, reconnect: true },
-        channels: [OVERLAY_CHANNEL]
-      });
-      twitchChat.on('connected', () => setChatStatus('connected'));
-      twitchChat.on('disconnected', (reason) => {
-        setChatStatus('error-connect');
-        console.warn('[Chat] Verbindung getrennt:', reason);
-      });
-      twitchChat.connect().catch(err => {
-        setChatStatus('error-connect');
-        console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err);
-      });
-      twitchChat.on('message', (channel, tags, message, self) => {
-        if (self) return;
-        const userColor = tags.color || '#f2c94c';
-        const displayName = tags['display-name'] || tags.username;
-        addChatMessage(displayName, message, userColor, tags.emotes);
-      });
-    } catch (e) {
-      setChatStatus(e && e.isCdnError ? 'error-cdn' : 'error-connect');
-      console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed deaktiviert:', e.message);
-    }
+    }, function () {
+      setChatStatus('error-cdn');
+      console.warn('[Chat] tmi.js konnte von keinem CDN geladen werden, Chat-Feed deaktiviert.');
+    });
   </script>
 
 </body>

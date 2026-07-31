@@ -105,7 +105,7 @@
        Nutzer diesmal nicht explizit angesprochen und die exakte kollisions-
        freie Zone fuer DIESEN Lobby-Screen (anders als das kompakte In-Match-
        HUD) noch unklar ist - siehe CLAUDE.md Offene Punkte. -->
-  <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
+  <script src="/assets/js/tmi-loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -815,23 +815,27 @@
       document.getElementById('chatViewerCount').textContent = viewerCountSim;
     }
 
-    try {
-      const twitchChat = new tmi.Client({
-        options: { debug: false },
-        connection: { secure: true, reconnect: true },
-        channels: [OVERLAY_CHANNEL]
-      });
-      twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
-      twitchChat.on('message', (channel, tags, message, self) => {
-        if (self) return;
-        const userColor = tags.color || '#f2c94c';
-        const displayName = tags['display-name'] || tags.username;
-        addChatMessage(displayName, message, userColor, tags.emotes);
-        triggerBearReaction();
-      });
-    } catch (e) {
-      console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Baer-Reaktion darueber deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
-    }
+    loadTmiWithFallback(function () {
+      try {
+        const twitchChat = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [OVERLAY_CHANNEL]
+        });
+        twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
+        twitchChat.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          const userColor = tags.color || '#f2c94c';
+          const displayName = tags['display-name'] || tags.username;
+          addChatMessage(displayName, message, userColor, tags.emotes);
+          triggerBearReaction();
+        });
+      } catch (e) {
+        console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Baer-Reaktion darueber deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
+      }
+    }, function () {
+      console.warn('[Chat] tmi.js konnte von keinem CDN geladen werden, Chat-Feed/Baer-Reaktion darueber deaktiviert (Idle-Animation laeuft unabhaengig davon weiter).');
+    });
 
     // =====================================================================
     // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
