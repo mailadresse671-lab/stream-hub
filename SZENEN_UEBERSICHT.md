@@ -24,6 +24,7 @@ Füllen ihre eigene Seite randlos aus (`inset:0` + `object-fit:contain` bzw. `wi
 | :--- | :--- | :---: | :--- |
 | `avatar.html` | Event-reaktiver Bär als visueller Ersatz für Kamera und Mimik | 🟢 | tmi.js (Chat) + EventSub (Follow/Sub/Cheer/Raid) |
 | `rl-stats.html` | Rocket-League-Session-Stats-Karte (Siege/Niederlagen/Winrate/Rang) | 🟢 | Polling `/api/stats` |
+| `rl-daily.html` | Rocket-League-TAGES-Stats-Karte (Siege/Niederlagen/Winrate, Reset um 00:00 Uhr) | 🟢 | Polling `/api/stats` |
 | `status-ticker.html` | Rotierende Status-Meldungen (`?ticker=`) | 🟢 | keine |
 | `event-cards.html` | "Letztes Event"-Kartenstapel (Follower/Sub/Bits) | 🟢 | EventSub |
 | `chat-vibes.html` | Chat-Panel im Chrome/Gold-Bling-Look (TV/Boombox-Rahmen) | 🟢 | tmi.js |
