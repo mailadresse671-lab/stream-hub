@@ -4,11 +4,16 @@ Dieses Dokument fasst zusammen, wie **jede neue Browser-Quelle** (egal ob `overl
 
 Die Werte hier sind das Ergebnis von (a) eigener Web-Recherche zu Browser-Source-Verhalten (Quellen unten) und (b) mehreren Runden Live-Troubleshooting mit DaN über echte Streamlabs-Mobile-Screenshots (volle Historie: siehe `CLAUDE.md` → „Hotfix-Historie: overlay.html-Layout"). Das hier ist die destillierte, direkt anwendbare Checkliste daraus.
 
+## Zwei Arten von Quellen — unterschiedliche W/H-Logik
+
+- **Vollflächige Master-/Einzel-Szenen** (`overlay.html`, `goal.html`, `chat.html`, `start.html`, `in-game.html`, `index.html`, `branding.html`): randlos auf die gesamte Canvas ausgelegt, nutzen intern das `--vu`-Fluid-Unit-System. Hier gilt Punkt 2 der Checkliste unten wörtlich: **W/H = die volle Canvas-/Projekt-Auflösung.**
+- **Frei positionierbare Einzel-Widget-Quellen** (`avatar.html`, `rl-stats.html`, `status-ticker.html`, `event-cards.html`, `chat-vibes.html`, `hype-level.html`, `status-bar.html`): füllen nur die EIGENE Seite randlos aus, ohne festen Positions-Offset im Code — hier ist W/H bewusst NICHT die volle Canvas-Auflösung, sondern die Größe, die DU für dieses eine Widget auf dem Bildschirm haben willst (z. B. ein kleines 300×450-Rechteck für den Bären in einer freien Ecke). Position (TX/TY) frei nach Wunsch setzen. `Sc` bleibt trotzdem immer `1` (siehe unten) — die gewünschte Endgröße wird über W/H selbst gesteuert, nicht über einen nachtraeglichen Scale-Multiplikator.
+
 ## Checkliste: neue Browser-Quelle hinzufügen
 
 1. **URL eintragen** — vollständig, inkl. nötiger `?parameter=`. Nachschlagen in `SZENEN_UEBERSICHT.md`, welche Szene welche Parameter braucht (z. B. `chat.html?channel=dangsxr1000` — **ohne** den Parameter läuft automatisch der Demo-Modus).
 2. **Transform-Panel öffnen** und folgende Werte setzen:
-   - **W / H** = exakt die Canvas-/Projekt-Auflösung der aktuellen Streamlabs-Mobile-Szenensammlung (siehe unten, „Wie finde ich die richtige Canvas-Auflösung"). **Nicht** blind 1920×1080 eintragen, wenn das Gerät real anders rendert.
+   - **W / H** = bei vollflächigen Master-/Einzel-Szenen exakt die Canvas-/Projekt-Auflösung der aktuellen Streamlabs-Mobile-Szenensammlung (siehe unten, „Wie finde ich die richtige Canvas-Auflösung"). **Nicht** blind 1920×1080 eintragen, wenn das Gerät real anders rendert. Bei frei positionierbaren Einzel-Widget-Quellen stattdessen die gewünschte Widget-Größe eintragen (siehe „Zwei Arten von Quellen" oben).
    - **Sc (Scale)** = **immer 1**. Niemals ändern, auch nicht um etwas größer/kleiner wirken zu lassen (siehe Begründung unten).
    - **TX / TY / TZ** = 0 (keine Verschiebung — unsere Seiten sind auf volle Canvas-Abdeckung ausgelegt, `position:fixed;inset:0`).
    - **AX / AY / AZ** = 0 / Standard-Anker (Top-Left, volle Deckung).
