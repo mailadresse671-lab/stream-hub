@@ -97,6 +97,22 @@
       animation: avatarFlexPulse 1.15s cubic-bezier(0.34, 1.2, 0.64, 1) 1;
     }
 
+    /* Tanz-Wiggle fuer den !tanz-Chat-Command - eigene, rhythmischere
+       Bewegung statt nur des generischen Punch-Bounce, damit sich der
+       Befehl auch spuerbar anders anfuehlt als eine normale Reaktion. */
+    @keyframes avatarDance {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      15% { transform: translate(-7px, -4px) rotate(-7deg); }
+      30% { transform: translate(7px, -2px) rotate(6deg); }
+      45% { transform: translate(-6px, -6px) rotate(-6deg); }
+      60% { transform: translate(6px, -3px) rotate(6deg); }
+      75% { transform: translate(-5px, -4px) rotate(-4deg); }
+      90% { transform: translate(3px, -1px) rotate(3deg); }
+    }
+    .avatar-bob.dancing {
+      animation: avatarDance 1.6s ease-in-out 1;
+    }
+
     /* Punch-Wrapper: kurzer Bounce-Impuls bei jedem Trigger, unabhaengig
        vom darunterliegenden Idle-Wippen. Haelt die beiden gestapelten
        Bild-Layer, die per Opacity ueberblendet werden (fliessender
@@ -369,6 +385,44 @@
     }
     scheduleIdleFlex();
 
+    // ---------- Chat-Commands: !tanz/!flex/!hype/!wave ----------
+    // Offen fuer ALLE Zuschauer (kein Mod-Check) - im Gegensatz zu
+    // goal.html's Mod-only !shoot/!siren/!tor/!fail. Eigener, groesserer
+    // Cooldown als PUNCH_COOLDOWN_MS: Commands loesen Partikel/Callout
+    // (und bei !tanz zusaetzlich das Tanz-Wiggle) aus, das ist deutlich
+    // "lauter" als die dezente Light-Reaktion auf jede normale
+    // Chat-Nachricht und soll sich nicht spammen lassen.
+    const COMMAND_COOLDOWN_MS = 2500;
+    let lastCommandAt = -Infinity;
+    const CHAT_COMMANDS = {
+      '!tanz': { tier: 'medium', callout: 'TANZT! 💃', dance: true },
+      '!flex': { tier: 'strong', callout: 'FLEXT! 💪' },
+      '!hype':  { tier: 'strong', callout: 'HYPE! 🔥' },
+      '!wave':  { tier: 'medium', callout: 'WINKT! 👋' }
+    };
+
+    function triggerDance() {
+      avatarBob.classList.remove('dancing');
+      void avatarBob.offsetWidth;
+      avatarBob.classList.add('dancing');
+      setTimeout(() => avatarBob.classList.remove('dancing'), 1600);
+    }
+
+    // Gibt true zurueck, sobald die Nachricht als Command erkannt wurde -
+    // auch waehrend des Cooldowns (verhindert, dass ein erkannter, aber
+    // gedrosselter Command zusaetzlich noch die generische Light-Reaktion
+    // ausloest).
+    function handleChatCommand(message) {
+      const cmd = CHAT_COMMANDS[message.trim().toLowerCase()];
+      if (!cmd) return false;
+      const now = performance.now();
+      if (now - lastCommandAt < COMMAND_COOLDOWN_MS) return true;
+      lastCommandAt = now;
+      triggerReaction(cmd.tier, cmd.callout);
+      if (cmd.dance) triggerDance();
+      return true;
+    }
+
     // ---------- Chat-reaktiv: "Chat ist meine Stimme" ----------
     // Eigene tmi.js-Verbindung (in try/catch gekapselt, damit ein CDN-
     // Ausfall die Idle-Animation nicht mitreisst). Jede eingehende
@@ -386,6 +440,7 @@
         });
         reactChatClient.on('message', (channel, tags, message, self) => {
           if (self) return;
+          if (handleChatCommand(message)) return;
           triggerReaction('light');
         });
       } catch (e) {
@@ -531,12 +586,15 @@
       }
     }
 
-    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid|speak|idle) ----------
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid|speak|idle|tanz|flex|hype|wave) ----------
     function runTestMode() {
       const testParam = params.get('test');
       if (!testParam) return false;
       if (testParam === 'speak') { startMicTestMode(); return true; }
       if (testParam === 'idle') { triggerIdleFlex(); return true; }
+      const commandTestMap = { tanz: '!tanz', flex: '!flex', hype: '!hype', wave: '!wave' };
+      const command = commandTestMap[testParam.toLowerCase()];
+      if (command) { handleChatCommand(command); return true; }
       const typeMap = { follow: 'channel.follow', sub: 'channel.subscribe', resub: 'channel.subscription.message', bits: 'channel.cheer', cheer: 'channel.cheer', raid: 'channel.raid' };
       const type = typeMap[testParam.toLowerCase()];
       if (!type) return false;
