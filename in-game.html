@@ -84,7 +84,27 @@
        Werte starten bei "–" statt "0" bis der erste echte Session-Delta
        vorliegt, und bei echtem API-Ausfall greift jetzt ein Offline-Panel
        (.is-offline, gleiches Muster wie index.html/overlay.html) statt
-       stumm bei 0/0/0% zu bleiben. -->
+       stumm bei 0/0/0% zu bleiben.
+
+       Runde 5 (aktuell): Nutzer schickte einen weiteren Live-Screenshot -
+       der Baer stand fuer seinen Geschmack "in einem Kasten" (der Chrome-
+       Rahmen/dunkle Kartenhintergrund/Eckklammern/LIVE-Badge aus Runde 4).
+       Kompletter Kasten ersatzlos entfernt (.bear-outer/.bear-inner/
+       .bear-corner/.bear-live-badge geloescht) - der Baer besteht jetzt nur
+       noch aus den beiden Bild-Layern selbst mit rotem Glow-Drop-Shadow
+       statt einem umschliessenden Rahmen, dadurch auch deutlich groesser
+       darstellbar (.bear-position von 300x230 auf 320x460, da nicht mehr
+       durch eine Kartenbox begrenzt). Echte Musik-/Stimm-Erkennung bleibt
+       weiterhin technisch nicht moeglich (siehe Runde 4-Kommentar oben) -
+       als echter, technisch machbarer Ersatz fuer "reagiert auf Musik" ist
+       eine kuenftige Kopplung an Spotifys Track-Tempo/BPM (sobald die in
+       CLAUDE.md Punkt 16 geplante Spotify-Integration steht) im Gespraech,
+       noch nicht umgesetzt. Der weiterhin sichtbare Overlap von Ticker/
+       RL-Stats-Karte mit dem Rocket-League-Lobby-Menue (siehe Nutzer-
+       Screenshot) wurde in dieser Runde bewusst NICHT nachjustiert, da vom
+       Nutzer diesmal nicht explizit angesprochen und die exakte kollisions-
+       freie Zone fuer DIESEN Lobby-Screen (anders als das kompakte In-Match-
+       HUD) noch unklar ist - siehe CLAUDE.md Offene Punkte. -->
   <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/185/tmi.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -144,38 +164,25 @@
       box-shadow: 0 4px 14px rgba(0,0,0,.5);
     }
 
-    /* ---------- Baer: steht jetzt ALLEIN unten mittig (Runde 4) -----------
-       Vorher Teil eines gestapelten Blocks oben links zusammen mit Ticker +
-       RL-Stats - laut Live-Screenshot ueberlappte dieser Block die echte
-       Rocket-League-Lobby-Menueliste (Item-Shop/Rocket-Pass/Einstellungen/
-       Verlassen). Bär bekommt eine eigene, freistehende Position; Ticker +
-       RL-Stats wandern stattdessen in einen vertikal zentrierten Rand-Stack
-       (.left-info-stack, gleiches Muster wie overlay.html's .left-edge-stack
-       aus Runde 5). Zusaetzlich permanentes Idle-Wippen (.bear-bob, 1:1
-       Keyframe aus avatar.html uebernommen) als eigene Transform-Schicht,
-       getrennt vom .bear-layer-stack.action-Crossfade (Opacity-only, daher
-       keine Transform-Kollision). ---------- */
-    .bear-position { position: absolute; left: 50%; bottom: calc(var(--vu) * 104); width: calc(var(--vu) * 300); height: calc(var(--vu) * 230); transform: translateX(-50%); z-index: 20; }
-    .bear-bob { width: 100%; height: 100%; animation: bearIdleBounce 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
-    .bear-outer { padding: calc(var(--vu) * 7); background-image: linear-gradient(135deg, transparent 25%, rgba(255,255,255,.9) 45%, transparent 60%), linear-gradient(150deg, #fff6d9 0%, #f2c94c 20%, #b8860b 38%, #f6df9e 52%, #8a6410 68%, #f2c94c 86%, #6b4c0c 100%); background-size: 260% 100%, 100% 100%; background-position: -160% 0, 0 0; animation: chromeShine 5s ease-in-out infinite; box-shadow: 0 6px 20px rgba(0,0,0,.6); width: 100%; height: 100%; }
-    .bear-inner { position: relative; width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #201b1f 0%, #0a0908 78%); overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    .bear-inner::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255,35,64,.55), inset 0 0 30px rgba(0,0,0,.5); }
-    .bear-corner { position: absolute; width: calc(var(--vu) * 18); height: calc(var(--vu) * 18); pointer-events: none; }
-    .bear-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.85); border-left: 1px solid rgba(255,35,64,.85); }
-    .bear-corner.tr { top: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.85); border-right: 1px solid rgba(255,35,64,.85); }
-    .bear-corner.bl { bottom: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.85); border-left: 1px solid rgba(255,35,64,.85); }
-    .bear-corner.br { bottom: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.85); border-right: 1px solid rgba(255,35,64,.85); }
-    .bear-live-badge { position: absolute; top: calc(var(--vu) * 12); left: calc(var(--vu) * 12); display: flex; align-items: center; gap: calc(var(--vu) * 6); background: rgba(7,6,10,.65); padding: calc(var(--vu) * 4) calc(var(--vu) * 10); pointer-events: none; }
-    .bear-live-badge .dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; background: var(--blood); box-shadow: 0 0 8px 2px rgba(255,35,64,.85); animation: blinkDot 1.6s ease-in-out infinite; flex: none; }
-    .bear-live-badge span { font-size: calc(var(--vu) * 12); letter-spacing: 2.5px; color: var(--cream); }
+    /* ---------- Baer: steht ALLEIN, freistehend, OHNE Kasten/Rahmen -------
+       Runde 5: Nutzer-Feedback ("Bär sollte nicht in einem Kasten stehen")
+       - der komplette Chrome-Rahmen/dunkle-Karten-Hintergrund/Eckklammern/
+       LIVE-Badge-Container aus Runde 4 (.bear-outer/.bear-inner/.bear-corner/
+       .bear-live-badge) wurde ersatzlos entfernt. Der Bär ist jetzt nur noch
+       die beiden Bild-Layer selbst (mit rotem Glow-Drop-Shadow statt Kasten-
+       Rand) - dadurch auch deutlich groesser/praesenter darstellbar, da er
+       nicht mehr durch eine Kartenbox begrenzt wird. Position/Idle-Wippen
+       (.bear-bob) aus Runde 4 unveraendert. ---------- */
+    .bear-position { position: absolute; left: 50%; bottom: calc(var(--vu) * 104); width: calc(var(--vu) * 320); height: calc(var(--vu) * 460); transform: translateX(-50%); z-index: 20; }
+    .bear-bob { position: relative; width: 100%; height: 100%; animation: bearIdleBounce 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
 
-    .bear-layer-stack { position: relative; height: 96%; width: auto; }
-    .bear-layer { height: 100%; width: auto; object-fit: contain; filter: drop-shadow(0 0 4px rgba(255,35,64,.95)) drop-shadow(0 0 16px rgba(255,35,64,.6)) drop-shadow(0 0 38px rgba(255,35,64,.32)); transition: opacity .4s ease; }
-    .bear-layer-idle { position: relative; opacity: 1; }
-    .bear-layer-action { position: absolute; inset: 0; opacity: 0; }
+    .bear-layer-stack { position: relative; width: 100%; height: 100%; }
+    .bear-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,35,64,.95)) drop-shadow(0 0 20px rgba(255,35,64,.65)) drop-shadow(0 0 46px rgba(255,35,64,.35)); transition: opacity .4s ease; }
+    .bear-layer-idle { opacity: 1; }
+    .bear-layer-action { opacity: 0; }
     .bear-layer-stack.action .bear-layer-idle { opacity: 0; }
     .bear-layer-stack.action .bear-layer-action { opacity: 1; }
-    .bear-placeholder { display: none; color: var(--tan); font-size: 11px; text-align: center; padding: 12px; }
+    .bear-placeholder { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; color: var(--tan); font-size: 11px; text-align: center; padding: 12px; }
 
     /* ---------- Ticker + RL-Stats: gemeinsamer, vertikal zentrierter
        Rand-Stack (Runde 4) - ersetzt die vorherige feste Stapelung unter dem
@@ -329,18 +336,12 @@
 
     <div class="bear-position">
       <div class="bear-bob">
-        <div class="bear-outer">
-          <div class="bear-inner">
-            <div class="bear-layer-stack" id="bearLayerStack">
-              <img class="bear-layer bear-layer-idle" id="bearIdle" src="assets/images/avatar_idle.png" alt="DaN Maskottchen"
-                onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';">
-              <img class="bear-layer bear-layer-action" id="bearAction" src="assets/images/avatar_action.png" alt="DaN Maskottchen">
-            </div>
-            <div class="bear-placeholder" id="bearPlaceholder">BÄR-BILD FEHLT<br><code>assets/images/avatar_idle.png</code></div>
-            <div class="bear-corner tl"></div><div class="bear-corner tr"></div><div class="bear-corner bl"></div><div class="bear-corner br"></div>
-            <div class="bear-live-badge"><span class="dot"></span><span>LIVE</span></div>
-          </div>
+        <div class="bear-layer-stack" id="bearLayerStack">
+          <img class="bear-layer bear-layer-idle" id="bearIdle" src="assets/images/avatar_idle.png" alt="DaN Maskottchen"
+            onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';">
+          <img class="bear-layer bear-layer-action" id="bearAction" src="assets/images/avatar_action.png" alt="DaN Maskottchen">
         </div>
+        <div class="bear-placeholder" id="bearPlaceholder">BÄR-BILD FEHLT<br><code>assets/images/avatar_idle.png</code></div>
       </div>
     </div>
 
