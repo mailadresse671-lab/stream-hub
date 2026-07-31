@@ -13,7 +13,19 @@
        fetchStats()/Session-Delta-Logik wie index.html/overlay.html/
        in-game.html gegen die bestehende api/stats.js (kein neuer Server-
        Code). Fuellt die eigene Seite randlos aus (siehe STREAMLABS_SETUP.md)
-       - Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position. -->
+       - Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position.
+
+       Runde 2 (aktuell): Nutzer meldete, dass mehrere der neu ausgekoppelten
+       Widgets in Streamlabs winzig/abgeschnitten statt korrekt skaliert
+       ankamen. Ursache: --vu war hier fest auf 1px gesetzt (Annahme, dass
+       Streamlabs' Transform-Panel den Inhalt beim Verkleinern proportional
+       mitskaliert) - tut es aber nicht, es aendert nur die Render-Viewport-
+       Groesse, alles was nicht mehr reinpasst wird bei overflow:hidden
+       schlicht abgeschnitten. Fix: --vu jetzt wie bei den vollflaechigen
+       Szenen als vw-basierte clamp()-Formel, hier auf die natuerliche
+       Design-Breite dieser Karte (~380px) kalibriert statt auf 1920px -
+       der Inhalt skaliert dadurch jetzt tatsaechlich proportional mit,
+       egal welche W/H der Nutzer im Transform-Panel waehlt. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -22,7 +34,7 @@
       --blood: #ff2340;
       --tan: #d9b872;
       --cream: #f4f1ea;
-      --vu: 1px;
+      --vu: clamp(0.3px, 0.263vw, 3px);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
