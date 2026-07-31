@@ -955,6 +955,10 @@
     window.addEventListener('resize', setupSoundtrackMarquee);
 
     // ---------- Follower-Goal-Fortschritt ----------
+    // Platzhalter, bis syncRealFollowerCount() die echte Zahl von Twitch
+    // geladen hat - war frueher dauerhaft hart auf 209 gesetzt und daher NIE
+    // mit dem echten Twitch-Account synchron (Nutzer-Meldung: Widget zeigte
+    // einen Stand, der nichts mit den echten Followern zu tun hatte).
     let currentFollowers = 209;
     const STEP_SIZE = 10;
 
@@ -972,6 +976,27 @@
       document.getElementById('goalTitle').innerText = `Ziel: ${targetFollowers} Follower`;
       document.getElementById('goalText').innerText = `${currentFollowers} / ${targetFollowers}`;
       liquidBar.setFill(pct / 100);
+    }
+
+    // Holt die echte, aktuelle Gesamt-Follower-Zahl von Twitch (api/twitch-
+    // followers.js) und ersetzt damit den obigen Platzhalter, bevor die UI
+    // zum ersten Mal gerendert wird. Schlaegt der Call fehl, bleibt der
+    // Platzhalter stehen statt die Seite kaputt zu zeigen.
+    async function syncRealFollowerCount() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-followers`);
+        const data = await res.json();
+        if (data && data.success && typeof data.total === 'number') {
+          currentFollowers = data.total;
+          targetFollowers = calculateTarget(currentFollowers);
+        } else {
+          console.warn('[Follower-Ziel] api/twitch-followers lieferte keinen gueltigen Wert, bleibe bei Platzhalter:', data && data.message);
+        }
+      } catch (e) {
+        console.warn('[Follower-Ziel] Konnte echte Follower-Zahl nicht laden, bleibe bei Platzhalterwert:', e.message);
+      }
+      updateGoalUI();
     }
 
     // =====================================================================
@@ -2155,7 +2180,7 @@
     }
 
     // ---------- Bootstrap ----------
-    updateGoalUI();
+    syncRealFollowerCount();
     loadWantedState();
     preloadSounds().then(runTestMode);
     connectTwitchEventSub();
