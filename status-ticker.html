@@ -8,9 +8,15 @@
        herausgeloest (siehe rl-stats.html fuer den vollen Kontext dieser
        Modularisierungs-Runde). Rotierende Meldungen aus ?ticker= (Pipe-
        getrennt) oder Default-Texten. Fuellt die eigene Seite randlos aus -
-       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position. -->
+       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position.
+
+       Runde 2: --vu von fest 1px auf eine vw-basierte clamp()-Formel
+       umgestellt (kalibriert auf die natuerliche Design-Breite ~340px
+       dieser Leiste) - siehe rl-stats.html fuer die volle Begruendung
+       (Streamlabs' Transform-Panel skaliert Inhalt NICHT proportional mit,
+       sondern schneidet bei zu kleinem W/H schlicht ab). -->
   <style>
-    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: 1px; }
+    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.294vw, 3px); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
 

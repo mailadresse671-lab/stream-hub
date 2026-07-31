@@ -11,12 +11,18 @@
        (nur fuer den Verbindungsstatus, kein Widget reagiert hier auf
        konkrete Events). MIC/CAM bleiben dekorativ. ?track=/?artist=
        weiterhin unterstuetzt. Fuellt die eigene Seite randlos aus -
-       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position. -->
+       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position.
+
+       Runde 2: --vu von fest 1px auf eine vw-basierte clamp()-Formel
+       umgestellt (kalibriert auf die natuerliche Design-Breite ~900px
+       dieser langen Leiste) - siehe rl-stats.html fuer die volle
+       Begruendung (Streamlabs' Transform-Panel skaliert Inhalt NICHT
+       proportional mit, sondern schneidet bei zu kleinem W/H schlicht ab). -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
-    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: 1px; }
+    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.111vw, 3px); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
 

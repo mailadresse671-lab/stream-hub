@@ -53,6 +53,7 @@ Dieser Wert war der letzte, bei dem sowohl scharfe Darstellung als auch korrekte
 | Karten wirken riesig / hängen mitten im Bild | W/H falsch gesetzt (z. B. angenommene 1920×1080 statt echter Canvas-Größe) | W/H auf echte Canvas-Auflösung setzen |
 | HUD überlappt eigenes Rocket-League-Menü/HUD | Bekanntes, gezielt zu behebendes Layout-Problem im Code, kein Streamlabs-Einstellungsproblem | Screenshot schicken, Zone wird im jeweiligen `.html` gezielt verschoben |
 | Chat/Events reconnecten bei jedem Szenenwechsel neu | „Shutdown when not visible" oder „Refresh on active" steht auf AN | Beide auf AUS stellen (siehe Checkliste oben) |
+| Einzel-Widget-Quelle (Bär, RL-Stats, Hype-Level, ...) wirkt winzig/abgeschnitten statt einfach kleiner | War ein Code-Bug (behoben): der Inhalt skaliert jetzt mit W/H mit, statt bei zu kleinem Kasten abgeschnitten zu werden | Sollte seit der Runde-2-Fix-Version nicht mehr auftreten — falls doch, W/H probeweise größer setzen und Screenshot schicken |
 
 ## Quellen (Web-Recherche, 31.07.2026)
 
