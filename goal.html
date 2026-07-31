@@ -1600,8 +1600,27 @@
         const data = await res.json();
 
         if (!data || !data.success) {
-          const failedTypes = ((data && data.subscriptions) || []).filter(s => !s.success).map(s => s.type);
-          const detail = failedTypes.length ? `Subscription fehlgeschlagen: ${failedTypes.join(', ')}` : ((data && data.message) || 'Subscription fehlgeschlagen');
+          const failed = ((data && data.subscriptions) || []).filter(s => !s.success);
+          let detail;
+          if (failed.length) {
+            // api/twitch-eventsub.js liefert pro fehlgeschlagenem Typ den
+            // echten Twitch-HTTP-Status + Fehlertext mit (status/error) -
+            // vorher wurden nur die Typ-Namen angezeigt, ohne zu sagen
+            // WARUM sie fehlschlugen (401 fehlende Scopes vs. 400 ungueltige
+            // Session vs. etwas anderes sehen fuer die Diagnose komplett
+            // unterschiedlich aus). Da meist alle Typen aus demselben Grund
+            // fehlschlagen (z.B. Token-/Scope-Problem oder eine zu spaet
+            // eintreffende Subscription-Anfrage fuer die WebSocket-Session),
+            // wird ein gemeinsamer Grund zu einer Zeile zusammengefasst.
+            const reasonOf = s => `${s.status || '?'} ${(s.error && (s.error.message || s.error.error)) || ''}`.trim();
+            const reasons = failed.map(reasonOf);
+            const uniqueReasons = [...new Set(reasons)];
+            detail = uniqueReasons.length === 1
+              ? `${failed.length}x fehlgeschlagen (${uniqueReasons[0]}): ${failed.map(s => s.type).join(', ')}`
+              : failed.map(s => `${s.type}: ${reasonOf(s)}`).join(' | ');
+          } else {
+            detail = (data && data.message) || 'Subscription fehlgeschlagen';
+          }
           console.error('[Twitch] Event-Subscriptions fehlgeschlagen:', data);
           setDebugStatus('error', detail);
           return;
@@ -1883,6 +1902,15 @@
     });
 
     syncRealFollowerCount();
+    // Fallback-Poll: die Follower-Zahl soll sich auch dann irgendwann
+    // korrigieren, wenn die live EventSub-"channel.follow"-Anbindung
+    // ausfaellt (in der Praxis beobachtet: alle Subscriptions schlagen
+    // fehl, siehe setDebugStatus('error', ...) oben) - vorher blieb der
+    // Stand dann bis zum naechsten Neuladen der Browser-Quelle stehen.
+    // 60s statt der 20s aus api/stats.js, da sich die Follower-Zahl viel
+    // seltener aendert als Match-Stats und Helix-Rate-Limits geschont
+    // werden sollen.
+    setInterval(syncRealFollowerCount, 60000);
     preloadSounds().then(runTestMode);
     connectTwitchEventSub();
   </script>
