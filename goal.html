@@ -11,7 +11,13 @@
   <script src="/assets/js/tmi-loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <!-- Anton + Share Tech Mono: NUR fuer die Follower-Ziel-Anzeige und den
+       "neuer Follower"-Popup, 1:1 aus dem Chrome/Gold-Bling-Design von
+       rl-daily.html uebernommen (siehe .goal-card/#follow-popup unten) -
+       alle anderen Elemente (Party-Popup fuer Sub/Cheer/Raid, Chat-
+       Commands) bleiben bei Bebas Neue/Montserrat im "Urban Blackout"-
+       Look, siehe CLAUDE.md Styling-Guides. -->
   <style>
     :root {
       /* "Urban Blackout" - tiefes Schwarz statt Rost/Braun, harte
@@ -95,7 +101,12 @@
       50% { box-shadow: 0 0 11px 3px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9); }
     }
 
-    /* ---------- Top-Right Fortschritts-Widget ---------- */
+    /* ---------- Top-Right Fortschritts-Widget ----------
+       1:1 im Chrome/Gold-Bling-Look von rl-daily.html (Anton + Share Tech
+       Mono, dunkler Verlauf, duenner Blutrot-Rahmen, Gold-Chrome-Titel-
+       Text, kein Chamfer/Clip-Path) statt des restlichen "Urban Blackout"-
+       Looks dieser Datei - bewusster Bruch auf Nutzerwunsch, siehe
+       CLAUDE.md. */
 
     .goal-position {
       position: absolute;
@@ -104,119 +115,83 @@
       z-index: 10;
     }
 
-    /* Duenner, cleaner Tech-Rahmen statt Regenbogen-Shimmer - ein
-       gedaempftes Rot pulsiert leise am Rand statt bunt zu wandern. */
-    .shimmer-frame {
-      position: relative;
-      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-      padding: 1.5px;
-      background: linear-gradient(155deg, var(--blood), var(--steel) 55%, var(--blood));
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-      animation: framePulse 4s ease-in-out infinite;
-    }
-
-    @keyframes framePulse {
-      0%, 100% { filter: brightness(1); }
-      50% { filter: brightness(1.35); }
-    }
-
     .goal-card {
       position: relative;
+      width: 260px;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-      padding: 20px 26px 18px;
-      min-width: 240px;
-      overflow: hidden;
-    }
-
-    /* Feines Chainlink-Fence-Muster statt Korn-Textur: zwei
-       gegenlaeufige diagonale Linienraster ergeben ein Maschendraht-Netz. */
-    .goal-card::before,
-    #party-panel::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 14px),
-        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 14px);
-      opacity: 0.35;
-      pointer-events: none;
-    }
-
-    /* Dezenter Corner-Tag mit dem Kanalnamen - Branding direkt im Panel
-       statt als separates Element, wirkt wie eine eingepraegte Plakette. */
-    .hud-watermark {
-      position: absolute;
-      right: 10px;
-      bottom: 6px;
-      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 9px;
-      letter-spacing: 2px;
-      color: var(--chrome-2);
-      opacity: 0.4;
-      white-space: nowrap;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    /* Kleiner Police-Tape-Eckstreifen: sitzt genau ueber der
-       abgeschraegten oberen linken Ecke, wie ein Flicken auf einer
-       beschaedigten Panzerplatte. */
-    .tape-corner {
-      position: absolute;
-      top: 6px;
-      left: -13px;
-      width: 46px;
-      height: 11px;
-      background: repeating-linear-gradient(45deg, var(--gold) 0 6px, #0a0a0a 6px 12px);
-      transform: rotate(-45deg);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-      pointer-events: none;
-      z-index: 3;
+      background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%);
+      border: 1px solid rgba(255, 35, 64, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      padding: 12px 16px 10px;
     }
 
     .goal-header {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-      gap: 14px;
+      align-items: center;
+      gap: 10px;
     }
 
     .goal-title {
-      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 13px;
-      font-weight: 400;
-      letter-spacing: 1.6px;
-      color: var(--gold);
-      text-transform: uppercase;
+      font-family: 'Anton', sans-serif;
+      font-size: 15px;
+      letter-spacing: 1px;
+      background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
       white-space: nowrap;
-      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+
+    /* Status-Punkt + Label - exakt dasselbe Muster wie rl-daily.html's
+       .rl-status-group, nur an die EventSub-Zustaende dieser Datei
+       angepasst (setDebugStatus() mapped connecting/reconnecting->
+       connecting, connected/ready->live, closed/error->offline). */
+    .goal-status-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: none;
+    }
+
+    .goal-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex: none;
+    }
+    .goal-status-dot.connecting { background: rgba(244, 241, 234, 0.35); }
+    .goal-status-dot.live { background: #4ade80; box-shadow: 0 0 6px 2px rgba(74, 222, 128, 0.7); }
+    .goal-status-dot.offline { background: #ff2340; box-shadow: 0 0 6px 2px rgba(255, 35, 64, 0.8); animation: goalStatusBlink 1.2s ease-in-out infinite; }
+
+    @keyframes goalStatusBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.15; }
     }
 
     .goal-stats {
-      font-family: 'Montserrat', 'Segoe UI', sans-serif;
-      font-weight: 800;
-      font-size: 14px;
-      color: var(--chrome-1);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      color: #f4f1ea;
       font-variant-numeric: tabular-nums;
+      letter-spacing: 0.5px;
       white-space: nowrap;
-      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
     }
 
-    /* ---------- Liquid Gold/Chrome/Blood Fortschrittsbalken (Canvas2D) ---------- */
+    /* ---------- Fortschrittsbalken (Liquid-Wave-Canvas, siehe LiquidBar-
+       Klasse) - Physik/Audio-Reaktivitaet unveraendert, nur die Fuellfarbe
+       auf denselben Gold-Chrome-Verlauf wie den Titel-Text umgestellt
+       (vorher Gold/Chrome/Blutrot aus dem alten Urban-Blackout-Palette). */
     .bar-bg {
       width: 100%;
-      height: 14px;
-      background: rgba(0, 0, 0, 0.35);
-      clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+      height: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(244, 241, 234, 0.15);
       overflow: hidden;
       position: relative;
-      border: 1px solid var(--steel-line);
     }
 
     .liquid-bar-canvas {
@@ -228,14 +203,90 @@
     /* Diagnose-Zeile fuer Token-/Socket-Status - klein & dezent, aber auf
        dem Tablet ohne Inspector direkt sichtbar. */
     .debug-line {
-      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-family: 'Share Tech Mono', monospace;
       font-size: 8px;
-      color: var(--text-muted);
-      letter-spacing: 0.3px;
+      color: rgba(244, 241, 234, 0.4);
+      letter-spacing: 0.5px;
       font-variant-numeric: tabular-nums;
       white-space: normal;
       word-break: break-word;
       line-height: 1.4;
+    }
+
+    /* Feines Chainlink-Fence-Muster statt Korn-Textur: zwei
+       gegenlaeufige diagonale Linienraster ergeben ein Maschendraht-Netz.
+       Nur noch fuer #party-panel (Sub/Cheer/Raid/Tor/Fail/Ziel-Meilenstein
+       bleiben im "Urban Blackout"-Look) - .goal-card nutzt seit der
+       rl-daily.html-Angleichung keine Textur mehr. */
+    #party-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 14px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    /* ---------- "Neuer Follower"-Popup (unterhalb der Ziel-Karte) ----------
+       Eigenstaendig vom #party-popup-System, gleicher Chrome/Gold-Bling-
+       Look wie .goal-card/rl-daily.html - kein Crime-Tape/Bullet-Holes/
+       Muendungsblitz/Sirene, bewusst ruhiger, da Follows deutlich
+       haeufiger sind als Subs/Cheers/Raids. */
+    #follow-popup {
+      position: absolute;
+      top: 132px;
+      right: 18px;
+      transform: scale(0.5);
+      transform-origin: top right;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+                  transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 90;
+      width: 260px;
+    }
+
+    #follow-popup.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    #follow-panel {
+      background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%);
+      border: 1px solid rgba(255, 35, 64, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      padding: 12px 16px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .follow-tag {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: rgba(244, 241, 234, 0.55);
+    }
+
+    .follow-name {
+      font-family: 'Anton', sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.5px;
+      background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      word-break: break-word;
+    }
+
+    .follow-thanks {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.3px;
+      color: #d9b872;
     }
 
     /* ---------- Party Pop-up (Bildschirmmitte) ----------
@@ -494,23 +545,37 @@
 <body>
 
   <div id="shake-root">
-    <!-- Fortschritts-Widget oben rechts -->
+    <!-- Fortschritts-Widget oben rechts - Chrome/Gold-Bling-Look von
+         rl-daily.html uebernommen (siehe CSS-Kommentar oben), kein
+         shimmer-frame/tape-corner/bullet-hole/hud-watermark mehr. -->
     <div class="goal-position">
-      <div class="shimmer-frame">
-        <div class="goal-card" id="goalContainer">
-          <div class="tape-corner"></div>
-          <div class="bullet-hole" style="top: 8px; right: 16px; animation-delay: 0.4s;"></div>
-          <div class="bullet-hole" style="bottom: 10px; left: 18px; animation-delay: 1.2s;"></div>
-          <div class="goal-header">
-            <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
-            <span class="goal-stats" id="goalText">209 / 210</span>
+      <div class="goal-card" id="goalContainer">
+        <div class="goal-header">
+          <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
+          <div class="goal-status-group">
+            <span class="goal-status-dot connecting" id="goalStatusDot"></span>
           </div>
-          <div class="bar-bg">
-            <canvas id="liquidBarCanvas" class="liquid-bar-canvas"></canvas>
-          </div>
-          <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
-          <span class="hud-watermark">DANGSXR1000</span>
         </div>
+        <div class="bar-bg">
+          <canvas id="liquidBarCanvas" class="liquid-bar-canvas"></canvas>
+        </div>
+        <div class="goal-stats" id="goalText">209 / 210</div>
+        <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
+      </div>
+    </div>
+
+    <!-- "Neuer Follower"-Popup: bewusst NICHT Teil des #party-popup-
+         Systems (das bleibt fuer Sub/Cheer/Raid/Tor/Fail/Ziel-Meilenstein
+         im "Urban Blackout"-Look) - eigener, ruhigerer Chrome/Gold-Bling-
+         Popup im rl-daily.html-Design, verankert unterhalb der Follower-
+         Ziel-Karte (thematische Naehe, kollidiert nicht mit dem
+         bildschirmmittigen Party-Popup). Eigene kleine Warteschlange
+         (siehe queueFollowPopup) fuer mehrere Follows kurz hintereinander. -->
+    <div id="follow-popup">
+      <div id="follow-panel">
+        <span class="follow-tag">NEUER FOLLOWER</span>
+        <span class="follow-name" id="followName">Name</span>
+        <span class="follow-thanks" id="followThanks">Vielen Dank für deinen Support!</span>
       </div>
     </div>
 
@@ -1008,10 +1073,16 @@
         ctx.lineTo(w, h);
         ctx.closePath();
 
+        // Gold-Chrome-Verlauf, dieselben 6 Farbstopps wie .goal-title/
+        // .follow-name (rl-daily.html-Angleichung) - vorher Gold/Chrome/
+        // Blutrot aus der alten Urban-Blackout-Palette.
         const grad = ctx.createLinearGradient(0, 0, w, 0);
-        grad.addColorStop(0, '#ffd700');
-        grad.addColorStop(0.5, '#e8e6e1');
-        grad.addColorStop(1, '#b30000');
+        grad.addColorStop(0, '#fff6d9');
+        grad.addColorStop(0.2, '#f2c94c');
+        grad.addColorStop(0.42, '#b8860b');
+        grad.addColorStop(0.58, '#fff3c4');
+        grad.addColorStop(0.75, '#8a6410');
+        grad.addColorStop(1, '#f2c94c');
         ctx.fillStyle = grad;
         ctx.fill();
 
@@ -1228,12 +1299,12 @@
     // "confetti"-Farben werden jetzt vom SpraySystem statt DOM-Konfetti
     // verwendet.
     const ALERT_CONFIG = {
+      // "follow" laeuft seit der rl-daily.html-Angleichung ueber das
+      // eigene #follow-popup (siehe showFollowPopup) statt ueber
+      // showPartyPopup - daher nur noch thanks()/sound() hier, die
+      // frueheren color/glow/spray/sprayCount/tag-Felder wurden nie mehr
+      // gelesen und deshalb entfernt.
       follow: {
-        tag: '🎉 NEUER FOLLOWER! 🎉',
-        color: '#ffd700',
-        glow: 'rgba(255, 215, 0, 0.6)',
-        spray: ['#ffd700', '#fff3b0', '#e8e6e1', '#b30000'],
-        sprayCount: 60,
         thanks: p => `Vielen Dank für deinen Support, ${p.name}! Willkommen im Stream!`,
         sound: () => playFileSound('follow')
       },
@@ -1522,7 +1593,15 @@
     const popupQueue = [];
     let popupBusy = false;
 
+    // "follow" laeuft seit der rl-daily.html-Angleichung ueber ein eigenes,
+    // kleineres Popup (#follow-popup) statt ueber das grosse zentrale
+    // #party-popup - wird hier abgefangen, bevor es in die gemeinsame
+    // Warteschlange gelangt. Alle anderen Alert-Arten unveraendert.
     function queuePopup(kind, payload) {
+      if (kind === 'follow') {
+        queueFollowPopup(payload);
+        return;
+      }
       popupQueue.push({ kind, payload });
       processPopupQueue();
     }
@@ -1534,10 +1613,58 @@
       showPartyPopup(next.kind, next.payload);
     }
 
+    // Eigene, kleine Warteschlange fuer #follow-popup, analog zu
+    // popupQueue/processPopupQueue oben - getrennt, damit mehrere Follows
+    // kurz hintereinander sauber nacheinander abspielen, unabhaengig davon
+    // ob gerade ein Sub/Cheer/Raid-Popup laeuft.
+    const followPopupQueue = [];
+    let followPopupBusy = false;
+    const FOLLOW_POPUP_DURATION_MS = 3500;
+
+    function queueFollowPopup(payload) {
+      followPopupQueue.push(payload);
+      processFollowPopupQueue();
+    }
+
+    function processFollowPopupQueue() {
+      if (followPopupBusy || followPopupQueue.length === 0) return;
+      followPopupBusy = true;
+      const payload = followPopupQueue.shift();
+      showFollowPopup(payload);
+    }
+
+    function showFollowPopup(payload) {
+      const popup = document.getElementById('follow-popup');
+      document.getElementById('followName').innerText = payload.name;
+      document.getElementById('followThanks').innerText = ALERT_CONFIG.follow.thanks(payload);
+      ALERT_CONFIG.follow.sound();
+
+      popup.classList.add('show');
+      setTimeout(() => {
+        popup.classList.remove('show');
+        setTimeout(() => {
+          followPopupBusy = false;
+          processFollowPopupQueue();
+        }, 450);
+      }, FOLLOW_POPUP_DURATION_MS);
+    }
+
     // Sichtbarer Verbindungsstatus - direkt im Widget, damit man auf dem
     // Tablet ohne Inspector sieht, ob Twitch EventSub steht. "detail" ist
     // eine konkrete Fehlermeldung und wird 1:1 mit angezeigt statt nur
     // einem generischen "Fehler".
+    // Mapped die sechs internen EventSub-Zustaende auf die drei rl-daily.
+    // html-Dot-Farben (kein eigenes "reconnecting"/"closed" dort - beides
+    // faellt sinnvoll unter "connecting" bzw. "offline").
+    const DOT_STATE_BY_DEBUG_STATE = {
+      connecting: 'connecting',
+      reconnecting: 'connecting',
+      connected: 'live',
+      ready: 'live',
+      closed: 'offline',
+      error: 'offline'
+    };
+
     function setDebugStatus(state, detail) {
       const el = document.getElementById('debugLine');
       if (!el) return;
@@ -1550,6 +1677,11 @@
         error: `✗ ${detail || 'Fehler'}`
       };
       el.innerText = `Twitch EventSub: ${labels[state] || state}`;
+
+      const dot = document.getElementById('goalStatusDot');
+      if (dot) {
+        dot.className = 'goal-status-dot ' + (DOT_STATE_BY_DEBUG_STATE[state] || 'connecting');
+      }
     }
 
     // Robustes Error-Formatting: WebSocket-/EventSub-Fehlerobjekte sind
