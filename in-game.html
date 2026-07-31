@@ -724,10 +724,29 @@
     }
     setInterval(renderFollowerDetail, 30000);
 
-    function showLatestFollower(name) {
+    function showLatestFollower(name, followedAtIso) {
       document.getElementById('followerValue').textContent = name;
-      latestFollowerAt = Date.now();
+      latestFollowerAt = followedAtIso ? new Date(followedAtIso).getTime() : Date.now();
       renderFollowerDetail();
+    }
+
+    // Holt beim Laden einmalig den ECHTEN letzten Follower (Twitch liefert
+    // keine rueckwirkenden EventSub-Events, aber die Helix-Follower-Liste
+    // ist bereits nach juengstem Follow sortiert). Ein neuer, echter
+    // Live-Follow ueberschreibt das danach ganz normal ueber
+    // handleTwitchNotification(). Fuer Subs/Bits gibt es kein
+    // vergleichbares Helix-Endpoint, die Karten bleiben dafuer bewusst live.
+    async function syncLatestFollowerFromApi() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-followers`);
+        const data = await res.json();
+        if (data && data.success && data.latestFollower) {
+          showLatestFollower(data.latestFollower.name, data.latestFollower.followedAt);
+        }
+      } catch (e) {
+        console.warn('[Event-Karten] Konnte letzten Follower nicht laden:', e.message);
+      }
     }
     function showLatestSub(name, months) {
       document.getElementById('subValue').textContent = name + (months ? ' — Monat ' + months : '');
@@ -932,6 +951,7 @@
     // ---------- Bootstrap ----------
     connectTwitchEventSub();
     runTestMode();
+    syncLatestFollowerFromApi();
     fetchRlStats();
     setInterval(fetchRlStats, 20000);
   </script>

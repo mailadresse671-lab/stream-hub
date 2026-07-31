@@ -53,9 +53,14 @@ async function getBroadcasterId(accessToken) {
 }
 
 // Liefert die echte, aktuelle Gesamt-Follower-Zahl ueber Twitch Helix
-// (GET /channels/followers, "total"-Feld) - braucht denselben
-// moderator:read:followers-Scope, der fuer channel.follow EventSub
-// ohnehin schon vorausgesetzt ist (siehe CLAUDE.md).
+// (GET /channels/followers, "total"-Feld) sowie den Namen/Zeitpunkt des
+// zuletzt gefolgten Users (erstes Element von "data", Twitch liefert hier
+// den juengsten Follow zuerst) - braucht denselben moderator:read:followers-
+// Scope, der fuer channel.follow EventSub ohnehin schon vorausgesetzt ist
+// (siehe CLAUDE.md). Fuer Subs/Cheers gibt es KEIN vergleichbares "letztes
+// Event"-Helix-Endpoint - die entsprechenden Karten in event-cards.html/
+// in-game.html bleiben deshalb bewusst auf echte Live-EventSub-Events
+// angewiesen und koennen nicht rueckwirkend befuellt werden.
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
@@ -94,7 +99,12 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    const payload = { success: true, total: data.total };
+    const latest = data.data && data.data[0];
+    const payload = {
+      success: true,
+      total: data.total,
+      latestFollower: latest ? { name: latest.user_name, followedAt: latest.followed_at } : null
+    };
     cache = { data: payload, timestamp: now };
     return res.status(200).json({ ...payload, cached: false });
   } catch (err) {
