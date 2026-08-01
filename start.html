@@ -119,6 +119,12 @@
     .signal-group { display: flex; align-items: center; gap: calc(var(--vu) * 10); }
     .signal-text { font-size: calc(var(--vu) * 18); letter-spacing: 4px; color: var(--tan); white-space: nowrap; }
     .dot-tan { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); border-radius: 50%; background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 8) 2px rgba(217, 184, 114, .7); flex: none; }
+    /* Dritter Top-Bar-Block zwischen Handle und Signal-Status, siehe
+       pollViewerCount() im Script - .top-bar's justify-content:space-between
+       verteilt drei Kinder automatisch gleichmaessig, keine Layout-Aenderung
+       am Rest der Leiste noetig. */
+    .viewer-group { display: flex; align-items: center; }
+    .viewer-text { font-size: calc(var(--vu) * 18); letter-spacing: 4px; color: var(--tan); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
     /* ---------- Zentrale Spalte ---------- */
     .center-col {
@@ -218,6 +224,9 @@
         <span class="dot-blood"></span>
         <span class="handle-name">TWITCH.TV/DANGSXR1000</span>
       </div>
+      <div class="viewer-group" id="viewerGroup">
+        <span class="viewer-text" id="viewerText">👁 – ZUSCHAUER</span>
+      </div>
       <div class="signal-group">
         <span class="signal-text">SIGNAL: BEREITSCHAFT</span>
         <span class="dot-tan"></span>
@@ -272,6 +281,8 @@
   </div>
 
   <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+
     // Konfigurierbar per URL-Parameter, gleiches Prinzip wie ?channel=/
     // ?track= in chat.html/goal.html.
     const params = new URLSearchParams(location.search);
@@ -359,6 +370,35 @@
       requestAnimationFrame(animFrame);
     }
     requestAnimationFrame(animFrame);
+
+    // =====================================================================
+    // Live-Zuschauerzaehler (Countdown-/Pause-Screen-Erweiterung, Item 5 der
+    // "Mehr Spielereien"-Reihe) - fragt api/twitch-viewers.js (GET /streams,
+    // "viewer_count") periodisch ab. Waehrend der eigentlichen Starting-
+    // Soon-Phase (vor "Los geht's" in Streamlabs) fuehrt Twitch den Kanal
+    // noch nicht als live, das ist der Normalfall und wird als "NOCH
+    // OFFLINE" angezeigt statt als Fehler. Schlaegt der Call selbst fehl
+    // (Netzwerk/Env-Vars), bleibt der letzte bekannte Text einfach stehen
+    // statt kaputt/leer zu wirken.
+    // =====================================================================
+    const viewerTextEl = document.getElementById('viewerText');
+
+    async function pollViewerCount() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-viewers`);
+        const data = await res.json();
+        if (data && data.success) {
+          viewerTextEl.textContent = data.live ? `👁 ${data.viewerCount} ZUSCHAUER` : '👁 NOCH OFFLINE';
+        } else {
+          console.warn('[Viewer-Count] api/twitch-viewers lieferte keinen gueltigen Wert:', data && data.message);
+        }
+      } catch (e) {
+        console.warn('[Viewer-Count] Konnte Zuschauerzahl nicht laden:', e.message);
+      }
+    }
+    pollViewerCount();
+    setInterval(pollViewerCount, 30000);
   </script>
 
 </body>
