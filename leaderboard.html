@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top Supporter</title>
+  <!-- Eigenstaendige Top-Supporter/Wochen-Leaderboard-Quelle, aus derselben
+       Familie wie rl-stats.html/hype-level.html/event-cards.html (gleicher
+       Anlass: frei per Streamlabs-Transform-Panel positionierbar). Punkte
+       kommen aus derselben Twitch-EventSub-Verbindung wie die anderen
+       Widgets (eigene, unabhaengige Verbindung - siehe CLAUDE.md fuer den
+       dokumentierten Kompromiss "mehrere parallele EventSub-Verbindungen
+       statt einer gebuendelten"). Punkte-Gewichtung (Sub/Resub=10,
+       Cheer=Bits/10, Raid=15) ist eine bewusst einfache, grob "fair"
+       wirkende Konstante - kein Anspruch auf einen exakten Dollarwert-
+       Vergleich. Follows zaehlen absichtlich NICHT mit (kostenlose Aktion,
+       kein "Support" im selben Sinne wie Subs/Bits/Raids - anders als das
+       Follower-Ziel in goal.html, das explizit Follows selbst zaehlt).
+       Persistenz ohne externe Datenbank (Tech-Stack-Entscheidung, siehe
+       CLAUDE.md): localStorage-Key dangsxr_leaderboard, Woche = Montag bis
+       Sonntag lokale Zeit, gleiches Reset-Prinzip wie rl-daily.htmls
+       taeglicher Baseline-Reset (Datum wird bei jedem Event verglichen,
+       kein eigener Timer noetig). Fuellt die eigene Seite randlos aus -
+       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.263vw, 3px); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
+
+    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+
+    .leaderboard-card { position: relative; width: 100%; padding: calc(var(--vu) * 16) calc(var(--vu) * 18); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .leaderboard-corner { position: absolute; width: calc(var(--vu) * 16); height: calc(var(--vu) * 16); pointer-events: none; }
+    .leaderboard-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .leaderboard-corner.tr { top: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .leaderboard-corner.bl { bottom: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .leaderboard-corner.br { bottom: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+
+    .leaderboard-header { display: flex; align-items: baseline; justify-content: space-between; }
+    .leaderboard-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 20); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; white-space: nowrap; }
+    .leaderboard-subtitle { font-size: calc(var(--vu) * 10); letter-spacing: 2px; color: rgba(244,241,234,.4); white-space: nowrap; }
+
+    .leaderboard-list { display: flex; flex-direction: column; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 14); }
+    .leaderboard-row { display: flex; align-items: center; gap: calc(var(--vu) * 10); }
+    .leaderboard-rank { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 16); width: calc(var(--vu) * 26); flex: none; text-align: center; color: var(--tan); }
+    .leaderboard-row.rank-1 .leaderboard-rank,
+    .leaderboard-row.rank-2 .leaderboard-rank,
+    .leaderboard-row.rank-3 .leaderboard-rank { font-size: calc(var(--vu) * 20); }
+    .leaderboard-name { flex: 1; min-width: 0; font-size: calc(var(--vu) * 14); font-weight: 700; letter-spacing: 0.5px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .leaderboard-row.rank-1 .leaderboard-name { color: #fff3c4; text-shadow: 0 0 10px rgba(242,201,76,.6); }
+    .leaderboard-points { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 15); color: var(--blood); text-shadow: 0 0 8px rgba(255,35,64,.5); flex: none; font-variant-numeric: tabular-nums; }
+
+    .leaderboard-empty { margin-top: calc(var(--vu) * 14); font-size: calc(var(--vu) * 12); letter-spacing: 1px; color: rgba(244,241,234,.45); }
+
+    .leaderboard-reset { margin-top: calc(var(--vu) * 12); font-size: calc(var(--vu) * 9); letter-spacing: 1.5px; color: rgba(217,184,114,.6); white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+  <div class="widget-position">
+    <div class="leaderboard-card">
+      <div class="leaderboard-header">
+        <span class="leaderboard-title">🏆 TOP SUPPORTER</span>
+        <span class="leaderboard-subtitle">DIESE WOCHE</span>
+      </div>
+      <div class="leaderboard-list" id="leaderboardList"></div>
+      <div class="leaderboard-reset" id="leaderboardReset"></div>
+      <div class="leaderboard-corner tl"></div><div class="leaderboard-corner tr"></div><div class="leaderboard-corner bl"></div><div class="leaderboard-corner br"></div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const params = new URLSearchParams(location.search);
+
+    const LEADERBOARD_KEY = 'dangsxr_leaderboard';
+    const MAX_ROWS = 5;
+    const MEDALS = ['🥇', '🥈', '🥉'];
+
+    // Punkte-Gewichtung: bewusst einfache, grob "faire" Konstanten statt
+    // eines exakten Dollarwert-Vergleichs - Follows zaehlen bewusst NICHT
+    // mit (kostenlose Aktion, kein "Support" im selben Sinne).
+    const POINTS = {
+      sub: 10,
+      resub: 10,
+      cheer: (bits) => Math.max(1, Math.round((Number(bits) || 0) / 10)),
+      raid: 15
+    };
+
+    // Woche = Montag bis Sonntag, lokale Zeit (gleiches Datums-Vergleichs-
+    // Prinzip wie rl-daily.htmls taeglicher Baseline-Reset, nur auf
+    // Wochenbasis statt Tagesbasis).
+    function getWeekStartLocal() {
+      const d = new Date();
+      const day = d.getDay(); // 0=So, 1=Mo, ... 6=Sa
+      const diffToMonday = (day === 0) ? 6 : day - 1;
+      d.setDate(d.getDate() - diffToMonday);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function daysUntilReset() {
+      const day = new Date().getDay();
+      const diffToMonday = (day === 0) ? 6 : day - 1;
+      return 7 - diffToMonday;
+    }
+
+    function loadBoard() {
+      try {
+        const raw = localStorage.getItem(LEADERBOARD_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return null;
+    }
+
+    function saveBoard(board) {
+      try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board)); } catch (e) {}
+    }
+
+    // Liefert das aktuelle Board - verwirft und startet automatisch neu,
+    // sobald das gespeicherte Wochen-Datum vom aktuellen abweicht (Reset
+    // passiert dadurch spaetestens beim naechsten Event/Poll nach Montag
+    // 00:00, ganz ohne eigenen Timer).
+    function getCurrentBoard() {
+      const weekStart = getWeekStartLocal();
+      let board = loadBoard();
+      if (!board || board.weekStart !== weekStart) {
+        board = { weekStart, entries: {} };
+        saveBoard(board);
+      }
+      return board;
+    }
+
+    function awardPoints(name, points) {
+      if (!name || !(points > 0)) return;
+      const board = getCurrentBoard();
+      board.entries[name] = (board.entries[name] || 0) + points;
+      saveBoard(board);
+      renderBoard(board);
+    }
+
+    function renderBoard(board) {
+      board = board || getCurrentBoard();
+      const sorted = Object.entries(board.entries).sort((a, b) => b[1] - a[1]).slice(0, MAX_ROWS);
+      const listEl = document.getElementById('leaderboardList');
+      listEl.innerHTML = '';
+
+      if (sorted.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'leaderboard-empty';
+        empty.textContent = 'NOCH KEINE SUPPORTER DIESE WOCHE';
+        listEl.appendChild(empty);
+      } else {
+        sorted.forEach(([name, points], i) => {
+          const row = document.createElement('div');
+          row.className = 'leaderboard-row rank-' + (i + 1);
+
+          const rankEl = document.createElement('span');
+          rankEl.className = 'leaderboard-rank';
+          rankEl.textContent = MEDALS[i] || ('#' + (i + 1));
+
+          const nameEl = document.createElement('span');
+          nameEl.className = 'leaderboard-name';
+          nameEl.textContent = name; // textContent -> kein XSS-Risiko, auch nicht ueber einen manipulierten Twitch-Anzeigenamen
+
+          const pointsEl = document.createElement('span');
+          pointsEl.className = 'leaderboard-points';
+          pointsEl.textContent = points;
+
+          row.appendChild(rankEl);
+          row.appendChild(nameEl);
+          row.appendChild(pointsEl);
+          listEl.appendChild(row);
+        });
+      }
+
+      const days = daysUntilReset();
+      document.getElementById('leaderboardReset').textContent = '🔄 RESET IN ' + days + (days === 1 ? ' TAG' : ' TAGEN');
+    }
+
+    // Cross-Tab-Sync (gleiches Prinzip wie hype-level.html) - falls
+    // localStorage von woanders aus veraendert wird, ohne dass diese Quelle
+    // selbst der Ausloeser war.
+    window.addEventListener('storage', (e) => {
+      if (e.key === LEADERBOARD_KEY) renderBoard();
+    });
+
+    renderBoard();
+
+    // =====================================================================
+    // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
+    // aus overlay.html/in-game.html uebernommen) - nur fuer die Punkte-
+    // Vergabe bei Sub/Resub/Cheer/Raid, keine weiteren Widgets hier.
+    // =====================================================================
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+
+      if (type === 'channel.subscribe') {
+        awardPoints(event.user_name || 'Zuschauer', POINTS.sub);
+        return;
+      }
+      if (type === 'channel.subscription.message') {
+        awardPoints(event.user_name || 'Zuschauer', POINTS.resub);
+        return;
+      }
+      if (type === 'channel.cheer') {
+        const name = event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer');
+        awardPoints(name, POINTS.cheer(event.bits || 0));
+        return;
+      }
+      if (type === 'channel.raid') {
+        awardPoints(event.from_broadcaster_user_name || 'Ein Raid', POINTS.raid);
+        return;
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+    connectTwitchEventSub();
+
+    // ---------- Test-Modus (?test=sub|resub|bits|raid) ----------
+    const testParam = params.get('test');
+    const TEST_EVENT_MAP = {
+      sub: () => awardPoints('TestSubscriber', POINTS.sub),
+      resub: () => awardPoints('TestSubscriber', POINTS.resub),
+      bits: () => awardPoints('TestCheerer', POINTS.cheer(250)),
+      raid: () => awardPoints('TestRaider', POINTS.raid)
+    };
+    if (testParam && TEST_EVENT_MAP[testParam]) TEST_EVENT_MAP[testParam]();
+  </script>
+
+</body>
+</html>
