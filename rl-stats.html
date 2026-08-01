@@ -60,14 +60,8 @@
     .rl-stat-value.loss { color: var(--blood); }
     .rl-stat-value.rate { color: #f2c94c; }
     .rl-stat-label { font-size: calc(var(--vu) * 9); letter-spacing: 1.5px; color: rgba(244,241,234,.5); }
-    .rl-rank-row { display: none; align-items: center; gap: calc(var(--vu) * 10); margin-top: calc(var(--vu) * 10); padding-top: calc(var(--vu) * 10); border-top: 1px dashed rgba(217,184,114,.22); }
-    .rl-rank-icon { width: calc(var(--vu) * 32); height: calc(var(--vu) * 32); object-fit: contain; }
-    .rl-rank-text { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
-    .rl-rank-tier { font-size: calc(var(--vu) * 13); color: var(--cream); font-weight: 700; }
-    .rl-rank-mmr { font-size: calc(var(--vu) * 10); color: var(--tan); letter-spacing: 1px; }
     .rl-stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 10); }
-    .rl-stats-card.is-offline .rl-stats-row,
-    .rl-stats-card.is-offline .rl-rank-row { display: none !important; }
+    .rl-stats-card.is-offline .rl-stats-row { display: none !important; }
     .rl-stats-card.is-offline .rl-stats-offline-panel { display: flex; }
     .rl-offline-tag { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 20); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
     .rl-offline-sub { font-size: calc(var(--vu) * 10); letter-spacing: 1.5px; color: var(--tan); }
@@ -88,13 +82,6 @@
         <div class="rl-stat"><span class="rl-stat-value win" id="rlWins">–</span><span class="rl-stat-label">SIEGE</span></div>
         <div class="rl-stat"><span class="rl-stat-value loss" id="rlLosses">–</span><span class="rl-stat-label">NIEDERLAGEN</span></div>
         <div class="rl-stat"><span class="rl-stat-value rate" id="rlWinrate">–</span><span class="rl-stat-label">WINRATE</span></div>
-      </div>
-      <div class="rl-rank-row" id="rlRankRow">
-        <img class="rl-rank-icon" id="rlRankIcon" src="" alt="" onerror="this.style.display='none';">
-        <div class="rl-rank-text">
-          <span class="rl-rank-tier" id="rlRankTier">-</span>
-          <span class="rl-rank-mmr" id="rlRankMmr">-</span>
-        </div>
       </div>
       <div class="rl-stats-offline-panel" id="rlOfflinePanel">
         <span class="rl-offline-tag">D5</span>
@@ -125,16 +112,6 @@
       const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
       document.getElementById('rlWinrate').textContent = rate + '%';
     }
-    function updateRlRankUI(rank) {
-      const row = document.getElementById('rlRankRow');
-      if (!rank) { row.style.display = 'none'; return; }
-      document.getElementById('rlRankIcon').style.display = '';
-      document.getElementById('rlRankIcon').src = rank.tierIconUrl || '';
-      document.getElementById('rlRankIcon').alt = rank.tierName || '';
-      document.getElementById('rlRankTier').textContent = rank.tierName || '-';
-      document.getElementById('rlRankMmr').textContent = rank.mmr != null ? rank.mmr + ' MMR' : (rank.playlist || '-');
-      row.style.display = 'flex';
-    }
     async function fetchRlStats() {
       try {
         const cleanUrl = VERCEL_URL.replace(/\/$/, "");
@@ -142,7 +119,6 @@
         const data = await res.json();
         if (data && data.success) {
           setRlStatus(data.stale ? 'cached' : 'live');
-          updateRlRankUI(data.rank);
           if (rlStartWins === null) {
             rlStartWins = data.wins;
             rlStartMatches = data.matches;

@@ -7,7 +7,7 @@
   <!-- All-In-One Master-Szene (1920x1080): kombiniert goal.html (Follower-
        Goal, Wanted-Level, Party-Popup/Alerts, FX-Layer, Soundtrack-Badge),
        chat.html (physik-basierter Chat-Feed), avatar.html (Hood-Masken-
-       Avatar), index.html (Session-Stats + Rang/MMR) und branding.html
+       Avatar), index.html (Session-Stats) und branding.html
        (Marken-Tag) auf EINER Browser-Quelle. Die bestehenden Einzelseiten
        bleiben unveraendert als modulare Backup-Szenen bestehen - dies ist
        eine Ergaenzung, kein Ersatz. Alle drei tmi.js-Anwendungsfaelle
@@ -188,7 +188,7 @@
     }
 
     /* ---------- Linker Rand, vertikal zentriert: Wanted-Level + Session-
-       Stats/Rang gestapelt ----------
+       Stats gestapelt ----------
        Bewusst NICHT oben links (dort liegt in Rocket League der In-Game-
        Chat) und NICHT oben mittig (Tor-/Zeit-Anzeige) - die vertikal
        zentrierte linke Kante ist in RL HUD-frei. vw/vh statt fixer px-
@@ -299,7 +299,7 @@
       text-shadow: 0 0 8px var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85);
     }
 
-    /* Session-Stats/Rang-Karte - Hood-Restyle statt des alten Glassmorphism-
+    /* Session-Stats-Karte - Hood-Restyle statt des alten Glassmorphism-
        Looks aus index.html, damit die Master-Szene optisch aus einem Guss
        bleibt (siehe Styling-Guide: Hood/Ghetto vs. Glassmorphism nicht
        vermischen - hier ist alles Hood). */
@@ -344,19 +344,12 @@
     .val-loss { color: var(--danger); }
     .val-rate { color: var(--gold); }
 
-    .rank-row { display: flex; align-items: center; gap: calc(var(--vu) * 4); padding-top: 1px; border-top: 1px solid var(--steel-line); }
-    .rank-icon { width: calc(var(--vu) * 14); height: calc(var(--vu) * 14); object-fit: contain; flex-shrink: 0; }
-    .rank-text { display: flex; flex-direction: column; line-height: 1.15; }
-    .rank-tier { font-size: calc(var(--vu) * 6); font-weight: 800; color: var(--gold); white-space: nowrap; }
-    .rank-mmr { font-size: calc(var(--vu) * 4); color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
-
     /* Stylisches Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige,
        wenn api/stats.js dauerhaft nicht erreichbar ist (siehe
-       setStatsStatus() in JS) - .stats-row/.rank-row werden dabei
-       ausgeblendet, dieses Panel eingeblendet. */
+       setStatsStatus() in JS) - .stats-row wird dabei ausgeblendet,
+       dieses Panel eingeblendet. */
     .stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); }
-    .stats-card.is-offline .stats-row,
-    .stats-card.is-offline .rank-row { display: none !important; }
+    .stats-card.is-offline .stats-row { display: none !important; }
     .stats-card.is-offline .stats-offline-panel { display: flex; }
     .offline-tag {
       font-family: 'Bebas Neue', sans-serif;
@@ -790,7 +783,7 @@
 
   <div id="shake-root">
 
-    <!-- Linker Rand, vertikal zentriert: Wanted-Level + Session-Stats/Rang als
+    <!-- Linker Rand, vertikal zentriert: Wanted-Level + Session-Stats als
          EIN gemeinsames Panel (siehe .hud-card-merged) statt zwei einzeln
          gerahmter Karten. -->
     <div class="left-edge-stack">
@@ -820,13 +813,6 @@
               <div class="stat"><span class="stat-value val-win" id="wins">0</span><span class="stat-label">Wins</span></div>
               <div class="stat"><span class="stat-value val-loss" id="losses">0</span><span class="stat-label">Losses</span></div>
               <div class="stat"><span class="stat-value val-rate" id="winrate">0%</span><span class="stat-label">Winrate</span></div>
-            </div>
-            <div class="rank-row" id="rankBlock" style="display: none;">
-              <img class="rank-icon" id="rankIcon" src="" alt="" onerror="this.style.display='none';">
-              <div class="rank-text">
-                <span class="rank-tier" id="rankTier">-</span>
-                <span class="rank-mmr" id="rankMmr">-</span>
-              </div>
             </div>
             <!-- Faellt automatisch ein, sobald api/stats.js dauerhaft nicht
                  erreichbar ist (siehe setStatsStatus() in JS) - stylisches
@@ -1678,7 +1664,7 @@
       if (triggered) queuePopup('wanted', { name: 'BUSTED!' });
     }
 
-    // ---------- Session-Stats + Rang/MMR (aus api/stats.js) ----------
+    // ---------- Session-Stats (aus api/stats.js) ----------
     let startWins = null;
     let startMatches = null;
     let sessionWins = 0;
@@ -1691,17 +1677,6 @@
       const total = sessionWins + sessionLosses;
       if (total > 0) rate = Math.round((sessionWins / total) * 100);
       document.getElementById('winrate').innerText = rate + '%';
-    }
-
-    function updateRankDisplay(rank) {
-      const block = document.getElementById('rankBlock');
-      if (!rank) { block.style.display = 'none'; return; }
-      document.getElementById('rankIcon').style.display = '';
-      document.getElementById('rankIcon').src = rank.tierIconUrl || '';
-      document.getElementById('rankIcon').alt = rank.tierName;
-      document.getElementById('rankTier').innerText = rank.tierName;
-      document.getElementById('rankMmr').innerText = rank.mmr != null ? `${rank.mmr} MMR` : rank.playlist;
-      block.style.display = '';
     }
 
     function setStatsStatus(status) {
@@ -1724,7 +1699,6 @@
         const data = await res.json();
         if (data && data.success) {
           setStatsStatus(data.stale ? 'cached' : 'live');
-          updateRankDisplay(data.rank);
           const currentWins = data.wins;
           const currentMatches = data.matches;
           if (startWins === null) {
