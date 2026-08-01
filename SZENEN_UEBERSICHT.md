@@ -16,6 +16,20 @@ Randlos ausgelegt (`--vu`-Fluid-Unit-System), für die gesamte Streamlabs-Canvas
 | `index.html` | Session-Stats-Widget für Wins, Losses, Winrate und Rocket-League-Rang/MMR | Glassmorphism (alt) | 🟢 | API-Polling (`/api/stats`), Rang-HUD, Status |
 | `branding.html` | Statisches Branding-Widget für die untere rechte Ecke des Streams | Glassmorphism (alt) | 🟢 | Statischer Schriftzug ("DaN \| LIVE STREAM") |
 
+## "90s Old School Edition"-Szenen (drittes eigenständiges visuelles System)
+
+Randlos ausgelegt (`--vu`-Fluid-Unit-System), eigenständige Szenen-Sammlung — ergänzt die obigen Szenen, ersetzt nichts. Aus dem Claude-Design-Export "DaNgsxr1000 Stream Overlay Suite" übersetzt (Rubik Spray Paint/Permanent Marker/Barlow Condensed, Schwarz/Weiß + Blutrot). Details siehe `CLAUDE.md`.
+
+| Dateiname | Zweck | Status | Eigene Live-Verbindung |
+| :--- | :--- | :---: | :--- |
+| `oldschool-starting.html` | "Starting Soon"-Ersatz-Szene mit echtem Countdown (`?minutes=`) + Track-Ticker | 🟢 | EventSub (Alert-Popup) |
+| `oldschool-chatting.html` | "Just Chatting"-Overlay: Latest-Follower-Badge, Sub-Ziel-Balken (`?subgoal=`), Chat-Box | 🟢 | tmi.js, EventSub, Polling `/api/twitch-followers` + `/api/twitch-subs` |
+| `oldschool-gameplay.html` | Transparentes Vollbild-Overlay über dem Gameplay, Safe-Zone-Guides per `?safezones=1` | 🟢 | EventSub (Alert-Popup) |
+| `oldschool-brb.html` | "BRB"-Ersatz-Szene mit Mic-Status-Badge (`?mic=`) + Chat-Box | 🟢 | tmi.js, EventSub |
+| `oldschool-outro.html` | "Stream Ending"-Ersatz-Szene mit echter "Tonight's MVPs"-Liste aus `dangsxr_leaderboard` | 🟢 | EventSub (Alert-Popup) |
+
+**Noch nicht live in Streamlabs Mobile validiert** (nur Playwright/Screenshot-geprüft) — siehe `CLAUDE.md`, Offene Punkte.
+
 ## Frei positionierbare Einzel-Widget-Quellen
 
 Füllen ihre eigene Seite randlos aus (`inset:0` + `object-fit:contain` bzw. `width/height:100%`), OHNE eigene feste Positions-Offsets im Code — Größe/Platzierung auf dem Canvas wird ausschließlich über Streamlabs' eigenes Transform-Panel gesteuert (siehe `STREAMLABS_SETUP.md`). Entstanden, weil ein einzelnes fest im Code positioniertes `in-game.html`-Bündel wiederholt mit unterschiedlichen Rocket-League-Bildschirmen (Lobby-Menü, Ingame-HUD, Nachspiel-Ergebnisliste) kollidierte — jedes Widget lässt sich jetzt unabhängig dorthin ziehen, wo auf dem jeweiligen Gerät/Bildschirm tatsächlich Platz ist. Inhaltlich/funktional identisch zu den entsprechenden Widgets in `in-game.html` (welches als Bündel-Option weiterhin unverändert bestehen bleibt).
