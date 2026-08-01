@@ -462,6 +462,38 @@
     .crime-tape--a { top: 12%; transform: translateX(-50%) rotate(-5deg); }
     .crime-tape--b { bottom: 8%; transform: translateX(-50%) rotate(4deg); }
 
+    /* ---------- Mini-Chat-Spiele: Raffle-Banner (persistent waehrend
+       offen) + Votekick-Toast (transient) ---------- */
+    .mini-game-stack {
+      position: absolute;
+      bottom: 18px;
+      left: 18px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+    }
+    .mini-game-tag {
+      background: rgba(10, 9, 8, 0.88);
+      border: 2px solid var(--gold);
+      border-radius: 4px;
+      padding: 8px 14px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      color: var(--gold);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px var(--gold-glow);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    .mini-game-tag.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     /* ---------- FX-Layer: Spray-/Bullet-Canvas, Muzzle-Flash, Impact-Flash,
        Cop-Siren, VHS-Scanlines ---------- */
 
@@ -588,6 +620,13 @@
     <div id="impact-flash"></div>
     <div id="muzzle-flash"></div>
     <div id="cop-siren"></div>
+
+    <!-- Mini-Chat-Spiele: persistentes Raffle-Banner + transienter
+         Votekick-Toast, siehe startRaffle()/handleVoteKick() im Script. -->
+    <div class="mini-game-stack">
+      <div class="mini-game-tag" id="raffleBanner">🎟️ RAFFLE OFFEN – SCHREIB !raffle</div>
+      <div class="mini-game-tag" id="voteKickToast"></div>
+    </div>
   </div>
 
   <div id="scanline-overlay"></div>
@@ -1346,6 +1385,18 @@
         sprayCount: 90,
         thanks: () => `Naechste Runde wird's besser...`,
         sound: () => playFailSound()
+      },
+      // Mini-Chat-Spiel !raffle (siehe startRaffle()/drawRaffle() weiter
+      // unten) - Gewinner-Ziehung nutzt bewusst dasselbe Party-Popup-System
+      // wie jeder andere Alert statt einer eigenen Anzeige.
+      raffle: {
+        tag: '🎟️ RAFFLE-GEWINNER! 🎟️',
+        color: '#ffd700',
+        glow: 'rgba(255, 215, 0, 0.85)',
+        spray: ['#ffd700', '#fff3b0', '#e8e6e1'],
+        sprayCount: 100,
+        thanks: () => `Herzlichen Glückwunsch!`,
+        sound: () => playGoalSound()
       }
     };
 
@@ -1537,7 +1588,17 @@
         comboBadge.classList.remove('show', 'mega');
       }
 
-      config.sound();
+      // Mini-Chat-Spiel !votekick (siehe handleVoteKick() weiter unten) -
+      // wurde dieser Alert-Typ per Chat-Abstimmung weggevotet, wird der
+      // Sound uebersprungen, Popup/Spray/FX laufen unveraendert weiter.
+      // Jeder Alert oeffnet gleichzeitig ein neues Abstimmungsfenster fuer
+      // sich selbst, damit Chat direkt auf DIESEN Sound reagieren kann.
+      if (isSoundMuted(kind)) {
+        console.log(`[VoteKick] Sound fuer "${kind}" ist aktuell stummgeschaltet, Wiedergabe übersprungen.`);
+      } else {
+        config.sound();
+      }
+      armVoteKickWindow(kind);
 
       const rect = popup.getBoundingClientRect();
       // Erster Burst sofort beim Triggern (rect kann beim allerersten Alert
@@ -1896,6 +1957,21 @@
       const testParam = new URLSearchParams(location.search).get('test');
       if (!testParam) return;
 
+      if (testParam === 'raffle') {
+        startRaffle();
+        handleRaffleEntry({ username: 'testuser1', 'display-name': 'TestUser1' });
+        handleRaffleEntry({ username: 'testuser2', 'display-name': 'TestUser2' });
+        drawRaffle();
+        return;
+      }
+      if (testParam === 'votekick') {
+        armVoteKickWindow('follow');
+        for (let i = 1; i <= VOTEKICK_THRESHOLD; i++) {
+          handleVoteKick({ username: 'voter' + i });
+        }
+        return;
+      }
+
       const kind = TEST_KIND_MAP[testParam.toLowerCase()];
       if (!kind) {
         console.warn(`[Test] Unbekannter ?test=${testParam}-Wert. Erlaubt: ${Object.keys(TEST_KIND_MAP).join(', ')}`);
@@ -1909,15 +1985,122 @@
       queuePopup(kind, TEST_PAYLOADS[kind]);
     }
 
-    // ---------- Chat-Commands (!shoot, !siren, !tor, !fail) ----------
+    // =====================================================================
+    // Mini-Chat-Spiel 1: !raffle - Mod startet mit "!raffle start",
+    // Zuschauer treten mit "!raffle" bei, Mod zieht mit "!raffle draw" einen
+    // zufaelligen Gewinner. Bewusst manuell getaktet (kein Auto-Timer) -
+    // gleiches Prinzip wie die bestehenden manuellen Mod-Trigger
+    // !siren/!tor/!fail, der Mod entscheidet selbst, wann genug Zeit fuer
+    // Eintritte war.
+    // =====================================================================
+    let raffleOpen = false;
+    let raffleEntrants = new Map(); // lowerUsername -> Anzeigename
+
+    function startRaffle() {
+      raffleOpen = true;
+      raffleEntrants = new Map();
+      showMiniGameTag('raffleBanner');
+    }
+
+    function handleRaffleEntry(tags) {
+      if (!raffleOpen) return;
+      const lower = (tags.username || '').toLowerCase();
+      if (!lower) return;
+      raffleEntrants.set(lower, tags['display-name'] || tags.username);
+    }
+
+    function drawRaffle() {
+      if (!raffleOpen) return;
+      raffleOpen = false;
+      hideMiniGameTag('raffleBanner');
+      const names = Array.from(raffleEntrants.values());
+      if (names.length === 0) {
+        console.log('[Raffle] Keine Teilnehmer eingetragen, kein Gewinner gezogen.');
+        return;
+      }
+      const winner = names[Math.floor(Math.random() * names.length)];
+      queuePopup('raffle', { name: winner });
+    }
+
+    // =====================================================================
+    // Mini-Chat-Spiel 2: !votekick - offen fuer alle Zuschauer. Jeder Alert
+    // oeffnet ein kurzes Abstimmungsfenster fuer GENAU den gerade
+    // gespielten Sound (siehe armVoteKickWindow() in showPartyPopup); wird
+    // die Stimmenschwelle innerhalb des Fensters erreicht, bleibt dieser
+    // Alert-Typ fuer VOTEKICK_MUTE_MS stumm - Popup/Spray/FX laufen
+    // unveraendert weiter, nur der Sound faellt aus. Kein Chat-Feedback
+    // moeglich (die tmi.js-Verbindung ist rein lesend, ohne Auth), daher
+    // stattdessen eine kurze On-Screen-Bestaetigung.
+    // =====================================================================
+    const VOTEKICK_WINDOW_MS = 15000;
+    const VOTEKICK_THRESHOLD = 5;
+    const VOTEKICK_MUTE_MS = 10 * 60 * 1000;
+    const VOTEKICK_LABELS = {
+      follow: 'FOLLOW-SOUND', sub: 'SUB-SOUND', resub: 'RESUB-SOUND',
+      cheer: 'BITS-SOUND', raid: 'RAID-SOUND', tor: 'TOR-SOUND',
+      fail: 'FAIL-SOUND', goal: 'ZIEL-SOUND', raffle: 'RAFFLE-SOUND'
+    };
+    let voteKickTargetKind = null;
+    let voteKickWindowEndsAt = 0;
+    let voteKickVoters = new Set();
+    const mutedSoundUntil = {};
+
+    function armVoteKickWindow(kind) {
+      voteKickTargetKind = kind;
+      voteKickWindowEndsAt = performance.now() + VOTEKICK_WINDOW_MS;
+      voteKickVoters = new Set();
+    }
+
+    function isSoundMuted(kind) {
+      return !!mutedSoundUntil[kind] && Date.now() < mutedSoundUntil[kind];
+    }
+
+    function handleVoteKick(tags) {
+      if (!voteKickTargetKind || performance.now() > voteKickWindowEndsAt) return;
+      const lower = (tags.username || '').toLowerCase();
+      if (!lower) return;
+      voteKickVoters.add(lower);
+      if (voteKickVoters.size >= VOTEKICK_THRESHOLD) {
+        const kind = voteKickTargetKind;
+        mutedSoundUntil[kind] = Date.now() + VOTEKICK_MUTE_MS;
+        voteKickTargetKind = null;
+        const label = VOTEKICK_LABELS[kind] || kind;
+        console.log(`[VoteKick] "${label}" fuer ${VOTEKICK_MUTE_MS / 60000} Minuten stummgeschaltet (${voteKickVoters.size} Stimmen).`);
+        showMiniGameTag('voteKickToast', `🔇 ${label} WEGGEVOTET (10 MIN STUMM)`, 4000);
+      }
+    }
+
+    // Zwei Elemente statt einem gemeinsamen Toast, damit ein persistentes
+    // Raffle-Banner und ein transienter Votekick-Toast sich nicht
+    // gegenseitig ueberschreiben, falls beide Mini-Spiele zufaellig
+    // gleichzeitig aktiv sind.
+    const miniGameHideTimers = {};
+    function showMiniGameTag(id, text, durationMs) {
+      const el = document.getElementById(id);
+      if (text !== undefined) el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(miniGameHideTimers[id]);
+      if (durationMs) {
+        miniGameHideTimers[id] = setTimeout(() => el.classList.remove('show'), durationMs);
+      }
+    }
+    function hideMiniGameTag(id) {
+      document.getElementById(id).classList.remove('show');
+      clearTimeout(miniGameHideTimers[id]);
+    }
+
+    // ---------- Chat-Commands (!shoot, !siren, !tor, !fail, !raffle, !votekick) ----------
     // Eigene, unabhaengige tmi.js-Verbindung - bewusst getrennt von
     // chat.html (keine Zustands-Bruecke zwischen den beiden Browser-
-    // Quellen, siehe Roadmap-Review). "!shoot" ist bewusst fuer alle
-    // Zuschauer offen (Engagement-Feature), "!siren"/"!tor"/"!fail"
-    // reprasentieren ein tatsaechliches Spiel-Ereignis und bleiben daher
-    // Broadcaster/Mods vorbehalten. Ein gemeinsamer Cooldown verhindert,
-    // dass Chat-Spam die FX-Engine (und die Tablet-Performance neben dem
-    // Cloud-Gaming) ueberlastet.
+    // Quellen, siehe Roadmap-Review). "!shoot"/"!raffle"/"!votekick" sind
+    // bewusst fuer alle Zuschauer offen (Engagement-Feature), "!siren"/
+    // "!tor"/"!fail"/"!raffle start"/"!raffle draw" reprasentieren eine
+    // Broadcaster-Entscheidung (Spiel-Ereignis bzw. Mini-Spiel-Steuerung)
+    // und bleiben daher Broadcaster/Mods vorbehalten. Ein gemeinsamer
+    // Cooldown verhindert, dass Chat-Spam die FX-Engine (und die
+    // Tablet-Performance neben dem Cloud-Gaming) ueberlastet - !raffle
+    // (Beitritt) und !votekick sind davon bewusst ausgenommen, siehe
+    // handleChatCommand().
     const CHAT_COMMANDS_CHANNEL = 'dangsxr1000';
     const COMMAND_COOLDOWN_MS = 2500;
     let lastCommandAt = 0;
@@ -1929,6 +2112,17 @@
 
     function handleChatCommand(tags, message) {
       const text = message.trim().toLowerCase();
+
+      // !raffle (Beitritt) und !votekick sind Mehrfach-Stimmen-/Mehrfach-
+      // Eintritts-Mechaniken - viele Zuschauer schreiben sie kurz
+      // hintereinander. Wuerden sie hinter dem gemeinsamen
+      // COMMAND_COOLDOWN_MS haengen, wuerde praktisch jeder Eintritt/jede
+      // Stimme ausser dem allerersten sofort verworfen. Beide sind
+      // absichtlich VOR dem Cooldown-Gate und loesen selbst keine FX aus
+      // (nur eine leise Zaehlung), das rechtfertigt die Ausnahme.
+      if (text === '!raffle') { handleRaffleEntry(tags); return; }
+      if (text === '!votekick') { handleVoteKick(tags); return; }
+
       const now = performance.now();
       if (now - lastCommandAt < COMMAND_COOLDOWN_MS) return;
 
@@ -1961,6 +2155,18 @@
       if (text === '!fail') {
         lastCommandAt = now;
         queuePopup('fail', { name: 'VERKACKT' });
+        return;
+      }
+
+      if (text === '!raffle start') {
+        lastCommandAt = now;
+        startRaffle();
+        return;
+      }
+
+      if (text === '!raffle draw') {
+        lastCommandAt = now;
+        drawRaffle();
         return;
       }
     }
