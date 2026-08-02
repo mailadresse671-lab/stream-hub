@@ -234,6 +234,28 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .mode-btn.active {
+      background: rgba(200,16,46,.6);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+    }
+    body.compact-mode .card-advanced {
+      display: none;
+    }
+    body.compact-mode .copy-btn {
+      display: none;
+    }
+    body.compact-mode .field-row {
+      grid-template-columns: 1fr;
+    }
+    body.compact-mode .hint {
+      opacity: .72;
+    }
     @media (max-width: 900px) {
       .hero, .dashboard { grid-template-columns: 1fr; }
       .mini-grid { grid-template-columns: 1fr; }
@@ -256,6 +278,10 @@
       <section class="callout">
         <div class="callout-title">Sofort nutzbar</div>
         <div class="callout-text">1. API und Key einmal speichern. 2. Szene waehlen. 3. Track oder Ordner laden. 4. Play druecken. Alles andere bleibt auf dem Handy.</div>
+        <div class="mode-switch">
+          <button id="btnModeCompact" class="mode-btn" type="button">Kompakt</button>
+          <button id="btnModePro" class="mode-btn" type="button">Pro</button>
+        </div>
         <div class="mini-grid">
           <button id="btnCopyApi">API kopieren</button>
           <button id="btnCopyScene">Szene kopieren</button>
@@ -304,7 +330,7 @@
           <div class="hint">Setze in Vercel die ENV REGIE_CONTROL_KEY, damit niemand Fremdes steuern kann.</div>
         </section>
 
-        <section class="card">
+        <section class="card card-advanced">
           <h2>Track</h2>
           <div class="section-kicker">Direkte Quelle</div>
           <div class="grid">
@@ -330,7 +356,7 @@
       </div>
 
       <div class="stack">
-        <section class="card">
+        <section class="card card-advanced">
           <h2>Eigene Datei</h2>
           <div class="section-kicker">Einzelner Song</div>
           <div class="grid">
@@ -345,7 +371,7 @@
           <div class="hint">Ideal fuer einzelne Tests. Die Datei wird direkt am Handy ausgewählt.</div>
         </section>
 
-        <section class="card">
+        <section class="card card-advanced">
           <h2>Musikordner</h2>
           <div class="section-kicker">Bibliothek</div>
           <div class="grid">
@@ -394,6 +420,7 @@
 
   <script>
     const STORAGE_KEY = 'dangsxr_oldschool_regie_config_v1';
+    const VIEW_MODE_KEY = 'dangsxr_oldschool_regie_view_mode_v1';
     const apiUrlEl = document.getElementById('apiUrl');
     const apiKeyEl = document.getElementById('apiKey');
     const sceneEl = document.getElementById('scene');
@@ -406,6 +433,8 @@
     const folderSummaryEl = document.getElementById('folderSummary');
     const folderTrackListEl = document.getElementById('folderTrackList');
     const folderLibrary = [];
+    const btnModeCompact = document.getElementById('btnModeCompact');
+    const btnModePro = document.getElementById('btnModePro');
 
     function defaultApi() {
       return location.origin.replace(/\/$/, '') + '/api/regie-control';
@@ -442,6 +471,31 @@
 
     function setStatus(text) {
       statusEl.textContent = text;
+    }
+
+    function applyViewMode(mode, silent) {
+      const next = mode === 'pro' ? 'pro' : 'compact';
+      document.body.classList.toggle('compact-mode', next === 'compact');
+      btnModeCompact.classList.toggle('active', next === 'compact');
+      btnModePro.classList.toggle('active', next === 'pro');
+      try {
+        localStorage.setItem(VIEW_MODE_KEY, next);
+      } catch (err) {
+        // ignore
+      }
+      if (!silent) {
+        setStatus('Ansicht: ' + (next === 'compact' ? 'Kompakt' : 'Pro'));
+      }
+    }
+
+    function initViewMode() {
+      let mode = 'compact';
+      try {
+        mode = localStorage.getItem(VIEW_MODE_KEY) || 'compact';
+      } catch (err) {
+        mode = 'compact';
+      }
+      applyViewMode(mode, true);
     }
 
     function setSceneValue(sceneName) {
@@ -752,6 +806,9 @@
       sendCommand('music.volume.set', { value }).catch(err => setStatus('Volume setzen fehlgeschlagen: ' + err.message));
     });
 
+    btnModeCompact.addEventListener('click', function () { applyViewMode('compact'); });
+    btnModePro.addEventListener('click', function () { applyViewMode('pro'); });
+
     document.querySelectorAll('button[data-action]').forEach(btn => {
       btn.addEventListener('click', function () {
         const action = btn.getAttribute('data-action');
@@ -774,6 +831,7 @@
       bindQuickCopyButtons();
       setSceneValue(sceneEl.value);
       renderFolderLibrary();
+      initViewMode();
     })();
   </script>
 </body>
