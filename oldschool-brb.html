@@ -90,7 +90,7 @@
     .mic-badge.mic-muted { background: var(--crimson-dark); }
     .mic-badge.mic-live { background: var(--mic-live); }
 
-    .chat-box { position: absolute; left: calc(var(--vu) * 560); bottom: calc(var(--vu) * 60); width: calc(var(--vu) * 800); height: calc(var(--vu) * 230); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); box-shadow: 0 calc(var(--vu) * 20) calc(var(--vu) * 50) rgba(0,0,0,.5); z-index: 6; }
+    .chat-box { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--vu) * 60); width: calc(var(--vu) * 800); height: calc(var(--vu) * 230); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); box-shadow: 0 calc(var(--vu) * 20) calc(var(--vu) * 50) rgba(0,0,0,.5); z-index: 6; }
     .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 17); padding: calc(var(--vu) * 10) calc(var(--vu) * 20); white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 12); }
     .chat-status { display: flex; align-items: center; gap: calc(var(--vu) * 6); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: calc(var(--vu) * 12); letter-spacing: 1px; opacity: .8; white-space: nowrap; }
     .chat-status-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; background: rgba(0,0,0,.3); flex: none; }
