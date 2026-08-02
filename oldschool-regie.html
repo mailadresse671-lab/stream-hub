@@ -229,6 +229,10 @@
       background: rgba(200,16,46,.55);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
     }
+    .master-mode-btn.active {
+      background: rgba(200,16,46,.65);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
+    }
     .mini-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -364,14 +368,14 @@
           <h2>Live Schaltung</h2>
           <div class="section-kicker">Master Szene wechseln</div>
           <div class="btn-row">
-            <button type="button" data-master-mode="starting">Zu Starting</button>
-            <button type="button" data-master-mode="gameplay">Zu Gameplay</button>
-            <button type="button" data-master-mode="chatting">Zu Chatting</button>
-            <button type="button" data-master-mode="brb">Zu BRB</button>
-            <button type="button" data-master-mode="outro">Zu Outro</button>
+            <button class="master-mode-btn" type="button" data-master-mode="starting">Zu Starting</button>
+            <button class="master-mode-btn" type="button" data-master-mode="gameplay">Zu Gameplay</button>
+            <button class="master-mode-btn" type="button" data-master-mode="chatting">Zu Chatting</button>
+            <button class="master-mode-btn" type="button" data-master-mode="brb">Zu BRB</button>
+            <button class="master-mode-btn" type="button" data-master-mode="outro">Zu Outro</button>
             <button id="btnMasterReload" type="button">Master neu laden</button>
           </div>
-          <div class="hint">Funktioniert nur mit <strong>oldschool-master.html</strong> als eine Browser-Quelle in Streamlabs.</div>
+          <div class="hint">Ein Druck reicht: diese Buttons senden immer direkt an oldschool-master. In Streamlabs muss oldschool-master.html als Browser-Quelle aktiv sein.</div>
         </section>
 
         <section class="card card-advanced">
@@ -454,6 +458,7 @@
     const btnModeCompact = document.getElementById('btnModeCompact');
     const btnModePro = document.getElementById('btnModePro');
     const MASTER_SCENE_NAME = 'oldschool-master';
+    let activeMasterMode = 'starting';
 
     function defaultApi() {
       return location.origin.replace(/\/$/, '') + '/api/regie-control';
@@ -708,13 +713,46 @@
       });
     }
 
-    function sendMasterSwitch(mode) {
+    function setActiveMasterMode(mode) {
+      activeMasterMode = mode;
+      document.querySelectorAll('[data-master-mode]').forEach(button => {
+        button.classList.toggle('active', button.getAttribute('data-master-mode') === mode);
+      });
+    }
+
+    async function sendCommandToScene(sceneName, action, payload) {
       const cfg = getConfig();
-      if (cfg.scene !== MASTER_SCENE_NAME) {
-        setStatus('Hinweis: Szene auf "' + MASTER_SCENE_NAME + '" setzen, dann erneut drücken.');
-        return;
+      const headers = { 'Content-Type': 'application/json' };
+      if (cfg.apiKey) headers['X-Regie-Key'] = cfg.apiKey;
+
+      const body = {
+        action,
+        scene: sceneName,
+        payload: payload || {}
+      };
+
+      const res = await fetch(cfg.apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data || !data.success) {
+        throw new Error((data && data.message) || ('HTTP ' + res.status));
       }
-      sendCommand('scene.switch', { mode: mode }).catch(err => setStatus('Schalten fehlgeschlagen: ' + err.message));
+
+      setStatus([
+        'Befehl gesendet: ' + action,
+        'Ziel: ' + sceneName,
+        'Revision: ' + data.revision,
+        'SecureMode: ' + (data.secureMode ? 'an' : 'aus'),
+        'Zeit: ' + new Date().toLocaleTimeString('de-DE')
+      ].join('\n'));
+    }
+
+    function sendMasterSwitch(mode) {
+      setActiveMasterMode(mode);
+      sendCommandToScene(MASTER_SCENE_NAME, 'scene.switch', { mode: mode }).catch(err => setStatus('Schalten fehlgeschlagen: ' + err.message));
     }
 
     function bindMasterSwitchButtons() {
@@ -727,12 +765,7 @@
       const reloadBtn = document.getElementById('btnMasterReload');
       if (reloadBtn) {
         reloadBtn.addEventListener('click', function () {
-          const cfg = getConfig();
-          if (cfg.scene !== MASTER_SCENE_NAME) {
-            setStatus('Hinweis: Szene auf "' + MASTER_SCENE_NAME + '" setzen, dann erneut drücken.');
-            return;
-          }
-          sendCommand('scene.reload', {}).catch(err => setStatus('Reload fehlgeschlagen: ' + err.message));
+          sendCommandToScene(MASTER_SCENE_NAME, 'scene.reload', {}).catch(err => setStatus('Reload fehlgeschlagen: ' + err.message));
         });
       }
     }
@@ -883,6 +916,7 @@
       bindScenePresets();
       bindQuickCopyButtons();
       bindMasterSwitchButtons();
+      setActiveMasterMode('starting');
       setSceneValue(sceneEl.value);
       renderFolderLibrary();
       initViewMode();
