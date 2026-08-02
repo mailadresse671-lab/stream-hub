@@ -180,6 +180,21 @@
         <button id="btnSetTrack">Track setzen</button>
         <button id="btnSetTrackPlay">Setzen + Play</button>
       </div>
+      <div class="hint">Titel kann leer bleiben. Dann wird er automatisch aus Datei oder URL gezogen.</div>
+    </section>
+
+    <section class="card">
+      <h2>Eigene Datei</h2>
+      <div class="grid">
+        <label>MP3 / M4A / OGG / WAV auswählen
+          <input id="audioFile" type="file" accept="audio/*">
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="btnSetFile">Datei setzen</button>
+        <button id="btnSetFilePlay">Datei + Play</button>
+      </div>
+      <div class="hint">Ideal fuer eigene Suno-Tracks. Der Titel wird automatisch vom Dateinamen genommen.</div>
     </section>
 
     <section class="card">
@@ -218,6 +233,7 @@
     const trackUrlEl = document.getElementById('trackUrl');
     const trackTitleEl = document.getElementById('trackTitle');
     const volumeValueEl = document.getElementById('volumeValue');
+    const audioFileEl = document.getElementById('audioFile');
 
     function defaultApi() {
       return location.origin.replace(/\/$/, '') + '/api/regie-control';
@@ -273,6 +289,30 @@
       const ok = document.execCommand('copy');
       document.body.removeChild(helper);
       if (!ok) throw new Error('Kopieren nicht moeglich.');
+    }
+
+    function stripExtension(name) {
+      return String(name || '').replace(/\.[a-z0-9]{2,6}$/i, '').trim();
+    }
+
+    function inferTitleFromUrl(url) {
+      try {
+        const parsed = new URL(url, location.href);
+        const lastPart = parsed.pathname.split('/').filter(Boolean).pop() || '';
+        const clean = stripExtension(decodeURIComponent(lastPart)).replace(/[-_]+/g, ' ').trim();
+        return clean || parsed.hostname;
+      } catch (err) {
+        return '';
+      }
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Datei konnte nicht gelesen werden.'));
+        reader.readAsDataURL(file);
+      });
     }
 
     function bindCopyButtons() {
@@ -355,9 +395,43 @@
     document.getElementById('btnSetTrackPlay').addEventListener('click', function () {
       sendCommand('music.track.set', {
         source: trackUrlEl.value.trim(),
-        title: trackTitleEl.value.trim() || 'Unbenannter Track',
+        title: trackTitleEl.value.trim() || inferTitleFromUrl(trackUrlEl.value.trim()),
         autoplay: true
       }).catch(err => setStatus('Track+Play fehlgeschlagen: ' + err.message));
+    });
+
+    document.getElementById('btnSetFile').addEventListener('click', function () {
+      const file = audioFileEl.files && audioFileEl.files[0];
+      if (!file) {
+        setStatus('Bitte zuerst eine Audiodatei auswählen.');
+        return;
+      }
+      readFileAsDataUrl(file).then(dataUrl => {
+        return sendCommand('music.track.set', {
+          source: String(dataUrl),
+          title: stripExtension(file.name),
+          fileName: file.name,
+          sourceLabel: file.name,
+          autoplay: false
+        });
+      }).catch(err => setStatus('Datei setzen fehlgeschlagen: ' + err.message));
+    });
+
+    document.getElementById('btnSetFilePlay').addEventListener('click', function () {
+      const file = audioFileEl.files && audioFileEl.files[0];
+      if (!file) {
+        setStatus('Bitte zuerst eine Audiodatei auswählen.');
+        return;
+      }
+      readFileAsDataUrl(file).then(dataUrl => {
+        return sendCommand('music.track.set', {
+          source: String(dataUrl),
+          title: stripExtension(file.name),
+          fileName: file.name,
+          sourceLabel: file.name,
+          autoplay: true
+        });
+      }).catch(err => setStatus('Datei+Play fehlgeschlagen: ' + err.message));
     });
 
     document.getElementById('btnSetVolume').addEventListener('click', function () {

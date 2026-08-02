@@ -6,6 +6,31 @@
     return Math.min(max, Math.max(min, value));
   }
 
+  function stripExtension(name) {
+    return String(name || '').replace(/\.[a-z0-9]{2,6}$/i, '').trim();
+  }
+
+  function inferTitleFromSource(source, sourceLabel) {
+    const cleanLabel = stripExtension(sourceLabel);
+    if (cleanLabel) return cleanLabel;
+
+    if (!source) return 'Unbenannter Track';
+
+    const sourceText = String(source);
+    if (sourceText.startsWith('data:')) return 'Lokale Datei';
+    if (sourceText.startsWith('blob:')) return 'Lokale Datei';
+
+    try {
+      const url = new URL(sourceText, window.location.href);
+      const pathPart = url.pathname.split('/').filter(Boolean).pop() || '';
+      const decoded = stripExtension(decodeURIComponent(pathPart));
+      if (decoded) return decoded.replace(/[-_]+/g, ' ').trim() || 'Unbenannter Track';
+      return url.hostname;
+    } catch (err) {
+      return 'Unbenannter Track';
+    }
+  }
+
   function parseBool(value, fallback) {
     if (value === null || value === undefined || value === '') return fallback;
     const normalized = String(value).toLowerCase();
@@ -45,7 +70,7 @@
   const musicParam = params.get('music');
   const titleParam = params.get('musicTitle');
   const source = (musicParam && musicParam.trim()) || (stored.source && String(stored.source).trim()) || '';
-  const title = (titleParam && titleParam.trim()) || (stored.title && String(stored.title).trim()) || 'Kein Track gesetzt';
+  const title = (titleParam && titleParam.trim()) || (stored.title && String(stored.title).trim()) || '';
 
   const defaultVolume = Number.isFinite(Number(stored.volume)) ? Number(stored.volume) : 0.12;
   const volumeParam = params.get('musicVol');
@@ -251,7 +276,8 @@
     setTimeout(setupTitleMarquee, 0);
   }
 
-  updateTitle(title);
+  const initialTitle = title || inferTitleFromSource(source, stored.sourceLabel || '');
+  updateTitle(initialTitle);
   volumeInput.value = String(Math.round(volume * 100));
 
   function setupTitleMarquee() {
@@ -296,7 +322,7 @@
     updateButtons();
   }
 
-  function setTrack(nextSource, nextTitle, autoplayRequested) {
+  function setTrack(nextSource, nextTitle, autoplayRequested, sourceLabel) {
     const cleanSource = (nextSource || '').trim();
     if (!cleanSource) {
       setStatus('Keine Musik-URL', 'warn');
@@ -306,8 +332,9 @@
     audio.src = cleanSource;
     config.source = cleanSource;
 
-    const cleanTitle = (nextTitle || '').trim() || 'Unbenannter Track';
+    const cleanTitle = (nextTitle || '').trim() || inferTitleFromSource(cleanSource, sourceLabel || '');
     config.title = cleanTitle;
+    config.sourceLabel = sourceLabel || config.sourceLabel || '';
     updateTitle(cleanTitle);
     saveConfig(config);
 
@@ -443,7 +470,7 @@
     }
 
     if (action === 'music.track.set') {
-      setTrack(payload.source, payload.title, Boolean(payload.autoplay));
+      setTrack(payload.source, payload.title, Boolean(payload.autoplay), payload.sourceLabel || payload.fileName || '');
       return;
     }
   }
