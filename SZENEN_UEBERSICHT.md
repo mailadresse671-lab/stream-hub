@@ -28,7 +28,7 @@ Randlos ausgelegt (`--vu`-Fluid-Unit-System), eigenständige Szenen-Sammlung —
 | `oldschool-brb.html` | "BRB"-Ersatz-Szene mit Mic-Status-Badge (`?mic=`) + Chat-Box | 🟢 | tmi.js, EventSub |
 | `oldschool-outro.html` | "Stream Ending"-Ersatz-Szene mit echter "Tonight's MVPs"-Liste aus `dangsxr_leaderboard` | 🟢 | EventSub (Alert-Popup) |
 
-**Noch nicht live in Streamlabs Mobile validiert** (nur Playwright/Screenshot-geprüft) — siehe `CLAUDE.md`, Offene Punkte.
+**Live-Validierung läuft bereits** — `oldschool-starting.html` und `oldschool-chatting.html`/`oldschool-brb.html` wurden je mind. einmal live in Streamlabs Mobile getestet und nachgebessert (Social-Chips reduziert, Countdown-Clipping behoben, tanzender Bär, Bär statt leerem Facecam-Slot, sichtbarer Chat-Status, Chat-Box-Positionierung robuster gegen schmale Browser-Quellen). `oldschool-gameplay.html`/`oldschool-outro.html` noch ungetestet. Details + volle Live-Test-Historie siehe `CLAUDE.md`, Offene Punkte #18.
 
 ## Frei positionierbare Einzel-Widget-Quellen
 
