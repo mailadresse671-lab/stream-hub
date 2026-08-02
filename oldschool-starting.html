@@ -31,9 +31,28 @@
        "JETZT LIVE" um statt zu loopen, gleiche Produktionslogik wie
        start.html), Marquee-Ticker-Text (?track=/?artist=), Alert-Popup
        (echte Twitch-EventSub-Verbindung, eigene WebSocket-Session wie in
-       jeder anderen Datei dieses Projekts). Vinyl-Spinner/Spray-Titel/
-       Social-Chips sind reine Deko (Handles hardcoded, echte Social-Handles
-       stehen laut CLAUDE.md/PANEL_CONCEPT.md ohnehin noch aus). -->
+       jeder anderen Datei dieses Projekts). Vinyl-Spinner/Spray-Titel sind
+       reine Deko.
+
+       Nutzer-Feedback nach Live-Screenshot (aktuell): (a) Social-Chips auf
+       nur noch TWITCH reduziert (Twitter/X, Instagram, Discord entfernt) -
+       echte Handles fuer die anderen Plattformen stehen laut CLAUDE.md/
+       PANEL_CONCEPT.md ohnehin noch aus, bis dahin lieber nur die eine
+       echte Verbindung zeigen. (b) Countdown-Ziffern wurden im Screenshot
+       am Rand abgeschnitten - neue fitCountdownText() misst die tatsaechlich
+       gerenderte Breite gegen die Viewport-Breite und schrumpft die
+       Schriftgroesse bei Bedarf nach, gleiches Prinzip wie
+       setupSoundtrackMarquee() in goal.html/overlay.html, garantiert
+       vollstaendige Sichtbarkeit unabhaengig von der tatsaechlichen
+       Streamlabs-Quellen-Breite. (c) Baer ergaenzt (linker Rand, vertikal
+       zentriert) - war nicht Teil des Original-Design-Exports fuer diese
+       Szene, auf Nutzerwunsch neu hinzugefuegt, wiederverwendet dieselben
+       Bilder wie ueberall sonst im Projekt (assets/images/avatar_idle.png).
+       "Tanzt zur Musik" ist technisch nicht als echte Audio-Reaktivitaet
+       moeglich (Browser-Quelle hat keinen Zugriff auf die von Streamlabs
+       gemischte Musik, siehe avatar.html/in-game.html-Historie) - stattdessen
+       ein permanenter CSS-Keyframe-Dance-Loop (bearDance), ehrliche
+       Alternative statt vorgetaeuschter Musik-Synchronisation. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -101,10 +120,15 @@
     .social-row { position: absolute; bottom: calc(var(--vu) * 210); left: 0; right: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: calc(var(--vu) * 22); z-index: 6; }
     .social-chip { font-weight: 700; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 12) calc(var(--vu) * 26); border-radius: calc(var(--vu) * 6); box-shadow: calc(var(--vu) * 4) calc(var(--vu) * 4) 0 rgba(0,0,0,.4); white-space: nowrap; }
     .social-chip.primary { color: var(--ink); background: var(--paper); transform: rotate(-2deg); }
-    .social-chip.alt { color: var(--cream); background: #111111; border: calc(var(--vu) * 2) solid var(--paper); }
-    .social-chip.alt.r1 { transform: rotate(1.5deg); }
-    .social-chip.alt.r2 { transform: rotate(-1.5deg); }
-    .social-chip.alt.r3 { transform: rotate(2deg); }
+
+    .bear-dance-anchor { position: absolute; left: calc(var(--vu) * 70); top: 50%; transform: translateY(-50%); width: calc(var(--vu) * 230); height: calc(var(--vu) * 410); z-index: 5; }
+    .bear-dance-anchor img { width: 100%; height: 100%; object-fit: contain; transform-origin: bottom center; animation: bearDance 1.4s ease-in-out infinite; filter: drop-shadow(0 0 calc(var(--vu) * 3) rgba(200,16,46,.9)) drop-shadow(0 0 calc(var(--vu) * 16) rgba(200,16,46,.55)) drop-shadow(0 0 calc(var(--vu) * 40) rgba(200,16,46,.3)); }
+    @keyframes bearDance {
+      0%, 100% { transform: translateY(0) rotate(-4deg) scale(1); }
+      25% { transform: translateY(calc(var(--vu) * -16)) rotate(3deg) scale(1.03); }
+      50% { transform: translateY(0) rotate(-3deg) scale(1); }
+      75% { transform: translateY(calc(var(--vu) * -10)) rotate(4deg) scale(1.02); }
+    }
 
     .ticker-bar { position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--vu) * 78); background: #111111; border-top: calc(var(--vu) * 4) solid var(--paper); overflow: hidden; display: flex; align-items: center; z-index: 6; }
     .ticker-track { white-space: nowrap; display: flex; gap: calc(var(--vu) * 80); animation: marqueeX 18s linear infinite; padding-left: calc(var(--vu) * 40); width: max-content; }
@@ -128,6 +152,10 @@
       <div class="vinyl-hole"></div>
     </div>
 
+    <div class="bear-dance-anchor">
+      <img src="assets/images/avatar_idle.png" alt="DaN Maskottchen" onerror="this.style.display='none';">
+    </div>
+
     <div class="headline-col">
       <div class="splatter headline-splatter"></div>
       <div class="headline-wrap">
@@ -145,9 +173,6 @@
 
     <div class="social-row">
       <div class="social-chip primary">TWITCH · DANGSXR1000</div>
-      <div class="social-chip alt r1">TWITTER/X · @DANGSXR1000</div>
-      <div class="social-chip alt r2">INSTAGRAM · @DANGSXR1000</div>
-      <div class="social-chip alt r3">DISCORD · DANGSXR1000</div>
     </div>
 
     <div class="ticker-bar">
@@ -182,6 +207,23 @@
     const countdownLabelEl = document.getElementById('countdownLabel');
     const countdownFigureEl = document.getElementById('countdownFigure');
     function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+    // Misst die tatsaechlich gerenderte Breite der Countdown-Ziffern gegen
+    // die Viewport-Breite und schrumpft die Schriftgroesse bei Bedarf nach -
+    // garantiert vollstaendige Sichtbarkeit unabhaengig davon, wie breit die
+    // Streamlabs-Quelle tatsaechlich rendert (gleiches Prinzip wie
+    // setupSoundtrackMarquee() in goal.html/overlay.html).
+    function fitCountdownText() {
+      countdownFigureEl.style.fontSize = '';
+      const maxWidth = countdownFigureEl.parentElement.clientWidth * 0.92;
+      const naturalWidth = countdownFigureEl.scrollWidth;
+      if (naturalWidth > maxWidth && naturalWidth > 0) {
+        const baseSize = parseFloat(getComputedStyle(countdownFigureEl).fontSize);
+        countdownFigureEl.style.fontSize = (baseSize * (maxWidth / naturalWidth)) + 'px';
+      }
+    }
+    window.addEventListener('resize', fitCountdownText);
+
     let wentLive = false;
     let lastSec = -1;
     function tickCountdown() {
@@ -190,11 +232,13 @@
       if (remainingSeconds !== lastSec) {
         lastSec = remainingSeconds;
         countdownFigureEl.textContent = pad2(remainingSeconds / 60) + ':' + pad2(remainingSeconds % 60);
+        fitCountdownText();
       }
       if (remainingMs <= 0 && !wentLive) {
         wentLive = true;
         countdownLabelEl.textContent = 'GEHT LIVE';
         countdownFigureEl.textContent = 'JETZT LIVE';
+        fitCountdownText();
       }
       requestAnimationFrame(tickCountdown);
     }
