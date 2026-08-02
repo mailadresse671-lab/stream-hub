@@ -68,6 +68,12 @@
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
     label { display: grid; gap: 4px; font-size: 13px; opacity: .9; }
+    .field-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
     input {
       width: 100%;
       border: 1px solid rgba(255,255,255,.5);
@@ -95,6 +101,11 @@
       letter-spacing: .6px;
     }
     button:hover { background: rgba(200,16,46,.5); }
+    .copy-btn {
+      min-width: 96px;
+      white-space: nowrap;
+      padding-inline: 12px;
+    }
     .status {
       font-size: 14px;
       line-height: 1.4;
@@ -123,13 +134,22 @@
       <h2>Verbindung</h2>
       <div class="grid">
         <label>Regie API URL
-          <input id="apiUrl" type="text" placeholder="https://.../api/regie-control">
+          <div class="field-row">
+            <input id="apiUrl" type="text" placeholder="https://.../api/regie-control">
+            <button class="copy-btn" type="button" data-copy-target="apiUrl">Kopieren</button>
+          </div>
         </label>
         <label>Regie Key (optional, empfohlen)
-          <input id="apiKey" type="password" placeholder="REGIE_CONTROL_KEY">
+          <div class="field-row">
+            <input id="apiKey" type="password" placeholder="REGIE_CONTROL_KEY">
+            <button class="copy-btn" type="button" data-copy-target="apiKey">Kopieren</button>
+          </div>
         </label>
         <label>Szene
-          <input id="scene" type="text" value="oldschool-starting">
+          <div class="field-row">
+            <input id="scene" type="text" value="oldschool-starting">
+            <button class="copy-btn" type="button" data-copy-target="scene">Kopieren</button>
+          </div>
         </label>
       </div>
       <div class="btn-row">
@@ -144,10 +164,16 @@
       <h2>Track</h2>
       <div class="grid">
         <label>Track URL (direkte mp3)
-          <input id="trackUrl" type="text" placeholder="https://.../track.mp3">
+          <div class="field-row">
+            <input id="trackUrl" type="text" placeholder="https://.../track.mp3">
+            <button class="copy-btn" type="button" data-copy-target="trackUrl">Kopieren</button>
+          </div>
         </label>
         <label>Titel
-          <input id="trackTitle" type="text" placeholder="Mein Trackname">
+          <div class="field-row">
+            <input id="trackTitle" type="text" placeholder="Mein Trackname">
+            <button class="copy-btn" type="button" data-copy-target="trackTitle">Kopieren</button>
+          </div>
         </label>
       </div>
       <div class="btn-row">
@@ -228,6 +254,41 @@
 
     function setStatus(text) {
       statusEl.textContent = text;
+    }
+
+    async function copyValue(value) {
+      const text = String(value || '');
+      if (!text) throw new Error('Feld ist leer.');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const helper = document.createElement('textarea');
+      helper.value = text;
+      helper.setAttribute('readonly', 'true');
+      helper.style.position = 'fixed';
+      helper.style.left = '-9999px';
+      document.body.appendChild(helper);
+      helper.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(helper);
+      if (!ok) throw new Error('Kopieren nicht moeglich.');
+    }
+
+    function bindCopyButtons() {
+      document.querySelectorAll('[data-copy-target]').forEach(button => {
+        button.addEventListener('click', async function () {
+          const targetId = button.getAttribute('data-copy-target');
+          const input = document.getElementById(targetId);
+          if (!input) return;
+          try {
+            await copyValue(input.value);
+            setStatus('Kopiert: ' + targetId);
+          } catch (err) {
+            setStatus('Kopieren fehlgeschlagen: ' + err.message);
+          }
+        });
+      });
     }
 
     async function sendCommand(action, payload) {
@@ -321,6 +382,7 @@
       apiKeyEl.value = (cfg && cfg.apiKey) || '';
       sceneEl.value = (cfg && cfg.scene) || 'oldschool-starting';
       setStatus('Regie bereit.\nSzene: ' + sceneEl.value + '\nAPI: ' + apiUrlEl.value);
+      bindCopyButtons();
     })();
   </script>
 </body>
