@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Weiterleitung …</title>
+  <!-- Reiner Tippfehler-Redirect: die echte Szene heisst oldschool-chatting.html
+       (mit Bindestrich). Diese Datei faengt die Variante ohne Bindestrich ab,
+       falls sie irgendwo (Browser-Quelle, Lesezeichen, geteilter Link) fest
+       hinterlegt ist, und leitet auf die korrekte, echte Datei weiter -
+       inkl. eventueller Query-Parameter (z.B. ?subgoal=). -->
+  <meta http-equiv="refresh" content="0; url=/oldschool-chatting.html">
+  <script>location.replace('/oldschool-chatting.html' + location.search);</script>
+</head>
+<body>
+  <p>Weiterleitung zu <a href="/oldschool-chatting.html">oldschool-chatting.html</a> …</p>
+</body>
+</html>
