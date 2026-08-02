@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RL Rang (Tracker.gg Embed)</title>
+  <!-- Experimentelles Widget: legt unseren eigenen "Urban Blackout"/Chrome-
+       Gold-Bling-Rahmen (Chamfer-Ecken, Eckklammern, Watermark, Glow - gleiche
+       Optik wie rl-stats.html/hype-level.html) um Tracker.gg's EIGENES,
+       gehostetes Rang-Overlay per <iframe>.
+
+       Hintergrund: Rocket League ist ueber Tracker Networks oeffentliche
+       Entwickler-API nach wie vor nicht verfuegbar (siehe CLAUDE.md, api/
+       stats.js-Historie) - deshalb wurde die eigene Rang/MMR-Anzeige aus
+       index.html/overlay.html/rl-stats.html/in-game.html entfernt. Tracker.gg
+       bietet aber ein eigenes, account-gebundenes Overlay-Produkt
+       (tracker.gg/overlays), das den echten Rang zuverlaessig zeigt - dessen
+       interne Datenquelle ist aber NICHT oeffentlich/autorisiert fuer Dritte
+       (kein legitimer Weg, das selbst nachzubauen, ohne ihre private Seite zu
+       scrapen - genau das hatte uns vorher schon eine IP-Sperre eingebracht).
+
+       Dieses Embed ist der Kompromiss: kein Scraping, sondern ein normales
+       Einbetten der von Tracker.gg selbst fuer genau diesen Zweck
+       bereitgestellten Overlay-Seite per <iframe> - technisch sauber und
+       erlaubt (aehnlich einem YouTube-Embed). Die Overlay-URL kommt bewusst
+       NICHT hart einprogrammiert, sondern per ?src=-Parameter (URL-encoded),
+       da sie an den persoenlichen Tracker.gg-Account gebunden und damit
+       sensibler als ein normaler Konfigurationswert ist - sie soll nur in der
+       lokalen Streamlabs-Browser-Quellen-URL stehen, nie im Repo.
+
+       Runde 2 (aktuell) - Live-Test durch den Nutzer bestaetigt: Tracker.gg
+       erlaubt das Einbetten per iframe tatsaechlich, die Karte laedt korrekt.
+       Gefundener Bug: .frame-card war faelschlich auf height:100% gezwungen
+       (wollte den Container immer voll ausfuellen) statt sich wie bei
+       rl-stats.html/hype-level.html an den tatsaechlichen Karteninhalt
+       anzupassen (shrink-wrap) - dadurch blieb bei jeder hoeheren Streamlabs-
+       Quellen-Groesse als noetig darunter nur leerer, transparenter Platz
+       stehen. Fix: .frame-card ohne erzwungene Hoehe (schrumpft auf den
+       Inhalt), .embed-wrap bekommt eine feste, auf die tatsaechlich
+       beobachtete Kartengroesse (~780x230px Referenzbreite inkl. TRN-Tag)
+       kalibrierte Hoehe statt flex:1 (das den gesamten verfuegbaren Platz
+       fuellte, auch wenn die Karte selbst viel kleiner ist). Nutzer sollte
+       die Streamlabs-Quelle entsprechend als kurzes breites Rechteck
+       einrichten (aehnlich rl-stats.html), nicht als hohen/quadratischen
+       Block - sonst bleibt trotzdem Leerraum, da die Karte selbst nicht
+       mitwaechst. KEIN transform:scale() (siehe CLAUDE.md, overlay.html-
+       Hotfix-Historie Runde 3/4 - verursacht Unschaerfe in der Streamlabs-
+       Mobile-WebView). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.111vw, 3px); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
+
+    /* Zentriert eine INHALTS-grosse Karte im vollflaechigen Container -
+       gleiches Prinzip wie rl-stats.html/hype-level.html: .widget-position
+       fuellt immer den ganzen Container (Streamlabs' Transform-Panel
+       entscheidet ueber dessen Groesse), aber die Karte selbst schrumpft auf
+       ihren tatsaechlichen Inhalt statt erzwungen mitzuwachsen - sonst bleibt
+       bei einer groesser gewaehlten Quelle nur leerer Platz uebrig. */
+    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+
+    .frame-card { position: relative; width: 100%; padding: calc(var(--vu) * 14); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .frame-corner { position: absolute; width: calc(var(--vu) * 16); height: calc(var(--vu) * 16); pointer-events: none; }
+    .frame-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .frame-corner.tr { top: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .frame-corner.bl { bottom: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .frame-corner.br { bottom: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+
+    .frame-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: calc(var(--vu) * 12); }
+    .frame-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 20); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; white-space: nowrap; }
+    .frame-subtitle { font-size: calc(var(--vu) * 10); letter-spacing: 2px; color: rgba(244,241,234,.4); white-space: nowrap; }
+
+    /* Feste Hoehe statt flex:1/volle Container-Hoehe - kalibriert auf die
+       live beobachtete Kartengroesse (Karte + TRN-Tag, ~230px Referenzhoehe).
+       Die Karte selbst braucht laut Live-Test keine grosse Flaeche, sie
+       rendert oben links innerhalb des iframes, unabhaengig von dessen
+       Gesamthoehe - eine ueberdimensionierte Flaeche darunter ist deshalb
+       reiner Leerraum statt fuer die Karte noetig zu sein. */
+    .embed-wrap { position: relative; height: calc(var(--vu) * 240); }
+    .embed-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+
+    .frame-placeholder { height: calc(var(--vu) * 240); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--vu) * 8); text-align: center; padding: calc(var(--vu) * 10); }
+    .frame-placeholder span { font-size: calc(var(--vu) * 12); letter-spacing: 1px; color: var(--tan); line-height: 1.6; }
+    .frame-placeholder code { display: block; color: var(--blood); font-size: calc(var(--vu) * 10); word-break: break-all; }
+  </style>
+</head>
+<body>
+
+  <div class="widget-position">
+    <div class="frame-card">
+      <div class="frame-header">
+        <span class="frame-title">ROCKET LEAGUE — RANG</span>
+        <span class="frame-subtitle">TRACKER.GG</span>
+      </div>
+      <div class="embed-wrap" id="embedWrap"></div>
+      <div class="frame-corner tl"></div><div class="frame-corner tr"></div><div class="frame-corner bl"></div><div class="frame-corner br"></div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const src = params.get('src');
+    const wrap = document.getElementById('embedWrap');
+
+    if (src) {
+      const iframe = document.createElement('iframe');
+      iframe.src = src;
+      iframe.setAttribute('allowtransparency', 'true');
+      iframe.title = 'Tracker.gg Rocket League Overlay';
+      wrap.appendChild(iframe);
+    } else {
+      wrap.className = 'frame-placeholder';
+      wrap.innerHTML = '<span>?src= FEHLT<br>Tracker.gg-Overlay-URL als Parameter anhaengen:</span><code>rl-rank-frame.html?src=https%3A%2F%2Ftracker.gg%2Foverlays%2Foverlay%2F...</code>';
+    }
+  </script>
+
+</body>
+</html>
