@@ -10,22 +10,44 @@
 
        Transparentes Overlay (anders als oldschool-starting.html/-brb.html/
        -outro.html, die als Ersatz-Szenen einen echten Hintergrund haben) -
-       liegt ueber Facecam + Rocket-League-Ausschnitt, die als GETRENNTE
-       Streamlabs-Quellen UNTER dieser Browser-Quelle liegen. Die Rahmen um
-       Facecam/RL-Box sind reine Deko-Umrandung, der Innenbereich bleibt
-       bewusst komplett transparent (kein Platzhalter-Fill), damit die
-       echte Kamera/Spielaufnahme darunter unverfaelscht durchscheint - exakt
-       das Prinzip, das im Bundle selbst erklaert wird ("Match the visual
-       output; don't copy the prototype's internal structure" - die
-       <image-slot>-Platzhalter sind keine Dinge, die dieses HTML zeichnet).
+       liegt ueber der Rocket-League-Ausschnitt-Box, die als GETRENNTE
+       Streamlabs-Quelle UNTER dieser Browser-Quelle liegt. Der Rahmen um die
+       RL-Box ist reine Deko-Umrandung, der Innenbereich bleibt bewusst
+       komplett transparent (kein Platzhalter-Fill), damit die echte
+       Spielaufnahme darunter unverfaelscht durchscheint - exakt das Prinzip,
+       das im Bundle selbst erklaert wird ("Match the visual output; don't
+       copy the prototype's internal structure" - die <image-slot>-
+       Platzhalter sind keine Dinge, die dieses HTML zeichnet).
 
        Was echt ist: "LATEST FOLLOWER" (api/twitch-followers.js, bereits
        vorhandenes latestFollower-Feld, kein neuer Server-Code), Sub-Ziel-
        Fortschrittsbalken (neue api/twitch-subs.js, Zielwert per ?subgoal=,
        Default 100), Chat-Box (eigene tmi.js-Verbindung, XSS-sicheres
        Escaping + Emote-Rendering nach dem etablierten Muster aus chat.html),
-       Alert-Popup (echte EventSub-Verbindung). Facecam-/RL-Rahmen + LIVE/
-       FRESH-Sticker sind reine Deko. -->
+       Alert-Popup (echte EventSub-Verbindung). RL-Rahmen + LIVE/FRESH-
+       Sticker sind reine Deko.
+
+       Live-Feedback-Runde (aktuell): Nutzer war live und war verwirrt, "was
+       hier passieren soll" - der urspruengliche "Facecam"-Rahmen war fuer
+       eine ECHTE Webcam gedacht (so im Original-Design-Export), die es in
+       diesem Projekt nie gab und nie geben wird (100% Cloud/Mobile-Setup
+       ohne Kamera, siehe CLAUDE.md "System & Hardware Context" - der Baer
+       ersetzt bereits ueberall sonst im Projekt bewusst die Kamera/Mimik,
+       Kernstrategie-Prinzip "Das Overlay ersetzt die Mimik"). Der leere
+       Rahmen zeigte dadurch nur seinen eigenen Gold/Rot-Gradient-Rand ohne
+       jeden Inhalt. Fix: Baer (dieselben Bilder wie ueberall sonst,
+       assets/images/avatar_idle.png/avatar_action.png) füllt jetzt den
+       Slot, permanentes Idle-Wippen + Crossfade auf die Action-Pose bei
+       jeder Chat-Nachricht (leichte "light"-Reaktion, 1:1 Prinzip aus
+       avatar.html, ohne dessen volle Tier-Eskalation).
+
+       Zweiter Fund derselben Runde: die Chat-Box zeigte nie an, ob tmi.js
+       ueberhaupt eine Verbindung aufgebaut hat - ein leeres "keine
+       Nachrichten"-Aussehen war nicht von einer stillen Verbindungs-
+       Fehlfunktion zu unterscheiden. Neuer sichtbarer Status-Punkt+Text im
+       Chat-Header ("Verbinde…"/"Verbunden"/"CDN-Fehler"/"Verbindungsfehler"),
+       1:1 aus chat-vibes.html uebernommenes, bereits live bestaetigtes
+       Diagnose-Muster (CLAUDE.md, chat-vibes.html-Historie). -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -61,17 +83,37 @@
 
     .facecam-box { position: absolute; left: calc(var(--vu) * 110); top: calc(var(--vu) * 230); width: calc(var(--vu) * 680); height: calc(var(--vu) * 560); z-index: 5; }
     .facecam-frame { position: absolute; inset: 0; border-radius: calc(var(--vu) * 18); padding: calc(var(--vu) * 10); background: linear-gradient(135deg, var(--paper), var(--crimson)); box-shadow: 0 calc(var(--vu) * 24) calc(var(--vu) * 60) rgba(0,0,0,.55); }
-    .facecam-slot { position: relative; width: 100%; height: 100%; border-radius: calc(var(--vu) * 12); overflow: hidden; background: transparent; }
+    .facecam-slot { position: relative; width: 100%; height: 100%; border-radius: calc(var(--vu) * 12); overflow: hidden; background: #0a0a0a; }
     .sticker-live { position: absolute; top: calc(var(--vu) * -18); left: calc(var(--vu) * -22); transform: rotate(-12deg); font-family: 'Permanent Marker', cursive; font-size: calc(var(--vu) * 24); color: var(--ink); background: var(--paper); padding: calc(var(--vu) * 6) calc(var(--vu) * 16); border-radius: calc(var(--vu) * 6); box-shadow: calc(var(--vu) * 4) calc(var(--vu) * 4) 0 rgba(0,0,0,.4); }
     .sticker-fresh { position: absolute; bottom: calc(var(--vu) * -16); right: calc(var(--vu) * -18); transform: rotate(8deg); font-family: 'Permanent Marker', cursive; font-size: calc(var(--vu) * 19); color: var(--cream); background: var(--crimson-dark); padding: calc(var(--vu) * 6) calc(var(--vu) * 14); border-radius: calc(var(--vu) * 6); box-shadow: calc(var(--vu) * 4) calc(var(--vu) * 4) 0 rgba(0,0,0,.4); }
+
+    /* Baer ersetzt die im Original-Design vorgesehene, hier nie vorhandene
+       Webcam - siehe Kommentar oben. Zwei gestapelte Bilder, Opacity-
+       Crossfade bei Chat-Nachrichten, 1:1 Prinzip aus avatar.html. */
+    .facecam-bear-wrap { position: absolute; inset: calc(var(--vu) * 26); display: flex; align-items: center; justify-content: center; }
+    .facecam-bear { position: absolute; max-width: 100%; max-height: 100%; width: auto; height: 100%; object-fit: contain; animation: bearIdleBob 3.2s ease-in-out infinite; filter: drop-shadow(0 0 calc(var(--vu) * 3) rgba(200,16,46,.9)) drop-shadow(0 0 calc(var(--vu) * 16) rgba(200,16,46,.5)); transition: opacity .4s ease; }
+    .facecam-bear-idle { opacity: 1; }
+    .facecam-bear-action { opacity: 0; }
+    .facecam-slot.is-reacting .facecam-bear-idle { opacity: 0; }
+    .facecam-slot.is-reacting .facecam-bear-action { opacity: 1; }
+    @keyframes bearIdleBob {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(calc(var(--vu) * -10)) rotate(2deg); }
+    }
 
     .rl-box { position: absolute; left: calc(var(--vu) * 110); top: calc(var(--vu) * 812); width: calc(var(--vu) * 340); z-index: 5; }
     .rl-label { font-weight: 700; font-size: calc(var(--vu) * 18); color: var(--ink); background: var(--paper); display: inline-block; padding: calc(var(--vu) * 4) calc(var(--vu) * 14); border-radius: calc(var(--vu) * 6) calc(var(--vu) * 6) 0 0; white-space: nowrap; }
     .rl-slot { width: calc(var(--vu) * 340); height: calc(var(--vu) * 190); border-radius: 0 calc(var(--vu) * 12) calc(var(--vu) * 12) calc(var(--vu) * 12); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); background: transparent; }
 
     .chat-box { position: absolute; left: calc(var(--vu) * 1300); top: calc(var(--vu) * 70); width: calc(var(--vu) * 560); height: calc(var(--vu) * 760); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; box-shadow: 0 calc(var(--vu) * 24) calc(var(--vu) * 60) rgba(0,0,0,.5); border: calc(var(--vu) * 3) solid var(--paper); z-index: 6; }
-    .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 16) calc(var(--vu) * 24); white-space: nowrap; }
+    .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 16) calc(var(--vu) * 24); white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 12); }
+    .chat-status { display: flex; align-items: center; gap: calc(var(--vu) * 6); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: calc(var(--vu) * 13); letter-spacing: 1px; opacity: .8; white-space: nowrap; }
+    .chat-status-dot { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); border-radius: 50%; background: rgba(0,0,0,.3); flex: none; }
+    .chat-status-dot.connected { background: #3F7D5C; box-shadow: 0 0 calc(var(--vu) * 6) rgba(63,125,92,.7); }
+    .chat-status-dot.error { background: var(--crimson); box-shadow: 0 0 calc(var(--vu) * 6) rgba(200,16,46,.7); animation: chatStatusBlink 1.2s ease-in-out infinite; }
+    @keyframes chatStatusBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
     .chat-body { flex: 1; background: rgba(0,0,0,.86); padding: calc(var(--vu) * 20); display: flex; flex-direction: column; gap: calc(var(--vu) * 14); overflow: hidden; }
+    .chat-empty { margin: auto 0; text-align: center; font-size: calc(var(--vu) * 18); letter-spacing: 1px; color: rgba(229,229,229,.5); }
     .chat-msg { display: flex; gap: calc(var(--vu) * 10); align-items: baseline; font-size: calc(var(--vu) * 24); animation: chatSlideIn .35s ease-out; }
     .chat-msg .user { font-weight: 700; white-space: nowrap; }
     .chat-msg .text { color: var(--cream); word-break: break-word; }
@@ -103,7 +145,12 @@
 
     <div class="facecam-box">
       <div class="facecam-frame">
-        <div class="facecam-slot"></div>
+        <div class="facecam-slot" id="facecamSlot">
+          <div class="facecam-bear-wrap">
+            <img class="facecam-bear facecam-bear-idle" src="assets/images/avatar_idle.png" alt="DaN Maskottchen" onerror="this.style.display='none';">
+            <img class="facecam-bear facecam-bear-action" src="assets/images/avatar_action.png" alt="" onerror="this.style.display='none';">
+          </div>
+        </div>
       </div>
       <div class="sticker-live">LIVE</div>
       <div class="sticker-fresh">FRESH ✓</div>
@@ -115,8 +162,13 @@
     </div>
 
     <div class="chat-box">
-      <div class="chat-header">💬 LIVE CHAT</div>
-      <div class="chat-body" id="chatBody"></div>
+      <div class="chat-header">
+        <span>💬 LIVE CHAT</span>
+        <span class="chat-status"><span class="chat-status-dot" id="chatStatusDot"></span><span id="chatStatusText">Verbinde…</span></span>
+      </div>
+      <div class="chat-body" id="chatBody">
+        <div class="chat-empty" id="chatEmpty">WARTE AUF NACHRICHTEN</div>
+      </div>
     </div>
 
     <div class="scanline-overlay"></div>
@@ -178,10 +230,35 @@
 
     // ---------- Chat (echt, eigene tmi.js-Verbindung, XSS-sicheres Escaping + Emotes) ----------
     const chatBody = document.getElementById('chatBody');
+    const chatEmpty = document.getElementById('chatEmpty');
     const MAX_CHAT_MESSAGES = 8;
     const CHAT_MSG_LIFETIME_MS = 15000;
     const CHAT_USER_COLORS = ['u-gold', 'u-crimson', 'u-cream', 'u-teal'];
     let chatColorIdx = 0;
+
+    // Sichtbarer Verbindungsstatus statt stillem console.warn - 1:1 aus
+    // chat-vibes.html uebernommenes, bereits live bestaetigtes Diagnose-
+    // Muster (unterscheidet CDN-Fehler von IRC-Verbindungsfehler, siehe
+    // CLAUDE.md fuer die volle Historie).
+    function setChatStatus(status) {
+      const dot = document.getElementById('chatStatusDot');
+      const text = document.getElementById('chatStatusText');
+      const labels = { connecting: 'Verbinde…', connected: 'Verbunden', 'error-cdn': 'CDN-Fehler', 'error-connect': 'Verbindungsfehler' };
+      dot.className = 'chat-status-dot ' + (status.indexOf('error') === 0 ? 'error' : status);
+      text.textContent = labels[status] || status;
+    }
+
+    // Baer ersetzt die im Original-Design vorgesehene Webcam (siehe
+    // Datei-Kommentar oben) - kurze Action-Pose bei jeder Chat-Nachricht,
+    // gleiches Opacity-Crossfade-Prinzip wie avatar.html.
+    const facecamSlot = document.getElementById('facecamSlot');
+    let bearReactionTimer = null;
+    function triggerFacecamBear() {
+      if (!facecamSlot) return;
+      facecamSlot.classList.add('is-reacting');
+      clearTimeout(bearReactionTimer);
+      bearReactionTimer = setTimeout(() => facecamSlot.classList.remove('is-reacting'), 2000);
+    }
 
     function escapeHtml(str) {
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -214,6 +291,7 @@
     }
 
     function addChatMessage(username, text, colorClass, emotesTag) {
+      if (chatEmpty && chatEmpty.parentNode) chatEmpty.remove();
       const row = document.createElement('div');
       row.className = 'chat-msg';
       row.innerHTML = `<span class="user ${colorClass}">${escapeHtml(username)}:</span><span class="text">${renderMessageHtml(text, emotesTag)}</span>`;
@@ -222,6 +300,7 @@
         chatBody.removeChild(chatBody.firstChild);
       }
       setTimeout(() => { if (row.parentNode === chatBody) chatBody.removeChild(row); }, CHAT_MSG_LIFETIME_MS);
+      triggerFacecamBear();
     }
 
     loadTmiWithFallback(function () {
@@ -231,16 +310,26 @@
           connection: { secure: true, reconnect: true },
           channels: [CHANNEL_LOGIN]
         });
-        client.connect().catch(err => console.warn('[Chat] Verbindungsfehler:', err));
+        client.on('connected', () => setChatStatus('connected'));
+        client.on('disconnected', (reason) => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindung getrennt:', reason);
+        });
+        client.connect().catch(err => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindungsfehler:', err);
+        });
         client.on('message', (channel, tags, message, self) => {
           const colorClass = CHAT_USER_COLORS[chatColorIdx % CHAT_USER_COLORS.length];
           chatColorIdx++;
           addChatMessage(tags['display-name'] || tags.username, message, colorClass, tags.emotes);
         });
       } catch (e) {
+        setChatStatus('error-connect');
         console.warn('[Chat] tmi.js nicht verfuegbar:', e.message);
       }
     }, function () {
+      setChatStatus('error-cdn');
       console.warn('[Chat] tmi.js konnte von keiner Quelle geladen werden.');
     });
 
