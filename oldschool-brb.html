@@ -18,7 +18,14 @@
        kann NICHT automatisch erkannt werden (Browser-Quelle hat keinen
        Zugriff auf den echten Mixer-Status) - einfacher ?mic=muted|live-
        Parameter, Default "muted". Tagline optional per ?message=. BRB-
-       Spray-Text/Vinyl-Deko sind reine Ornamentik. -->
+       Spray-Text/Vinyl-Deko sind reine Ornamentik.
+
+       Live-Feedback-Runde (aktuell, zuerst bei oldschool-chatting.html
+       gemeldet, hier aus Konsistenzgruenden gleich mitgezogen): sichtbarer
+       Chat-Verbindungsstatus ("Verbinde…"/"Verbunden"/"CDN-Fehler"/
+       "Verbindungsfehler") im Chat-Header ergaenzt, 1:1 aus chat-vibes.html
+       uebernommenes Diagnose-Muster - vorher war ein leerer Chat nicht von
+       einer stillen Verbindungs-Fehlfunktion zu unterscheiden. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -84,8 +91,14 @@
     .mic-badge.mic-live { background: var(--mic-live); }
 
     .chat-box { position: absolute; left: calc(var(--vu) * 560); bottom: calc(var(--vu) * 60); width: calc(var(--vu) * 800); height: calc(var(--vu) * 230); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); box-shadow: 0 calc(var(--vu) * 20) calc(var(--vu) * 50) rgba(0,0,0,.5); z-index: 6; }
-    .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 17); padding: calc(var(--vu) * 10) calc(var(--vu) * 20); white-space: nowrap; }
+    .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 17); padding: calc(var(--vu) * 10) calc(var(--vu) * 20); white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 12); }
+    .chat-status { display: flex; align-items: center; gap: calc(var(--vu) * 6); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: calc(var(--vu) * 12); letter-spacing: 1px; opacity: .8; white-space: nowrap; }
+    .chat-status-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; background: rgba(0,0,0,.3); flex: none; }
+    .chat-status-dot.connected { background: #3F7D5C; box-shadow: 0 0 calc(var(--vu) * 6) rgba(63,125,92,.7); }
+    .chat-status-dot.error { background: var(--crimson); box-shadow: 0 0 calc(var(--vu) * 6) rgba(200,16,46,.7); animation: chatStatusBlink 1.2s ease-in-out infinite; }
+    @keyframes chatStatusBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
     .chat-body { flex: 1; background: rgba(0,0,0,.88); padding: calc(var(--vu) * 16) calc(var(--vu) * 20); display: flex; flex-direction: column; gap: calc(var(--vu) * 10); overflow: hidden; }
+    .chat-empty { margin: auto 0; text-align: center; font-size: calc(var(--vu) * 16); letter-spacing: 1px; color: rgba(229,229,229,.5); }
     .chat-msg { display: flex; gap: calc(var(--vu) * 8); font-size: calc(var(--vu) * 22); animation: chatSlideIn .35s ease-out; }
     .chat-msg .user { font-weight: 700; white-space: nowrap; }
     .chat-msg .text { color: var(--cream); word-break: break-word; }
@@ -120,8 +133,13 @@
     </div>
 
     <div class="chat-box">
-      <div class="chat-header">💬 CHAT LÄUFT WEITER</div>
-      <div class="chat-body" id="chatBody"></div>
+      <div class="chat-header">
+        <span>💬 CHAT LÄUFT WEITER</span>
+        <span class="chat-status"><span class="chat-status-dot" id="chatStatusDot"></span><span id="chatStatusText">Verbinde…</span></span>
+      </div>
+      <div class="chat-body" id="chatBody">
+        <div class="chat-empty" id="chatEmpty">WARTE AUF NACHRICHTEN</div>
+      </div>
     </div>
 
     <div class="scanline-overlay"></div>
@@ -153,10 +171,21 @@
 
     // ---------- Chat (echt, eigene tmi.js-Verbindung, unabhaengige Instanz) ----------
     const chatBody = document.getElementById('chatBody');
+    const chatEmpty = document.getElementById('chatEmpty');
     const MAX_CHAT_MESSAGES = 4;
     const CHAT_MSG_LIFETIME_MS = 15000;
     const CHAT_USER_COLORS = ['u-gold', 'u-crimson', 'u-cream', 'u-teal'];
     let chatColorIdx = 0;
+
+    // Sichtbarer Verbindungsstatus statt stillem console.warn - 1:1 aus
+    // chat-vibes.html/oldschool-chatting.html uebernommenes Diagnose-Muster.
+    function setChatStatus(status) {
+      const dot = document.getElementById('chatStatusDot');
+      const text = document.getElementById('chatStatusText');
+      const labels = { connecting: 'Verbinde…', connected: 'Verbunden', 'error-cdn': 'CDN-Fehler', 'error-connect': 'Verbindungsfehler' };
+      dot.className = 'chat-status-dot ' + (status.indexOf('error') === 0 ? 'error' : status);
+      text.textContent = labels[status] || status;
+    }
 
     function escapeHtml(str) {
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -189,6 +218,7 @@
     }
 
     function addChatMessage(username, text, colorClass, emotesTag) {
+      if (chatEmpty && chatEmpty.parentNode) chatEmpty.remove();
       const row = document.createElement('div');
       row.className = 'chat-msg';
       row.innerHTML = `<span class="user ${colorClass}">${escapeHtml(username)}:</span><span class="text">${renderMessageHtml(text, emotesTag)}</span>`;
@@ -206,16 +236,26 @@
           connection: { secure: true, reconnect: true },
           channels: [CHANNEL_LOGIN]
         });
-        client.connect().catch(err => console.warn('[Chat] Verbindungsfehler:', err));
+        client.on('connected', () => setChatStatus('connected'));
+        client.on('disconnected', (reason) => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindung getrennt:', reason);
+        });
+        client.connect().catch(err => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindungsfehler:', err);
+        });
         client.on('message', (channel, tags, message, self) => {
           const colorClass = CHAT_USER_COLORS[chatColorIdx % CHAT_USER_COLORS.length];
           chatColorIdx++;
           addChatMessage(tags['display-name'] || tags.username, message, colorClass, tags.emotes);
         });
       } catch (e) {
+        setChatStatus('error-connect');
         console.warn('[Chat] tmi.js nicht verfuegbar:', e.message);
       }
     }, function () {
+      setChatStatus('error-cdn');
       console.warn('[Chat] tmi.js konnte von keiner Quelle geladen werden.');
     });
 
