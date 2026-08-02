@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oldschool Regie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #050505;
+      --paper: #f4f4f4;
+      --cream: #dedede;
+      --blood: #c8102e;
+      --blood-dark: #8c0a1f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse 1300px 900px at 50% 40%, #1b0b0f 0%, #0f0709 48%, #030303 100%);
+      color: var(--cream);
+      font-family: 'Barlow Condensed', sans-serif;
+      padding: 18px;
+    }
+    .wrap {
+      width: min(840px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+    .headline {
+      border: 2px solid var(--paper);
+      background: rgba(0,0,0,.72);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 14px 38px rgba(0,0,0,.45);
+    }
+    .title {
+      font-family: 'Rubik Spray Paint', cursive;
+      font-size: clamp(28px, 5vw, 46px);
+      line-height: 1;
+      color: var(--paper);
+      text-shadow: 3px 3px 0 var(--blood-dark);
+    }
+    .subtitle {
+      margin-top: 8px;
+      font-size: 16px;
+      opacity: .86;
+    }
+    .card {
+      border: 2px solid rgba(244,244,244,.92);
+      border-radius: 12px;
+      background: rgba(0,0,0,.78);
+      padding: 14px;
+      box-shadow: 0 10px 28px rgba(0,0,0,.35), inset 0 0 0 1px rgba(200,16,46,.35);
+    }
+    .card h2 {
+      font-size: 18px;
+      color: var(--paper);
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    label { display: grid; gap: 4px; font-size: 13px; opacity: .9; }
+    input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.5);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(10,10,10,.9);
+      color: var(--paper);
+      font: inherit;
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    button {
+      border: 1px solid rgba(255,255,255,.8);
+      background: rgba(200,16,46,.34);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      letter-spacing: .6px;
+    }
+    button:hover { background: rgba(200,16,46,.5); }
+    .status {
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 68px;
+    }
+    .hint {
+      font-size: 13px;
+      opacity: .85;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="headline">
+      <div class="title">Oldschool Regie</div>
+      <div class="subtitle">Browser-Steuerung fuer Live-Session (MVP). Diese Regie sendet Befehle an oldschool-starting.</div>
+    </section>
+
+    <section class="card">
+      <h2>Verbindung</h2>
+      <div class="grid">
+        <label>Regie API URL
+          <input id="apiUrl" type="text" placeholder="https://.../api/regie-control">
+        </label>
+        <label>Regie Key (optional, empfohlen)
+          <input id="apiKey" type="password" placeholder="REGIE_CONTROL_KEY">
+        </label>
+        <label>Szene
+          <input id="scene" type="text" value="oldschool-starting">
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="btnSaveConfig">Regie speichern</button>
+        <button id="btnPing">Ping senden</button>
+        <button id="btnReset">API Queue loeschen</button>
+      </div>
+      <div class="hint">Setze in Vercel die ENV REGIE_CONTROL_KEY, damit niemand Fremdes steuern kann.</div>
+    </section>
+
+    <section class="card">
+      <h2>Track</h2>
+      <div class="grid">
+        <label>Track URL (direkte mp3)
+          <input id="trackUrl" type="text" placeholder="https://.../track.mp3">
+        </label>
+        <label>Titel
+          <input id="trackTitle" type="text" placeholder="Mein Trackname">
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="btnSetTrack">Track setzen</button>
+        <button id="btnSetTrackPlay">Setzen + Play</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Playback</h2>
+      <div class="btn-row">
+        <button data-action="music.play">Play</button>
+        <button data-action="music.pause">Pause</button>
+        <button data-action="music.toggle">Toggle</button>
+        <button data-action="music.mute">Mute</button>
+        <button data-action="music.unmute">Unmute</button>
+        <button data-action="music.volume.down">Vol - 5</button>
+        <button data-action="music.volume.up">Vol + 5</button>
+      </div>
+      <div class="grid" style="margin-top:10px;">
+        <label>Lautstaerke 0-100
+          <input id="volumeValue" type="number" min="0" max="100" value="12">
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="btnSetVolume">Lautstaerke setzen</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Status</h2>
+      <div id="status" class="status">Bereit.</div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'dangsxr_oldschool_regie_config_v1';
+    const apiUrlEl = document.getElementById('apiUrl');
+    const apiKeyEl = document.getElementById('apiKey');
+    const sceneEl = document.getElementById('scene');
+    const statusEl = document.getElementById('status');
+    const trackUrlEl = document.getElementById('trackUrl');
+    const trackTitleEl = document.getElementById('trackTitle');
+    const volumeValueEl = document.getElementById('volumeValue');
+
+    function defaultApi() {
+      return location.origin.replace(/\/$/, '') + '/api/regie-control';
+    }
+
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function saveConfig() {
+      const cfg = {
+        apiUrl: apiUrlEl.value.trim() || defaultApi(),
+        apiKey: apiKeyEl.value,
+        scene: sceneEl.value.trim() || 'oldschool-starting'
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      setStatus('Regie gespeichert.\nAPI: ' + cfg.apiUrl + '\nSzene: ' + cfg.scene);
+      return cfg;
+    }
+
+    function getConfig() {
+      return {
+        apiUrl: apiUrlEl.value.trim() || defaultApi(),
+        apiKey: apiKeyEl.value,
+        scene: sceneEl.value.trim() || 'oldschool-starting'
+      };
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    async function sendCommand(action, payload) {
+      const cfg = getConfig();
+      const headers = { 'Content-Type': 'application/json' };
+      if (cfg.apiKey) headers['X-Regie-Key'] = cfg.apiKey;
+
+      const body = {
+        action,
+        scene: cfg.scene,
+        payload: payload || {}
+      };
+
+      const res = await fetch(cfg.apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data || !data.success) {
+        throw new Error((data && data.message) || ('HTTP ' + res.status));
+      }
+
+      setStatus([
+        'Befehl gesendet: ' + action,
+        'Revision: ' + data.revision,
+        'SecureMode: ' + (data.secureMode ? 'an' : 'aus'),
+        'Zeit: ' + new Date().toLocaleTimeString('de-DE')
+      ].join('\n'));
+    }
+
+    async function clearQueue() {
+      const cfg = getConfig();
+      const headers = {};
+      if (cfg.apiKey) headers['X-Regie-Key'] = cfg.apiKey;
+      const res = await fetch(cfg.apiUrl, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (!data || !data.success) {
+        throw new Error((data && data.message) || ('HTTP ' + res.status));
+      }
+      setStatus('Queue geleert.\nRevision: ' + data.revision);
+    }
+
+    async function ping() {
+      await sendCommand('system.ping', { ts: Date.now() });
+    }
+
+    document.getElementById('btnSaveConfig').addEventListener('click', saveConfig);
+    document.getElementById('btnPing').addEventListener('click', function () {
+      ping().catch(err => setStatus('Ping fehlgeschlagen: ' + err.message));
+    });
+    document.getElementById('btnReset').addEventListener('click', function () {
+      clearQueue().catch(err => setStatus('Reset fehlgeschlagen: ' + err.message));
+    });
+
+    document.getElementById('btnSetTrack').addEventListener('click', function () {
+      sendCommand('music.track.set', {
+        source: trackUrlEl.value.trim(),
+        title: trackTitleEl.value.trim() || 'Unbenannter Track',
+        autoplay: false
+      }).catch(err => setStatus('Track setzen fehlgeschlagen: ' + err.message));
+    });
+
+    document.getElementById('btnSetTrackPlay').addEventListener('click', function () {
+      sendCommand('music.track.set', {
+        source: trackUrlEl.value.trim(),
+        title: trackTitleEl.value.trim() || 'Unbenannter Track',
+        autoplay: true
+      }).catch(err => setStatus('Track+Play fehlgeschlagen: ' + err.message));
+    });
+
+    document.getElementById('btnSetVolume').addEventListener('click', function () {
+      const value = Math.max(0, Math.min(100, Number(volumeValueEl.value) || 0));
+      sendCommand('music.volume.set', { value }).catch(err => setStatus('Volume setzen fehlgeschlagen: ' + err.message));
+    });
+
+    document.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const action = btn.getAttribute('data-action');
+        const payload = {};
+        if (action === 'music.volume.down' || action === 'music.volume.up') {
+          payload.step = 5;
+        }
+        sendCommand(action, payload).catch(err => setStatus('Befehl fehlgeschlagen: ' + err.message));
+      });
+    });
+
+    (function init() {
+      const cfg = loadConfig();
+      apiUrlEl.value = (cfg && cfg.apiUrl) || defaultApi();
+      apiKeyEl.value = (cfg && cfg.apiKey) || '';
+      sceneEl.value = (cfg && cfg.scene) || 'oldschool-starting';
+      setStatus('Regie bereit.\nSzene: ' + sceneEl.value + '\nAPI: ' + apiUrlEl.value);
+    })();
+  </script>
+</body>
+</html>
