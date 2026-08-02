@@ -47,7 +47,41 @@
        Fehlfunktion zu unterscheiden. Neuer sichtbarer Status-Punkt+Text im
        Chat-Header ("Verbinde…"/"Verbunden"/"CDN-Fehler"/"Verbindungsfehler"),
        1:1 aus chat-vibes.html uebernommenes, bereits live bestaetigtes
-       Diagnose-Muster (CLAUDE.md, chat-vibes.html-Historie). -->
+       Diagnose-Muster (CLAUDE.md, chat-vibes.html-Historie).
+
+       Dritter Fund derselben Live-Test-Serie: Nutzer schickte einen
+       Screenshot der echten Twitch-Video-Vorschau (Twitch-App, eigene
+       Kanalseite) - der Baer im Facecam-Slot war korrekt sichtbar (Fix
+       oben bestaetigt live funktionierend), aber die Chat-Box war im
+       Bild nirgends zu sehen, obwohl im selben Screenshot echte
+       Twitch-Chat-Aktivitaet im nativen Twitch-Chat-Panel sichtbar war.
+       Verdacht: .chat-box war die einzige Zone in dieser Datei mit einem
+       grossen fixen left-Versatz nahe dem rechten Rand der 1920px-
+       Referenzbreite (left: 1300vu, mit dem Baeren/Follower/Subgoal alle
+       nahe left:110vu). --vu ist als clamp(0.5px, 0.0521vw, 1px) definiert
+       - faellt die tatsaechliche, von Streamlabs Mobile intern gerenderte
+       Browser-Quellen-Breite unter ~960px, klemmt --vu an seiner 0.5px-
+       Untergrenze fest, wodurch alle calc(var(--vu)*N)-Positionen zu
+       FESTEN Pixelwerten werden statt weiter proportional mitzuschrumpfen
+       - eine linke Kante bei 1300*0.5px=650px kann dann ausserhalb einer
+       schmaleren tatsaechlichen Quellenbreite liegen und wird durch das
+       #stage/body-overflow:hidden komplett unsichtbar, waehrend nahe
+       links verankerte Elemente (Baer etc.) davon unberuehrt bleiben -
+       exakt das beobachtete Muster. Identischer, bereits mehrfach in
+       CLAUDE.md dokumentierter Fehlerfall bei overlay.html (Hotfix-
+       Historie Runde 2: fixe left-Versaetze auf rechtsseitige Anker durch
+       right-Anker ersetzt). Fix hier: .chat-box von left:1300vu auf
+       right:60vu umgestellt (bei 1920px Referenzbreite visuell identisch
+       positioniert, .alert-card in derselben Datei nutzt bereits
+       right:70vu - selbes, schon bewaehrtes Ankerprinzip). Aus
+       Konsistenzgruenden wurde auch oldschool-brb.html angepasst (dessen
+       Chat-Box war bereits numerisch mittig platziert, aber ueber einen
+       fixen left-Wert statt echter left:50%/translateX(-50%)-Zentrierung
+       - jetzt robust gegen denselben Clamp-Grenzfall). Noch nicht live
+       bestaetigt - naechster Live-Test sollte zeigen, ob die Chat-Box
+       jetzt sichtbar ist UND ob der Status-Punkt "Verbunden" zeigt (falls
+       die Box sichtbar wird, aber leer bleibt, waere das ein getrennter
+       IRC-Verbindungsproblem statt eines Positionierungsproblems). -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -105,7 +139,7 @@
     .rl-label { font-weight: 700; font-size: calc(var(--vu) * 18); color: var(--ink); background: var(--paper); display: inline-block; padding: calc(var(--vu) * 4) calc(var(--vu) * 14); border-radius: calc(var(--vu) * 6) calc(var(--vu) * 6) 0 0; white-space: nowrap; }
     .rl-slot { width: calc(var(--vu) * 340); height: calc(var(--vu) * 190); border-radius: 0 calc(var(--vu) * 12) calc(var(--vu) * 12) calc(var(--vu) * 12); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); background: transparent; }
 
-    .chat-box { position: absolute; left: calc(var(--vu) * 1300); top: calc(var(--vu) * 70); width: calc(var(--vu) * 560); height: calc(var(--vu) * 760); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; box-shadow: 0 calc(var(--vu) * 24) calc(var(--vu) * 60) rgba(0,0,0,.5); border: calc(var(--vu) * 3) solid var(--paper); z-index: 6; }
+    .chat-box { position: absolute; right: calc(var(--vu) * 60); top: calc(var(--vu) * 70); width: calc(var(--vu) * 560); height: calc(var(--vu) * 760); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; box-shadow: 0 calc(var(--vu) * 24) calc(var(--vu) * 60) rgba(0,0,0,.5); border: calc(var(--vu) * 3) solid var(--paper); z-index: 6; }
     .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 16) calc(var(--vu) * 24); white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 12); }
     .chat-status { display: flex; align-items: center; gap: calc(var(--vu) * 6); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: calc(var(--vu) * 13); letter-spacing: 1px; opacity: .8; white-space: nowrap; }
     .chat-status-dot { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); border-radius: 50%; background: rgba(0,0,0,.3); flex: none; }
