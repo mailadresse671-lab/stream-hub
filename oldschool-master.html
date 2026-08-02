@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oldschool Master Stage</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --fg: #f4f4f4;
+      --accent: #c8102e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Arial, sans-serif;
+    }
+    #stage {
+      position: fixed;
+      inset: 0;
+      border: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+    #hud {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.45);
+      background: rgba(0,0,0,.55);
+      color: var(--fg);
+      padding: 6px 12px;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    body.hide-hud #hud {
+      display: none;
+    }
+    .state {
+      color: #ffffff;
+      font-weight: 700;
+    }
+    .state.warn {
+      color: #ff8a8a;
+    }
+    .state.ok {
+      color: #bdf6ca;
+    }
+    .mode {
+      color: #ffffff;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 4px;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 8px;
+      box-shadow: 0 0 8px rgba(200,16,46,0.8);
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="stage" allow="autoplay"></iframe>
+  <div id="hud"><span class="dot"></span><span class="state" id="state">Verbinde…</span> <span class="mode" id="mode">starting</span></div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const apiUrl = params.get('regieApi') || '/api/regie-control';
+    const pollMs = Math.max(700, Number(params.get('regiePoll')) || 1200);
+    const targetSceneName = 'oldschool-master';
+    const hideHud = params.get('hud') === '0';
+    const stage = document.getElementById('stage');
+    const stateEl = document.getElementById('state');
+    const modeEl = document.getElementById('mode');
+
+    if (hideHud) {
+      document.body.classList.add('hide-hud');
+    }
+
+    const sceneMap = {
+      starting: '/oldschool-starting.html',
+      gameplay: '/oldschool-gameplay.html',
+      chatting: '/oldschool-chatting.html',
+      brb: '/oldschool-brb.html',
+      outro: '/oldschool-outro.html'
+    };
+
+    const defaultMode = (params.get('mode') || 'starting').toLowerCase();
+    let currentMode = sceneMap[defaultMode] ? defaultMode : 'starting';
+    let since = 0;
+    let failures = 0;
+    let timer = null;
+
+    function buildSceneUrl(mode) {
+      const raw = params.get(mode);
+      if (raw && raw.trim()) return raw.trim();
+      return sceneMap[mode];
+    }
+
+    function setStatus(text, kind) {
+      stateEl.textContent = text;
+      stateEl.className = 'state' + (kind ? ' ' + kind : '');
+    }
+
+    function setMode(mode) {
+      const nextMode = sceneMap[mode] ? mode : null;
+      if (!nextMode) {
+        setStatus('Unbekannter Modus', 'warn');
+        return;
+      }
+      const nextUrl = buildSceneUrl(nextMode);
+      if (!nextUrl) {
+        setStatus('URL fehlt', 'warn');
+        return;
+      }
+      currentMode = nextMode;
+      modeEl.textContent = nextMode;
+      stage.src = nextUrl;
+      setStatus('Live', 'ok');
+    }
+
+    function applyCommand(command) {
+      if (!command || command.scene !== targetSceneName) return;
+      const action = command.action;
+      const payload = command.payload || {};
+
+      if (action === 'scene.switch') {
+        setMode(String(payload.mode || '').toLowerCase());
+        return;
+      }
+
+      if (action === 'scene.reload') {
+        stage.src = stage.src;
+        setStatus('Neu geladen', 'ok');
+        return;
+      }
+    }
+
+    async function poll() {
+      try {
+        const url = apiUrl + '?since=' + encodeURIComponent(String(since)) + '&_=' + Date.now();
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+
+        if (!data || !data.success) {
+          throw new Error((data && data.message) || 'Regie-API Fehler');
+        }
+
+        failures = 0;
+        since = Number.isFinite(Number(data.revision)) ? Number(data.revision) : since;
+
+        if (data.changed && data.command) {
+          applyCommand(data.command);
+        }
+
+        if (stateEl.classList.contains('warn')) {
+          setStatus('Live', 'ok');
+        }
+      } catch (err) {
+        failures += 1;
+        setStatus('Offline ' + failures, 'warn');
+      } finally {
+        const backoff = failures > 0 ? Math.min(6000, pollMs + failures * 500) : pollMs;
+        timer = setTimeout(poll, backoff);
+      }
+    }
+
+    setMode(currentMode);
+    poll();
+
+    window.addEventListener('beforeunload', function () {
+      if (timer) clearTimeout(timer);
+    });
+  </script>
+</body>
+</html>

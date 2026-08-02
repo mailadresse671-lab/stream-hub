@@ -284,6 +284,7 @@
         </div>
         <div class="mini-grid">
           <button id="btnCopyApi">API kopieren</button>
+          <button id="btnCopyMasterUrl">Master-URL kopieren</button>
           <button id="btnCopyScene">Szene kopieren</button>
           <button id="btnCopyTrackUrl">Track-URL kopieren</button>
           <button id="btnCopyKey">Key kopieren</button>
@@ -322,6 +323,9 @@
             <button class="scene-preset" type="button" data-scene-preset="oldschool-brb">BRB</button>
             <button class="scene-preset" type="button" data-scene-preset="oldschool-outro">Outro</button>
           </div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button id="btnUseMasterScene" type="button">Steuerziel: oldschool-master</button>
+          </div>
           <div class="btn-row">
             <button id="btnSaveConfig">Regie speichern</button>
             <button id="btnPing">Ping senden</button>
@@ -356,6 +360,20 @@
       </div>
 
       <div class="stack">
+        <section class="card">
+          <h2>Live Schaltung</h2>
+          <div class="section-kicker">Master Szene wechseln</div>
+          <div class="btn-row">
+            <button type="button" data-master-mode="starting">Zu Starting</button>
+            <button type="button" data-master-mode="gameplay">Zu Gameplay</button>
+            <button type="button" data-master-mode="chatting">Zu Chatting</button>
+            <button type="button" data-master-mode="brb">Zu BRB</button>
+            <button type="button" data-master-mode="outro">Zu Outro</button>
+            <button id="btnMasterReload" type="button">Master neu laden</button>
+          </div>
+          <div class="hint">Funktioniert nur mit <strong>oldschool-master.html</strong> als eine Browser-Quelle in Streamlabs.</div>
+        </section>
+
         <section class="card card-advanced">
           <h2>Eigene Datei</h2>
           <div class="section-kicker">Einzelner Song</div>
@@ -435,6 +453,7 @@
     const folderLibrary = [];
     const btnModeCompact = document.getElementById('btnModeCompact');
     const btnModePro = document.getElementById('btnModePro');
+    const MASTER_SCENE_NAME = 'oldschool-master';
 
     function defaultApi() {
       return location.origin.replace(/\/$/, '') + '/api/regie-control';
@@ -668,6 +687,7 @@
     function bindQuickCopyButtons() {
       const map = {
         btnCopyApi: 'apiUrl',
+        btnCopyMasterUrl: null,
         btnCopyScene: 'scene',
         btnCopyTrackUrl: 'trackUrl',
         btnCopyKey: 'apiKey'
@@ -676,16 +696,45 @@
         const button = document.getElementById(buttonId);
         if (!button) return;
         button.addEventListener('click', async function () {
-          const target = document.getElementById(map[buttonId]);
-          if (!target) return;
+          const target = map[buttonId] ? document.getElementById(map[buttonId]) : null;
+          const value = target ? target.value : (location.origin.replace(/\/$/, '') + '/oldschool-master.html');
           try {
-            await copyValue(target.value);
-            setStatus('Kopiert: ' + map[buttonId]);
+            await copyValue(value);
+            setStatus('Kopiert: ' + (map[buttonId] || 'masterUrl'));
           } catch (err) {
             setStatus('Kopieren fehlgeschlagen: ' + err.message);
           }
         });
       });
+    }
+
+    function sendMasterSwitch(mode) {
+      const cfg = getConfig();
+      if (cfg.scene !== MASTER_SCENE_NAME) {
+        setStatus('Hinweis: Szene auf "' + MASTER_SCENE_NAME + '" setzen, dann erneut drücken.');
+        return;
+      }
+      sendCommand('scene.switch', { mode: mode }).catch(err => setStatus('Schalten fehlgeschlagen: ' + err.message));
+    }
+
+    function bindMasterSwitchButtons() {
+      document.querySelectorAll('[data-master-mode]').forEach(button => {
+        button.addEventListener('click', function () {
+          const mode = button.getAttribute('data-master-mode');
+          sendMasterSwitch(mode);
+        });
+      });
+      const reloadBtn = document.getElementById('btnMasterReload');
+      if (reloadBtn) {
+        reloadBtn.addEventListener('click', function () {
+          const cfg = getConfig();
+          if (cfg.scene !== MASTER_SCENE_NAME) {
+            setStatus('Hinweis: Szene auf "' + MASTER_SCENE_NAME + '" setzen, dann erneut drücken.');
+            return;
+          }
+          sendCommand('scene.reload', {}).catch(err => setStatus('Reload fehlgeschlagen: ' + err.message));
+        });
+      }
     }
 
     async function sendCommand(action, payload) {
@@ -734,6 +783,10 @@
     }
 
     document.getElementById('btnSaveConfig').addEventListener('click', saveConfig);
+    document.getElementById('btnUseMasterScene').addEventListener('click', function () {
+      setSceneValue(MASTER_SCENE_NAME);
+      saveConfig();
+    });
     document.getElementById('btnPing').addEventListener('click', function () {
       ping().catch(err => setStatus('Ping fehlgeschlagen: ' + err.message));
     });
@@ -829,6 +882,7 @@
       bindCopyButtons();
       bindScenePresets();
       bindQuickCopyButtons();
+      bindMasterSwitchButtons();
       setSceneValue(sceneEl.value);
       renderFolderLibrary();
       initViewMode();
