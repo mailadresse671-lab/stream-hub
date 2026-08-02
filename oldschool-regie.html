@@ -24,10 +24,20 @@
       padding: 18px;
     }
     .wrap {
-      width: min(840px, 100%);
+      width: min(1180px, 100%);
       margin: 0 auto;
       display: grid;
       gap: 14px;
+    }
+    .shell {
+      display: grid;
+      gap: 14px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 14px;
+      align-items: stretch;
     }
     .headline {
       border: 2px solid var(--paper);
@@ -47,6 +57,51 @@
       margin-top: 8px;
       font-size: 16px;
       opacity: .86;
+    }
+    .callout {
+      border: 2px solid rgba(244,244,244,.92);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(0,0,0,.88), rgba(0,0,0,.76));
+      padding: 16px;
+      box-shadow: 0 10px 28px rgba(0,0,0,.35), inset 0 0 0 1px rgba(200,16,46,.35);
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .callout-title {
+      font-size: 18px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--paper);
+      font-weight: 700;
+    }
+    .callout-text {
+      font-size: 14px;
+      line-height: 1.5;
+      opacity: .88;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pill {
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: rgba(255,255,255,.06);
+      white-space: nowrap;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 14px;
+    }
+    .stack {
+      display: grid;
+      gap: 14px;
+      align-content: start;
     }
     .card {
       border: 2px solid rgba(244,244,244,.92);
@@ -88,6 +143,9 @@
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 8px;
       margin-top: 10px;
+    }
+    .btn-row.tight {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
     button {
       border: 1px solid rgba(255,255,255,.8);
@@ -151,122 +209,186 @@
       opacity: .78;
       padding: 10px 0 2px;
     }
+    .section-kicker {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.6px;
+      opacity: .72;
+      margin-bottom: 8px;
+    }
+    .scene-presets {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .scene-preset {
+      background: rgba(255,255,255,.06);
+    }
+    .scene-preset.active {
+      background: rgba(200,16,46,.55);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+    }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    @media (max-width: 900px) {
+      .hero, .dashboard { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <section class="headline">
-      <div class="title">Oldschool Regie</div>
-      <div class="subtitle">Browser-Steuerung fuer Live-Session (MVP). Diese Regie sendet Befehle an oldschool-starting.</div>
+    <section class="hero">
+      <section class="headline">
+        <div class="title">Oldschool Regie</div>
+        <div class="subtitle">Browser-Steuerung fuer Live-Session. Handy zuerst, Tablet nur als Output.</div>
+        <div class="pill-row">
+          <div class="pill">Live-Regie</div>
+          <div class="pill">Szenen-Presets</div>
+          <div class="pill">Track-/Audio-Kontrolle</div>
+          <div class="pill">Copy-Buttons</div>
+        </div>
+      </section>
+      <section class="callout">
+        <div class="callout-title">Sofort nutzbar</div>
+        <div class="callout-text">1. API und Key einmal speichern. 2. Szene waehlen. 3. Track oder Ordner laden. 4. Play druecken. Alles andere bleibt auf dem Handy.</div>
+        <div class="mini-grid">
+          <button id="btnCopyApi">API kopieren</button>
+          <button id="btnCopyScene">Szene kopieren</button>
+          <button id="btnCopyTrackUrl">Track-URL kopieren</button>
+          <button id="btnCopyKey">Key kopieren</button>
+        </div>
+      </section>
     </section>
 
-    <section class="card">
-      <h2>Verbindung</h2>
-      <div class="grid">
-        <label>Regie API URL
-          <div class="field-row">
-            <input id="apiUrl" type="text" placeholder="https://.../api/regie-control">
-            <button class="copy-btn" type="button" data-copy-target="apiUrl">Kopieren</button>
+    <section class="dashboard">
+      <div class="stack">
+        <section class="card">
+          <h2>Verbindung</h2>
+          <div class="section-kicker">Basisdaten</div>
+          <div class="grid">
+            <label>Regie API URL
+              <div class="field-row">
+                <input id="apiUrl" type="text" placeholder="https://.../api/regie-control">
+                <button class="copy-btn" type="button" data-copy-target="apiUrl">Kopieren</button>
+              </div>
+            </label>
+            <label>Regie Key
+              <div class="field-row">
+                <input id="apiKey" type="password" placeholder="REGIE_CONTROL_KEY">
+                <button class="copy-btn" type="button" data-copy-target="apiKey">Kopieren</button>
+              </div>
+            </label>
+            <label>Ziel-Szene
+              <div class="field-row">
+                <input id="scene" type="text" value="oldschool-starting">
+                <button class="copy-btn" type="button" data-copy-target="scene">Kopieren</button>
+              </div>
+            </label>
           </div>
-        </label>
-        <label>Regie Key (optional, empfohlen)
-          <div class="field-row">
-            <input id="apiKey" type="password" placeholder="REGIE_CONTROL_KEY">
-            <button class="copy-btn" type="button" data-copy-target="apiKey">Kopieren</button>
+          <div class="scene-presets" id="scenePresets">
+            <button class="scene-preset active" type="button" data-scene-preset="oldschool-starting">Starting</button>
+            <button class="scene-preset" type="button" data-scene-preset="oldschool-gameplay">Gameplay</button>
+            <button class="scene-preset" type="button" data-scene-preset="oldschool-brb">BRB</button>
+            <button class="scene-preset" type="button" data-scene-preset="oldschool-outro">Outro</button>
           </div>
-        </label>
-        <label>Szene
-          <div class="field-row">
-            <input id="scene" type="text" value="oldschool-starting">
-            <button class="copy-btn" type="button" data-copy-target="scene">Kopieren</button>
+          <div class="btn-row">
+            <button id="btnSaveConfig">Regie speichern</button>
+            <button id="btnPing">Ping senden</button>
+            <button id="btnReset">API Queue loeschen</button>
           </div>
-        </label>
-      </div>
-      <div class="btn-row">
-        <button id="btnSaveConfig">Regie speichern</button>
-        <button id="btnPing">Ping senden</button>
-        <button id="btnReset">API Queue loeschen</button>
-      </div>
-      <div class="hint">Setze in Vercel die ENV REGIE_CONTROL_KEY, damit niemand Fremdes steuern kann.</div>
-    </section>
+          <div class="hint">Setze in Vercel die ENV REGIE_CONTROL_KEY, damit niemand Fremdes steuern kann.</div>
+        </section>
 
-    <section class="card">
-      <h2>Track</h2>
-      <div class="grid">
-        <label>Track URL (direkte mp3)
-          <div class="field-row">
-            <input id="trackUrl" type="text" placeholder="https://.../track.mp3">
-            <button class="copy-btn" type="button" data-copy-target="trackUrl">Kopieren</button>
+        <section class="card">
+          <h2>Track</h2>
+          <div class="section-kicker">Direkte Quelle</div>
+          <div class="grid">
+            <label>Track URL (direkte mp3)
+              <div class="field-row">
+                <input id="trackUrl" type="text" placeholder="https://.../track.mp3">
+                <button class="copy-btn" type="button" data-copy-target="trackUrl">Kopieren</button>
+              </div>
+            </label>
+            <label>Titel
+              <div class="field-row">
+                <input id="trackTitle" type="text" placeholder="Mein Trackname">
+                <button class="copy-btn" type="button" data-copy-target="trackTitle">Kopieren</button>
+              </div>
+            </label>
           </div>
-        </label>
-        <label>Titel
-          <div class="field-row">
-            <input id="trackTitle" type="text" placeholder="Mein Trackname">
-            <button class="copy-btn" type="button" data-copy-target="trackTitle">Kopieren</button>
+          <div class="btn-row">
+            <button id="btnSetTrack">Track setzen</button>
+            <button id="btnSetTrackPlay">Setzen + Play</button>
           </div>
-        </label>
+          <div class="hint">Titel kann leer bleiben. Dann wird er automatisch aus Datei oder URL gezogen.</div>
+        </section>
       </div>
-      <div class="btn-row">
-        <button id="btnSetTrack">Track setzen</button>
-        <button id="btnSetTrackPlay">Setzen + Play</button>
-      </div>
-      <div class="hint">Titel kann leer bleiben. Dann wird er automatisch aus Datei oder URL gezogen.</div>
-    </section>
 
-    <section class="card">
-      <h2>Eigene Datei</h2>
-      <div class="grid">
-        <label>MP3 / M4A / OGG / WAV auswählen
-          <input id="audioFile" type="file" accept="audio/*">
-        </label>
-      </div>
-      <div class="btn-row">
-        <button id="btnSetFile">Datei setzen</button>
-        <button id="btnSetFilePlay">Datei + Play</button>
-      </div>
-      <div class="hint">Ideal fuer eigene Suno-Tracks. Die Datei muss <strong>wirklich lokal</strong> auf deinem Handy liegen, nicht nur in Google Drive verknuepft sein. Du waehst sie direkt am Handy aus, das Tablet braucht dafuer nichts zu tun. Der Titel wird automatisch vom Dateinamen genommen.</div>
-    </section>
+      <div class="stack">
+        <section class="card">
+          <h2>Eigene Datei</h2>
+          <div class="section-kicker">Einzelner Song</div>
+          <div class="grid">
+            <label>MP3 / M4A / OGG / WAV auswählen
+              <input id="audioFile" type="file" accept="audio/*">
+            </label>
+          </div>
+          <div class="btn-row">
+            <button id="btnSetFile">Datei setzen</button>
+            <button id="btnSetFilePlay">Datei + Play</button>
+          </div>
+          <div class="hint">Ideal fuer einzelne Tests. Die Datei wird direkt am Handy ausgewählt.</div>
+        </section>
 
-    <section class="card">
-      <h2>Musikordner</h2>
-      <div class="grid">
-        <label>Ordner oder viele Tracks auf einmal auswählen
-          <input id="musicFolder" type="file" accept="audio/*" multiple webkitdirectory directory>
-        </label>
-      </div>
-      <div class="btn-row">
-        <button id="btnImportFolder">Ordner importieren</button>
-        <button id="btnImportFolderPlay">Ordner importieren + 1. Track Play</button>
-      </div>
-      <div class="hint">Der Ordner wird nur in der Regie gesammelt. Du kannst danach jeden Song direkt anklicken und abspielen.</div>
-      <div id="folderSummary" class="hint"></div>
-      <div id="folderTrackList" class="track-list"></div>
-    </section>
+        <section class="card">
+          <h2>Musikordner</h2>
+          <div class="section-kicker">Bibliothek</div>
+          <div class="grid">
+            <label>Ordner oder viele Tracks auf einmal auswählen
+              <input id="musicFolder" type="file" accept="audio/*" multiple webkitdirectory directory>
+            </label>
+          </div>
+          <div class="btn-row">
+            <button id="btnImportFolder">Ordner importieren</button>
+            <button id="btnImportFolderPlay">Ordner importieren + 1. Track Play</button>
+          </div>
+          <div class="hint">Der Ordner wird nur in der Regie gesammelt. Danach kann jeder Song direkt aus der Liste getestet werden.</div>
+          <div id="folderSummary" class="hint"></div>
+          <div id="folderTrackList" class="track-list"></div>
+        </section>
 
-    <section class="card">
-      <h2>Playback</h2>
-      <div class="btn-row">
-        <button data-action="music.play">Play</button>
-        <button data-action="music.pause">Pause</button>
-        <button data-action="music.toggle">Toggle</button>
-        <button data-action="music.mute">Mute</button>
-        <button data-action="music.unmute">Unmute</button>
-        <button data-action="music.volume.down">Vol - 5</button>
-        <button data-action="music.volume.up">Vol + 5</button>
-      </div>
-      <div class="grid" style="margin-top:10px;">
-        <label>Lautstaerke 0-100
-          <input id="volumeValue" type="number" min="0" max="100" value="12">
-        </label>
-      </div>
-      <div class="btn-row">
-        <button id="btnSetVolume">Lautstaerke setzen</button>
-      </div>
-    </section>
+        <section class="card">
+          <h2>Playback</h2>
+          <div class="section-kicker">Transport</div>
+          <div class="btn-row tight">
+            <button data-action="music.play">Play</button>
+            <button data-action="music.pause">Pause</button>
+            <button data-action="music.toggle">Toggle</button>
+            <button data-action="music.mute">Mute</button>
+            <button data-action="music.unmute">Unmute</button>
+            <button data-action="music.volume.down">Vol - 5</button>
+            <button data-action="music.volume.up">Vol + 5</button>
+          </div>
+          <div class="grid" style="margin-top:10px;">
+            <label>Lautstaerke 0-100
+              <input id="volumeValue" type="number" min="0" max="100" value="12">
+            </label>
+          </div>
+          <div class="btn-row">
+            <button id="btnSetVolume">Lautstaerke setzen</button>
+          </div>
+        </section>
 
-    <section class="card">
-      <h2>Status</h2>
-      <div id="status" class="status">Bereit. Alles laeuft vom Handy aus.</div>
+        <section class="card">
+          <h2>Status</h2>
+          <div id="status" class="status">Bereit. Alles laeuft vom Handy aus.</div>
+        </section>
+      </div>
     </section>
   </main>
 
@@ -320,6 +442,14 @@
 
     function setStatus(text) {
       statusEl.textContent = text;
+    }
+
+    function setSceneValue(sceneName) {
+      sceneEl.value = sceneName;
+      document.querySelectorAll('[data-scene-preset]').forEach(button => {
+        button.classList.toggle('active', button.getAttribute('data-scene-preset') === sceneName);
+      });
+      setStatus('Szene gesetzt: ' + sceneName);
     }
 
     async function copyValue(value) {
@@ -473,6 +603,37 @@
       });
     }
 
+    function bindScenePresets() {
+      document.querySelectorAll('[data-scene-preset]').forEach(button => {
+        button.addEventListener('click', function () {
+          setSceneValue(button.getAttribute('data-scene-preset'));
+        });
+      });
+    }
+
+    function bindQuickCopyButtons() {
+      const map = {
+        btnCopyApi: 'apiUrl',
+        btnCopyScene: 'scene',
+        btnCopyTrackUrl: 'trackUrl',
+        btnCopyKey: 'apiKey'
+      };
+      Object.keys(map).forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        button.addEventListener('click', async function () {
+          const target = document.getElementById(map[buttonId]);
+          if (!target) return;
+          try {
+            await copyValue(target.value);
+            setStatus('Kopiert: ' + map[buttonId]);
+          } catch (err) {
+            setStatus('Kopieren fehlgeschlagen: ' + err.message);
+          }
+        });
+      });
+    }
+
     async function sendCommand(action, payload) {
       const cfg = getConfig();
       const headers = { 'Content-Type': 'application/json' };
@@ -609,6 +770,9 @@
       sceneEl.value = (cfg && cfg.scene) || 'oldschool-starting';
       setStatus('Regie bereit.\nSzene: ' + sceneEl.value + '\nAPI: ' + apiUrlEl.value);
       bindCopyButtons();
+      bindScenePresets();
+      bindQuickCopyButtons();
+      setSceneValue(sceneEl.value);
       renderFolderLibrary();
     })();
   </script>
