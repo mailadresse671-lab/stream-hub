@@ -368,6 +368,48 @@
       z-index: 6;
     }
 
+    /* Kombo-Badge: erscheint nur ab 2 Events innerhalb von COMBO_WINDOW_MS
+       (siehe registerComboHit() im Script) - macht Bit-Trains/Sub-Wellen/
+       Raid-direkt-nach-Follow als Multiplikator sichtbar statt dass jedes
+       Event optisch gleich "wichtig" wirkt. Geschwister von #party-panel
+       wie die anderen Badges (muss ueber den geclippten Rand hinausragen
+       koennen). */
+    .combo-badge {
+      position: absolute;
+      top: -16px;
+      right: 28px;
+      background: var(--gold);
+      color: #0a0a0a;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 15px;
+      letter-spacing: 1.5px;
+      padding: 6px 16px 5px;
+      border: 2px solid var(--blood);
+      border-radius: 2px;
+      transform: rotate(4deg) scale(0.7);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), 0 0 16px var(--gold-glow);
+      white-space: nowrap;
+      z-index: 6;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.6, 0.64, 1);
+      pointer-events: none;
+    }
+    .combo-badge.show {
+      opacity: 1;
+      transform: rotate(4deg) scale(1);
+    }
+    /* Ab 5er-Kombo zusaetzlich ein schnelles Gold/Blood-Flackern statt der
+       ruhigen Standard-Optik - macht eine wirklich grosse Event-Welle
+       (grosser Bit-Train, Raid direkt nach mehreren Subs) spuerbar
+       dringlicher als eine gewoehnliche 2er/3er-Kombo. */
+    .combo-badge.mega {
+      animation: comboMegaPulse 0.5s ease-in-out infinite;
+    }
+    @keyframes comboMegaPulse {
+      0%, 100% { background: var(--gold); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), 0 0 16px var(--gold-glow); }
+      50% { background: var(--blood); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 22px var(--blood-glow); }
+    }
+
     .license-plate {
       position: absolute;
       bottom: -20px;
@@ -533,6 +575,7 @@
         <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
       </div>
       <div class="most-wanted-badge">☠️ MOST WANTED</div>
+      <div class="combo-badge" id="comboBadge"></div>
       <div class="license-plate">
         <span class="plate-state">CALIFORNIA</span>
         <span class="plate-number">THUG-90</span>
@@ -1359,8 +1402,10 @@
     function updateHydraulics(sub, now, popupRect) {
       if (sub > 0.4 && now - lastHopKickAt > 190) {
         const side = Math.random() < 0.5 ? -1 : 1;
-        hopVelocity -= 9 + sub * 20;
-        hopRotVelocity += side * (3.5 + sub * 9);
+        // Kicks skalieren mit der aktuellen Kombo - eine 4er/5er-Kette
+        // schlaegt spuerbar haerter ein als ein einzelner Follow.
+        hopVelocity -= (9 + sub * 20) * currentComboMultiplier;
+        hopRotVelocity += side * (3.5 + sub * 9) * currentComboMultiplier;
         lastHopKickAt = now;
         if (popupRect) {
           spraySystem.spawnBulletHole(
@@ -1435,7 +1480,7 @@
 
     function applyMidHighFx(mid) {
       const popup = document.getElementById('party-popup');
-      popup.style.boxShadow = `0 0 ${40 + mid * 60}px ${popup.dataset.glow || 'rgba(255, 215, 0, 0.6)'}`;
+      popup.style.boxShadow = `0 0 ${(40 + mid * 60) * currentComboMultiplier}px ${popup.dataset.glow || 'rgba(255, 215, 0, 0.6)'}`;
 
       const rect = popup.getBoundingClientRect();
       const originX = rect.left + rect.width / 2;
@@ -1482,18 +1527,29 @@
       popup.dataset.glow = config.glow;
       popup._sprayColors = config.spray;
 
+      currentComboMultiplier = comboMultiplierFor(payload.comboCount);
+      const comboBadge = document.getElementById('comboBadge');
+      if (payload.comboCount >= 2) {
+        comboBadge.textContent = `🔥 KOMBO x${payload.comboCount}`;
+        comboBadge.classList.add('show');
+        comboBadge.classList.toggle('mega', payload.comboCount >= COMBO_MEGA_THRESHOLD);
+      } else {
+        comboBadge.classList.remove('show', 'mega');
+      }
+
       config.sound();
 
       const rect = popup.getBoundingClientRect();
       // Erster Burst sofort beim Triggern (rect kann beim allerersten Alert
       // noch die Position vor dem "show"-Uebergang widerspiegeln, was fuer
-      // den Spray-Ursprung unerheblich ist).
+      // den Spray-Ursprung unerheblich ist). Menge skaliert mit der Kombo -
+      // je laenger die Kette, desto satter der Ausbruch (bis maxParticles).
       spraySystem.emitBurst(
         rect.left + rect.width / 2,
         rect.top + rect.height / 2,
         config.spray,
         Math.random() * 1000,
-        config.sprayCount
+        Math.round(config.sprayCount * currentComboMultiplier)
       );
 
       // Schuss-Moment: Muendungsblitz + Recoil-Kick sofort beim Trigger,
@@ -1508,12 +1564,47 @@
       setTimeout(() => {
         popup.classList.remove('show');
         document.getElementById('cop-siren').classList.remove('active');
+        document.getElementById('comboBadge').classList.remove('show', 'mega');
+        currentComboMultiplier = 1;
         // Warten bis die Ausblend-Transition fertig ist, bevor das nächste Popup startet
         setTimeout(() => {
           popupBusy = false;
           processPopupQueue();
         }, 450);
       }, ALERT_FX_DURATION_MS);
+    }
+
+    // =====================================================================
+    // Kombo-System: mehrere Events innerhalb von COOMBO_WINDOW_MS zaehlen
+    // als eine Kombo-Kette (Bit-Train, mehrere Subs hintereinander, Raid
+    // direkt nach einem Follow, ...). Nur "echte" Zuschauer-Support-Events
+    // zaehlen mit - die manuellen Mod-Chat-Commands (!tor/!fail) sind
+    // Spielgeschehen-Marker, keine Unterstuetzung, und bleiben aussen vor.
+    // Der comboCount wird beim QUEUEN (nicht beim Anzeigen) am jeweiligen
+    // Payload festgemacht, damit jedes Popup einer Kette beim spaeteren
+    // Abspielen den zum Zeitpunkt seines Eintreffens korrekten Wert zeigt.
+    // =====================================================================
+    const COMBO_KINDS = new Set(['follow', 'goal', 'sub', 'resub', 'cheer', 'raid']);
+    const COMBO_WINDOW_MS = 12000;
+    const COMBO_MEGA_THRESHOLD = 5;
+    let comboCount = 0;
+    let lastComboAt = -Infinity;
+    // Waehrend eine Kombo laeuft, werden Hydraulik-Kicks/Glow-Radius etwas
+    // staerker - macht den "Multiplikator" auch fuehlbar, nicht nur als Zahl
+    // sichtbar. Wird in showPartyPopup() pro Alert neu gesetzt.
+    let currentComboMultiplier = 1;
+
+    function registerComboHit(kind) {
+      if (!COMBO_KINDS.has(kind)) return 0;
+      const now = performance.now();
+      comboCount = (now - lastComboAt <= COMBO_WINDOW_MS) ? comboCount + 1 : 1;
+      lastComboAt = now;
+      return comboCount;
+    }
+
+    function comboMultiplierFor(count) {
+      if (!count || count < 2) return 1;
+      return Math.min(2.5, 1 + (count - 1) * 0.15);
     }
 
     // Warteschlange, damit mehrere Events kurz hintereinander (z.B. Bit-Train
@@ -1523,6 +1614,7 @@
     let popupBusy = false;
 
     function queuePopup(kind, payload) {
+      payload.comboCount = registerComboHit(kind);
       popupQueue.push({ kind, payload });
       processPopupQueue();
     }
