@@ -122,6 +122,35 @@
       margin-top: 8px;
     }
     .hint strong { color: var(--paper); }
+    .track-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .track-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+    }
+    .track-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .track-meta {
+      font-size: 12px;
+      opacity: .72;
+    }
+    .track-list-empty {
+      font-size: 13px;
+      opacity: .78;
+      padding: 10px 0 2px;
+    }
   </style>
 </head>
 <body>
@@ -199,6 +228,22 @@
     </section>
 
     <section class="card">
+      <h2>Musikordner</h2>
+      <div class="grid">
+        <label>Ordner oder viele Tracks auf einmal auswählen
+          <input id="musicFolder" type="file" accept="audio/*" multiple webkitdirectory directory>
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="btnImportFolder">Ordner importieren</button>
+        <button id="btnImportFolderPlay">Ordner importieren + 1. Track Play</button>
+      </div>
+      <div class="hint">Der Ordner wird nur in der Regie gesammelt. Du kannst danach jeden Song direkt anklicken und abspielen.</div>
+      <div id="folderSummary" class="hint"></div>
+      <div id="folderTrackList" class="track-list"></div>
+    </section>
+
+    <section class="card">
       <h2>Playback</h2>
       <div class="btn-row">
         <button data-action="music.play">Play</button>
@@ -235,6 +280,10 @@
     const trackTitleEl = document.getElementById('trackTitle');
     const volumeValueEl = document.getElementById('volumeValue');
     const audioFileEl = document.getElementById('audioFile');
+    const musicFolderEl = document.getElementById('musicFolder');
+    const folderSummaryEl = document.getElementById('folderSummary');
+    const folderTrackListEl = document.getElementById('folderTrackList');
+    const folderLibrary = [];
 
     function defaultApi() {
       return location.origin.replace(/\/$/, '') + '/api/regie-control';
@@ -318,6 +367,94 @@
         reader.onerror = () => reject(reader.error || new Error('Datei konnte nicht gelesen werden.'));
         reader.readAsDataURL(file);
       });
+    }
+
+    function renderFolderLibrary() {
+      if (!folderLibrary.length) {
+        folderSummaryEl.textContent = '';
+        folderTrackListEl.innerHTML = '<div class="track-list-empty">Noch kein Musikordner geladen.</div>';
+        return;
+      }
+
+      folderSummaryEl.textContent = folderLibrary.length + ' Tracks im Ordner.';
+      folderTrackListEl.innerHTML = folderLibrary.map((item, index) => {
+        return [
+          '<div class="track-item">',
+          '  <div>',
+          '    <div class="track-name">' + item.title + '</div>',
+          '    <div class="track-meta">' + item.file.name + '</div>',
+          '  </div>',
+          '  <button type="button" data-folder-play="' + index + '">Play</button>',
+          '  <button type="button" data-folder-set="' + index + '">Setzen</button>',
+          '</div>'
+        ].join('');
+      }).join('');
+
+      folderTrackListEl.querySelectorAll('[data-folder-play]').forEach(button => {
+        button.addEventListener('click', function () {
+          const index = Number(button.getAttribute('data-folder-play'));
+          const item = folderLibrary[index];
+          if (!item) return;
+          readFileAsDataUrl(item.file).then(dataUrl => {
+            return sendCommand('music.track.set', {
+              source: String(dataUrl),
+              title: item.title,
+              fileName: item.file.name,
+              sourceLabel: item.file.name,
+              autoplay: true
+            });
+          }).catch(err => setStatus('Track-Play fehlgeschlagen: ' + err.message));
+        });
+      });
+
+      folderTrackListEl.querySelectorAll('[data-folder-set]').forEach(button => {
+        button.addEventListener('click', function () {
+          const index = Number(button.getAttribute('data-folder-set'));
+          const item = folderLibrary[index];
+          if (!item) return;
+          readFileAsDataUrl(item.file).then(dataUrl => {
+            return sendCommand('music.track.set', {
+              source: String(dataUrl),
+              title: item.title,
+              fileName: item.file.name,
+              sourceLabel: item.file.name,
+              autoplay: false
+            });
+          }).catch(err => setStatus('Track setzen fehlgeschlagen: ' + err.message));
+        });
+      });
+    }
+
+    function importFolderFiles(playFirst) {
+      const files = Array.from((musicFolderEl.files || [])).filter(file => file && file.type && file.type.startsWith('audio/'));
+      if (!files.length) {
+        setStatus('Bitte zuerst einen Musikordner oder mehrere Audiodateien auswaehlen.');
+        return;
+      }
+
+      folderLibrary.length = 0;
+      files.forEach(file => {
+        folderLibrary.push({
+          file,
+          title: stripExtension(file.name)
+        });
+      });
+
+      renderFolderLibrary();
+      setStatus('Ordner importiert: ' + folderLibrary.length + ' Tracks.');
+
+      if (playFirst && folderLibrary[0]) {
+        const first = folderLibrary[0];
+        readFileAsDataUrl(first.file).then(dataUrl => {
+          return sendCommand('music.track.set', {
+            source: String(dataUrl),
+            title: first.title,
+            fileName: first.file.name,
+            sourceLabel: first.file.name,
+            autoplay: true
+          });
+        }).catch(err => setStatus('Ordner-Start fehlgeschlagen: ' + err.message));
+      }
     }
 
     function bindCopyButtons() {
@@ -441,6 +578,14 @@
       }).catch(err => setStatus('Datei+Play fehlgeschlagen: ' + err.message));
     });
 
+    document.getElementById('btnImportFolder').addEventListener('click', function () {
+      importFolderFiles(false);
+    });
+
+    document.getElementById('btnImportFolderPlay').addEventListener('click', function () {
+      importFolderFiles(true);
+    });
+
     document.getElementById('btnSetVolume').addEventListener('click', function () {
       const value = Math.max(0, Math.min(100, Number(volumeValueEl.value) || 0));
       sendCommand('music.volume.set', { value }).catch(err => setStatus('Volume setzen fehlgeschlagen: ' + err.message));
@@ -464,6 +609,7 @@
       sceneEl.value = (cfg && cfg.scene) || 'oldschool-starting';
       setStatus('Regie bereit.\nSzene: ' + sceneEl.value + '\nAPI: ' + apiUrlEl.value);
       bindCopyButtons();
+      renderFolderLibrary();
     })();
   </script>
 </body>
