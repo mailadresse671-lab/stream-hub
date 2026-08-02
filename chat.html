@@ -19,6 +19,10 @@
       --gold: #ffd700;
       --text-primary: #f5f5f7;
       --text-muted: #9a9ca3;
+      /* Fluid-Unit: identische Formel wie goal.html/overlay.html/in-game.
+         html/start.html - siehe dortigen Kommentar bzw. STREAMLABS_SETUP.md
+         fuer die volle Begruendung. */
+      --vu: clamp(0.5px, 0.0521vw, 1px);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,20 +47,20 @@
     .chat-card {
       position: absolute;
       top: 0;
-      left: 20px;
-      width: 340px;
+      left: calc(var(--vu) * 20);
+      width: calc(var(--vu) * 340);
       display: flex;
       align-items: flex-start;
-      gap: 10px;
+      gap: calc(var(--vu) * 10);
       background: var(--asphalt-mid);
-      border: 1.5px solid var(--steel-line);
-      border-left: 4px solid var(--gold);
-      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 12px, 100% 100%, 0 100%);
-      padding: 10px 16px 10px 14px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      border: calc(var(--vu) * 1.5) solid var(--steel-line);
+      border-left: calc(var(--vu) * 4) solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - var(--vu) * 14) 0, 100% calc(var(--vu) * 12), 100% 100%, 0 100%);
+      padding: calc(var(--vu) * 10) calc(var(--vu) * 16) calc(var(--vu) * 10) calc(var(--vu) * 14);
+      backdrop-filter: blur(calc(var(--vu) * 10));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 10));
       box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
-      font-size: 13px;
+      font-size: calc(var(--vu) * 13);
       line-height: 1.45;
       opacity: 0;
       will-change: transform;
@@ -68,8 +72,8 @@
       position: absolute;
       inset: 0;
       background-image:
-        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 12px),
-        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 12px);
+        repeating-linear-gradient(55deg, var(--steel-line) 0 calc(var(--vu) * 1), transparent calc(var(--vu) * 1) calc(var(--vu) * 12)),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 calc(var(--vu) * 1), transparent calc(var(--vu) * 1) calc(var(--vu) * 12));
       opacity: 0.3;
       pointer-events: none;
     }
@@ -82,9 +86,9 @@
     }
 
     .avatar-dot {
-      width: 7px;
-      height: 7px;
-      margin-top: 5px;
+      width: calc(var(--vu) * 7);
+      height: calc(var(--vu) * 7);
+      margin-top: calc(var(--vu) * 5);
       border-radius: 50%;
       background: currentColor;
       box-shadow: 0 0 6px currentColor;
@@ -98,9 +102,9 @@
     .username {
       font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
       font-weight: 400;
-      font-size: 16px;
-      letter-spacing: 0.5px;
-      margin-right: 6px;
+      font-size: calc(var(--vu) * 16);
+      letter-spacing: calc(var(--vu) * 0.5);
+      margin-right: calc(var(--vu) * 6);
       display: inline;
       text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
     }
@@ -114,7 +118,7 @@
       height: 1.6em;
       width: auto;
       vertical-align: middle;
-      margin: -2px 1px;
+      margin: calc(var(--vu) * -2) calc(var(--vu) * 1);
     }
 
     #scanline-overlay {

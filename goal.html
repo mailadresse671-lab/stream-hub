@@ -31,7 +31,16 @@
       --text-primary: #f5f5f7;
       --text-muted: #9a9ca3;
       /* geteilter Chamfer-Radius fuer die harte "Tech-Panel"-Ecke */
-      --cut: 15px;
+      --cut: calc(var(--vu) * 15);
+      /* Fluid-Unit: ergibt exakt 1px bei 1920px Viewport-Breite, schrumpft
+         linear mit vw auf kleineren echten Streamlabs-Canvas-Groessen
+         (nach unten bei 0.5px gedeckelt) - loest jede Groesse bereits beim
+         Layout auf, kein CSS transform:scale() (das in der Streamlabs-
+         Mobile-Android-WebView unscharf rendert). Identische Formel wie
+         in overlay.html/in-game.html/start.html, siehe STREAMLABS_SETUP.md.
+         Bewusst NICHT auf den #party-popup/#party-panel-Alert angewendet -
+         der bleibt unveraendert in fester px-Groesse, siehe Kommentar dort. */
+      --vu: clamp(0.5px, 0.0521vw, 1px);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -44,7 +53,7 @@
       height: 100vh;
     }
 
-    body { padding: 18px; }
+    body { padding: calc(var(--vu) * 18); }
 
     /* Alles, was gemeinsam "wackeln" soll (Goal-Widget + Popup + FX-Layer)
        lebt in einem einzigen fixed Wrapper. Wichtig: transform auf <body>
@@ -70,8 +79,8 @@
        Beschaedigungen auf der Panzerplatten-Oberflaeche ---------- */
     .bullet-hole {
       position: absolute;
-      width: 13px;
-      height: 13px;
+      width: calc(var(--vu) * 13);
+      height: calc(var(--vu) * 13);
       border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #000 0%, #131417 55%, transparent 75%);
       box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9);
@@ -82,7 +91,7 @@
     .bullet-hole::before {
       content: '';
       position: absolute;
-      inset: -7px;
+      inset: calc(var(--vu) * -7);
       background:
         linear-gradient(12deg, transparent 47%, rgba(255, 26, 26, 0.4) 49%, transparent 51%),
         linear-gradient(96deg, transparent 47%, rgba(255, 26, 26, 0.32) 49%, transparent 51%),
@@ -99,8 +108,8 @@
 
     .goal-position {
       position: absolute;
-      top: 18px;
-      right: 18px;
+      top: calc(var(--vu) * 18);
+      right: calc(var(--vu) * 18);
       z-index: 10;
     }
 
@@ -109,7 +118,7 @@
     .shimmer-frame {
       position: relative;
       clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-      padding: 1.5px;
+      padding: calc(var(--vu) * 1.5);
       background: linear-gradient(155deg, var(--blood), var(--steel) 55%, var(--blood));
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
       animation: framePulse 4s ease-in-out infinite;
@@ -124,19 +133,33 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: calc(var(--vu) * 8);
       background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(calc(var(--vu) * 10));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 10));
       clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-      padding: 20px 26px 18px;
-      min-width: 240px;
+      padding: calc(var(--vu) * 20) calc(var(--vu) * 26) calc(var(--vu) * 18);
+      min-width: calc(var(--vu) * 240);
       overflow: hidden;
     }
 
     /* Feines Chainlink-Fence-Muster statt Korn-Textur: zwei
        gegenlaeufige diagonale Linienraster ergeben ein Maschendraht-Netz. */
-    .goal-card::before,
+    .goal-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 calc(var(--vu) * 1), transparent calc(var(--vu) * 1) calc(var(--vu) * 14)),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 calc(var(--vu) * 1), transparent calc(var(--vu) * 1) calc(var(--vu) * 14));
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    /* #party-panel::before bewusst NICHT auf --vu umgestellt - der Party-
+       Popup (Sub/Cheer/Raid/Tor/Fail/Ziel-Meilenstein) bleibt komplett in
+       fester px-Groesse, siehe Kommentar bei #party-popup/#party-panel
+       weiter unten. */
     #party-panel::before {
       content: '';
       position: absolute;
@@ -152,11 +175,11 @@
        statt als separates Element, wirkt wie eine eingepraegte Plakette. */
     .hud-watermark {
       position: absolute;
-      right: 10px;
-      bottom: 6px;
+      right: calc(var(--vu) * 10);
+      bottom: calc(var(--vu) * 6);
       font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 9px;
-      letter-spacing: 2px;
+      font-size: calc(var(--vu) * 9);
+      letter-spacing: calc(var(--vu) * 2);
       color: var(--chrome-2);
       opacity: 0.4;
       white-space: nowrap;
@@ -169,11 +192,11 @@
        beschaedigten Panzerplatte. */
     .tape-corner {
       position: absolute;
-      top: 6px;
-      left: -13px;
-      width: 46px;
-      height: 11px;
-      background: repeating-linear-gradient(45deg, var(--gold) 0 6px, #0a0a0a 6px 12px);
+      top: calc(var(--vu) * 6);
+      left: calc(var(--vu) * -13);
+      width: calc(var(--vu) * 46);
+      height: calc(var(--vu) * 11);
+      background: repeating-linear-gradient(45deg, var(--gold) 0 calc(var(--vu) * 6), #0a0a0a calc(var(--vu) * 6) calc(var(--vu) * 12));
       transform: rotate(-45deg);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
       pointer-events: none;
@@ -184,14 +207,14 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 14px;
+      gap: calc(var(--vu) * 14);
     }
 
     .goal-title {
       font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
-      font-size: 13px;
+      font-size: calc(var(--vu) * 13);
       font-weight: 400;
-      letter-spacing: 1.6px;
+      letter-spacing: calc(var(--vu) * 1.6);
       color: var(--gold);
       text-transform: uppercase;
       white-space: nowrap;
@@ -201,7 +224,7 @@
     .goal-stats {
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
       font-weight: 800;
-      font-size: 14px;
+      font-size: calc(var(--vu) * 14);
       color: var(--chrome-1);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -211,12 +234,12 @@
     /* ---------- Liquid Gold/Chrome/Blood Fortschrittsbalken (Canvas2D) ---------- */
     .bar-bg {
       width: 100%;
-      height: 14px;
+      height: calc(var(--vu) * 14);
       background: rgba(0, 0, 0, 0.35);
-      clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+      clip-path: polygon(calc(var(--vu) * 4) 0, 100% 0, calc(100% - var(--vu) * 4) 100%, 0 100%);
       overflow: hidden;
       position: relative;
-      border: 1px solid var(--steel-line);
+      border: calc(var(--vu) * 1) solid var(--steel-line);
     }
 
     .liquid-bar-canvas {
@@ -229,9 +252,9 @@
        dem Tablet ohne Inspector direkt sichtbar. */
     .debug-line {
       font-family: 'Montserrat', 'Segoe UI', sans-serif;
-      font-size: 8px;
+      font-size: calc(var(--vu) * 8);
       color: var(--text-muted);
-      letter-spacing: 0.3px;
+      letter-spacing: calc(var(--vu) * 0.3);
       font-variant-numeric: tabular-nums;
       white-space: normal;
       word-break: break-word;
