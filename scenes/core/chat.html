@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Chat Overlay</title>
+  <script src="/assets/js/tmi-loader.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* "Urban Blackout" - siehe goal.html fuer die volle Token-Doku */
+      --asphalt-mid: rgba(9, 9, 11, 0.9);
+      --steel-line: rgba(255, 255, 255, 0.1);
+      --chrome-1: #eef0f2;
+      --chrome-2: #8b8d93;
+      --blood: #ff1a1a;
+      --gold: #ffd700;
+      --text-primary: #f5f5f7;
+      --text-muted: #9a9ca3;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* Physik-Buehne: volle Fensterhoehe, Karten werden per transform frei
+       positioniert (Schwerkraft/Bounce), nicht per Flow-Layout gestapelt. */
+    #chat-stage {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .chat-card {
+      position: absolute;
+      top: 0;
+      left: 20px;
+      width: 340px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--asphalt-mid);
+      border: 1.5px solid var(--steel-line);
+      border-left: 4px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 12px, 100% 100%, 0 100%);
+      padding: 10px 16px 10px 14px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+      font-size: 13px;
+      line-height: 1.45;
+      opacity: 0;
+      will-change: transform;
+      transition: opacity 0.35s ease;
+    }
+
+    .chat-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 12px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 12px);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .chat-card.visible { opacity: 1; }
+
+    .chat-card.fade-out {
+      transition: opacity 0.6s ease;
+      opacity: 0;
+    }
+
+    .avatar-dot {
+      width: 7px;
+      height: 7px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+      flex-shrink: 0;
+    }
+
+    .msg-body {
+      min-width: 0;
+    }
+
+    .username {
+      font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
+      font-weight: 400;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      margin-right: 6px;
+      display: inline;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
+    }
+
+    .text {
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    .chat-emote {
+      height: 1.6em;
+      width: auto;
+      vertical-align: middle;
+      margin: -2px 1px;
+    }
+
+    #scanline-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.10) 0px,
+        rgba(0, 0, 0, 0.10) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      mix-blend-mode: overlay;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chat-stage"></div>
+  <div id="scanline-overlay"></div>
+
+  <script>
+    // ==========================================
+    // Kanal kommt ausschliesslich aus dem ?channel=-URL-Parameter, z.B.
+    // in OBS als Browser-Quellen-URL: chat.html?channel=dangsxr1000
+    // Fehlt der Parameter, wird NIE weitergeleitet/umgeleitet - stattdessen
+    // startet automatisch ein Demo-Modus mit Beispielnachrichten (siehe
+    // startDemoMode() weiter unten), damit das Overlay auch ohne Kanal-
+    // Konfiguration sofort etwas Sinnvolles zeigt.
+    // ==========================================
+    const CHANNEL_PARAM = (new URLSearchParams(location.search).get('channel') || '').toLowerCase().trim();
+    const DEMO_MODE = !CHANNEL_PARAM;
+
+    const AUTO_HIDE_MS = 15000;
+    const SYSTEM_HIDE_MS = 6000;
+    const MAX_VISIBLE_MESSAGES = 5;
+    const BOTTOM_MARGIN = 24;
+
+    const stage = document.getElementById('chat-stage');
+
+    // =====================================================================
+    // Physics-Based Chat: schlanke, selbstgebaute Gravitations-/Bounce-
+    // Engine. Karten sind weiterhin echte DOM-Elemente (fuer scharfen Text
+    // und die bestehende Emote-<img>-Darstellung), aber Position/Rotation
+    // werden Frame fuer Frame von der Physik berechnet und per transform
+    // angewendet (Compositor-Thread, kein Layout-Reflow). Der rAF-Loop
+    // startet nur bei Bewegung und stoppt sich selbst, sobald alle Karten
+    // zur Ruhe gekommen sind.
+    // =====================================================================
+    const GRAVITY = 0.55;
+    const RESTITUTION = 0.36;
+    const FRICTION = 0.8;
+    const SETTLE_VELOCITY = 0.5;
+
+    const cards = [];
+    let physicsRaf = null;
+
+    function ensurePhysicsLoop() {
+      if (physicsRaf) return;
+      physicsRaf = requestAnimationFrame(physicsStep);
+    }
+
+    function physicsStep() {
+      let anyActive = false;
+      const stageWidth = stage.clientWidth;
+      const stageHeight = stage.clientHeight;
+
+      for (const card of cards) {
+        if (card.settled) continue;
+        anyActive = true;
+
+        card.vy += GRAVITY;
+        card.x += card.vx;
+        card.y += card.vy;
+        card.rot += card.angVel;
+        // Kartentext soll trotz Physik-Taumeln lesbar bleiben - Rotation
+        // auf einen moderaten "auf den Tisch geworfen"-Winkel begrenzen,
+        // statt bis zur Unlesbarkeit querzudrehen.
+        card.rot = Math.max(-32, Math.min(32, card.rot));
+
+        // Seitenwaende: sanft abprallen statt aus dem Bild zu laufen
+        if (card.x < 0) { card.x = 0; card.vx = Math.abs(card.vx) * RESTITUTION; }
+        const maxX = Math.max(0, stageWidth - card.w - 20);
+        if (card.x > maxX) { card.x = maxX; card.vx = -Math.abs(card.vx) * RESTITUTION; }
+
+        // Bodenlinie: Fensterunterkante, oder die Oberkante einer bereits
+        // ruhenden, ueberlappenden Karte darunter (Stapel-Effekt)
+        let floor = stageHeight - BOTTOM_MARGIN - card.h;
+        for (const other of cards) {
+          if (other === card || !other.settled) continue;
+          const overlapX = card.x < other.x + other.w && card.x + card.w > other.x;
+          if (overlapX && other.y < floor) floor = other.y - card.h;
+        }
+
+        if (card.y >= floor) {
+          card.y = floor;
+          card.vy = -card.vy * RESTITUTION;
+          card.vx *= FRICTION;
+          card.angVel *= FRICTION;
+
+          if (Math.abs(card.vy) < SETTLE_VELOCITY && Math.abs(card.vx) < 0.3) {
+            card.vy = 0;
+            card.vx = 0;
+            card.angVel = 0;
+            card.settled = true;
+          }
+        }
+
+        card.el.style.transform = `translate(${card.x.toFixed(1)}px, ${card.y.toFixed(1)}px) rotate(${card.rot.toFixed(1)}deg)`;
+      }
+
+      if (anyActive) {
+        physicsRaf = requestAnimationFrame(physicsStep);
+      } else {
+        physicsRaf = null; // Alles ruht - Loop stoppt sich selbst, keine Idle-Last
+      }
+    }
+
+    function removeCard(cardObj) {
+      const idx = cards.indexOf(cardObj);
+      if (idx !== -1) cards.splice(idx, 1);
+      if (cardObj.el.parentNode === stage) {
+        stage.removeChild(cardObj.el);
+      }
+    }
+
+    function addMessage(username, text, color = '#ffd700', isSystem = false, emotesTag = null) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-card';
+      const accentColor = isSystem ? '#ffd700' : color;
+      msgDiv.style.borderLeftColor = accentColor;
+
+      msgDiv.innerHTML = `
+        <span class="avatar-dot" style="color: ${accentColor}"></span>
+        <span class="msg-body">
+          <span class="username" style="color: ${accentColor}">${username}:</span>
+          <span class="text">${renderMessageHtml(text, emotesTag)}</span>
+        </span>
+      `;
+
+      stage.appendChild(msgDiv);
+
+      // Ueberzaehlige Karten von unten (aelteste) entfernen, bevor die neue
+      // Physik-Karte hinzugefuegt wird
+      while (cards.length >= MAX_VISIBLE_MESSAGES) {
+        removeCard(cards[0]);
+      }
+
+      const rect = msgDiv.getBoundingClientRect();
+      const cardObj = {
+        el: msgDiv,
+        x: Math.random() * Math.max(0, stage.clientWidth - rect.width - 40),
+        y: -rect.height - 20,
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: 0,
+        rot: (Math.random() - 0.5) * 8,
+        angVel: (Math.random() - 0.5) * 1.4,
+        w: rect.width,
+        h: rect.height,
+        settled: false
+      };
+      cards.push(cardObj);
+      msgDiv.style.transform = `translate(${cardObj.x}px, ${cardObj.y}px) rotate(${cardObj.rot}deg)`;
+      requestAnimationFrame(() => msgDiv.classList.add('visible'));
+      ensurePhysicsLoop();
+
+      setTimeout(() => {
+        msgDiv.classList.add('fade-out');
+        setTimeout(() => removeCard(cardObj), 650);
+      }, isSystem ? SYSTEM_HIDE_MS : AUTO_HIDE_MS);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Ersetzt Twitch-Emote-Bereiche in der Nachricht (laut tags.emotes von tmi.js)
+    // durch <img>-Tags vom Twitch-CDN, der restliche Text bleibt escaped.
+    function renderMessageHtml(message, emotesTag) {
+      if (!emotesTag || Object.keys(emotesTag).length === 0) {
+        return escapeHtml(message);
+      }
+
+      const ranges = [];
+      for (const id in emotesTag) {
+        emotesTag[id].forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          ranges.push({ id, start, end });
+        });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+
+      let html = '';
+      let cursor = 0;
+
+      ranges.forEach(({ id, start, end }) => {
+        if (start < cursor) return; // überlappende/kaputte Range überspringen
+        if (start > cursor) {
+          html += escapeHtml(message.slice(cursor, start));
+        }
+        const code = message.slice(start, end + 1);
+        const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        html += `<img class="chat-emote" src="${src}" alt="${escapeHtml(code)}" title="${escapeHtml(code)}" draggable="false">`;
+        cursor = end + 1;
+      });
+
+      if (cursor < message.length) {
+        html += escapeHtml(message.slice(cursor));
+      }
+
+      return html;
+    }
+
+    // =====================================================================
+    // Demo-Modus: laeuft komplett unabhaengig von Twitch, zeigt abwechselnd
+    // Beispielnachrichten in einer Schleife. Greift automatisch, wenn kein
+    // ?channel=-Parameter uebergeben wurde - siehe CHANNEL_PARAM/DEMO_MODE
+    // oben. Pausiert ueber die Page Visibility API, wenn die Browser-Quelle
+    // gerade nicht sichtbar ist (gleiches Muster wie LiquidBar in goal.html).
+    // =====================================================================
+    const DEMO_MESSAGES = [
+      { user: 'StreetKing_209', text: 'Yooo Stream sieht mega aus! 🔥', color: '#ffd700' },
+      { user: 'ChromeQueen', text: 'PogChamp diese Runde war krass', color: '#eef0f2' },
+      { user: 'LowriderLoco', text: 'Das Hydraulik-Popup ist next level 😂', color: '#ff1a1a' },
+      { user: 'xX_BassHead_Xx', text: 'Der Sub-Bass Effekt geht richtig ab!', color: '#ffd700' },
+      { user: 'ThugLifeTina', text: 'GG WP, mega Session heute', color: '#eef0f2' },
+      { user: 'RaidSquadRico', text: 'Gruesse vom letzten Raid! 🚨', color: '#ff1a1a' },
+      { user: 'GoldTeethGary', text: 'Ziel bald geschafft, los gehts!', color: '#ffd700' }
+    ];
+
+    let demoTimer = null;
+    let demoIndex = 0;
+
+    function demoTick() {
+      const msg = DEMO_MESSAGES[demoIndex % DEMO_MESSAGES.length];
+      demoIndex++;
+      addMessage(msg.user, msg.text, msg.color, false, null);
+    }
+
+    function startDemoMode() {
+      if (demoTimer) return;
+      demoTick();
+      demoTimer = setInterval(demoTick, 3500);
+    }
+
+    function stopDemoMode() {
+      if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!DEMO_MODE) return;
+      if (document.hidden) stopDemoMode();
+      else startDemoMode();
+    });
+
+    if (DEMO_MODE) {
+      addMessage("SYSTEM", "Demo-Modus aktiv - kein ?channel= Parameter uebergeben. Beispiel: chat.html?channel=dangsxr1000", "#ffd700", true);
+      startDemoMode();
+    } else {
+      addMessage("SYSTEM", `Chat-Overlay geladen! Verbinde mit #${CHANNEL_PARAM} ...`, "#ffd700", true);
+
+      loadTmiWithFallback(function () {
+        try {
+          const client = new tmi.Client({
+            options: { debug: false },
+            connection: {
+              secure: true,
+              reconnect: true
+            },
+            channels: [ CHANNEL_PARAM ]
+          });
+
+          client.connect().catch(err => {
+            console.error("Verbindungsfehler:", err);
+            addMessage("FEHLER", "Verbindung zum Chat fehlgeschlagen!", "#ff1a1a", true);
+          });
+
+          client.on('message', (channel, tags, message, self) => {
+            const userColor = tags.color || '#ffd700';
+            const displayName = tags['display-name'] || tags.username;
+            addMessage(displayName, message, userColor, false, tags.emotes);
+          });
+        } catch (e) {
+          console.warn('[Chat] tmi.js nicht verfuegbar:', e.message);
+          addMessage("FEHLER", "Chat-Bibliothek konnte nicht geladen werden!", "#ff1a1a", true);
+        }
+      }, function () {
+        addMessage("FEHLER", "Chat-Bibliothek konnte von keinem CDN geladen werden!", "#ff1a1a", true);
+      });
+    }
+  </script>
+
+</body>
+</html>

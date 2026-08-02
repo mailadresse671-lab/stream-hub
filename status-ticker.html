@@ -2,68 +2,12 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Status Ticker</title>
-  <!-- Eigenstaendige, rotierende Status-Ticker-Quelle, aus in-game.html
-       herausgeloest (siehe rl-stats.html fuer den vollen Kontext dieser
-       Modularisierungs-Runde). Rotierende Meldungen aus ?ticker= (Pipe-
-       getrennt) oder Default-Texten. Fuellt die eigene Seite randlos aus -
-       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position.
-
-       Runde 2: --vu von fest 1px auf eine vw-basierte clamp()-Formel
-       umgestellt (kalibriert auf die natuerliche Design-Breite ~340px
-       dieser Leiste) - siehe rl-stats.html fuer die volle Begruendung
-       (Streamlabs' Transform-Panel skaliert Inhalt NICHT proportional mit,
-       sondern schneidet bei zu kleinem W/H schlicht ab). -->
-  <style>
-    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.294vw, 3px); }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
-
-    @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
-    @keyframes tickerFade { 0% { opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
-
-    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
-
-    .ticker-bar { width: 100%; height: 100%; box-sizing: border-box; display: flex; align-items: center; gap: calc(var(--vu) * 8); padding: 0 calc(var(--vu) * 12); background: rgba(7,6,10,.55); border: 1px solid rgba(255,35,64,.35); }
-    .ticker-bar .dot { width: calc(var(--vu) * 6); height: calc(var(--vu) * 6); background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.6s ease-in-out infinite; flex: none; }
-    .ticker-bar span { font-size: calc(var(--vu) * 14); letter-spacing: 2px; color: var(--tan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ticker-bar span.fading { animation: tickerFade 3.6s ease; }
-  </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weiterleitung …</title>
+  <meta http-equiv="refresh" content="0; url=/widgets/status-ticker.html">
+  <script>location.replace('/widgets/status-ticker.html' + location.search + location.hash);</script>
 </head>
 <body>
-
-  <div class="widget-position">
-    <div class="ticker-bar">
-      <span class="dot"></span>
-      <span id="tickerText"></span>
-    </div>
-  </div>
-
-  <script>
-    const params = new URLSearchParams(location.search);
-    const TICKER_PARAM = params.get('ticker');
-    const TICKER_MESSAGES = TICKER_PARAM ? TICKER_PARAM.split('|').map(s => s.trim()).filter(Boolean) : [
-      'TWITCH.TV/DANGSXR1000', 'ROCKET LEAGUE', 'HYPE VIBES ◆ OLD SCHOOL HIP HOP ◆',
-    ];
-    const tickerEl = document.getElementById('tickerText');
-    let lastTickerIdx = -1;
-    function tickTicker(nowMs) {
-      const idx = Math.floor(nowMs / 1000 / 3.6) % TICKER_MESSAGES.length;
-      if (idx !== lastTickerIdx) {
-        lastTickerIdx = idx;
-        tickerEl.textContent = TICKER_MESSAGES[idx];
-        tickerEl.classList.remove('fading');
-        void tickerEl.offsetWidth;
-        tickerEl.classList.add('fading');
-      }
-      requestAnimationFrame(tickTicker);
-    }
-    requestAnimationFrame(tickTicker);
-  </script>
-
+  <p>Weiterleitung zu <a href="/widgets/status-ticker.html">widgets/status-ticker.html</a> …</p>
 </body>
 </html>

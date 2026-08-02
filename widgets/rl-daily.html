@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RL Daily Stats</title>
+  <!-- Eigenstaendige Rocket-League-TAGES-Stats-Quelle (Siege/Niederlagen),
+       Schwester-Widget zu rl-stats.html - anderes Reset-Verhalten:
+       rl-stats.html zaehlt eine SESSION (setzt bei jedem Neuladen der
+       Browser-Quelle auf 0 zurueck), dieses Widget hier zaehlt einen TAG
+       (bleibt ueber Neuladen/Streamlabs-Neustart hinweg bestehen, per
+       localStorage-Baseline auf ein Kalenderdatum bezogen, setzt sich erst
+       um Mitternacht automatisch zurueck). Wiederverwendet dieselbe
+       api/stats.js (wins/matches, kein neuer Server-Code) - der einzige
+       Unterschied zu rl-stats.html ist, WO die Baseline herkommt: dort ein
+       In-Memory-Wert vom Seitenaufruf, hier ein in localStorage
+       gespeichertes {date, wins, matches}-Objekt, das nur erneuert wird,
+       wenn sich das gespeicherte Datum vom heutigen Datum unterscheidet.
+       Da Streamlabs-Browser-Quellen typischerweise stundenlang durchlaufen
+       (kein Reload um Mitternacht), prueft der ohnehin laufende 20s-Poll
+       bei jedem Tick, ob sich das Datum geaendert hat, statt sich auf einen
+       Seiten-Reload zu verlassen - der Reset passiert dadurch spaetestens
+       20s nach Mitternacht, ganz ohne eigenen Timer.
+       Fuellt die eigene Seite randlos aus (siehe STREAMLABS_SETUP.md) -
+       Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood: #ff2340;
+      --tan: #d9b872;
+      --cream: #f4f1ea;
+      --vu: clamp(0.3px, 0.263vw, 3px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
+
+    @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+
+    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+
+    .rl-stats-card { position: relative; width: 100%; padding: calc(var(--vu) * 12) calc(var(--vu) * 16); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .rl-stats-header { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 10); }
+    .rl-stats-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 15); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; white-space: nowrap; }
+    .rl-status-group { display: flex; align-items: center; gap: calc(var(--vu) * 6); flex: none; }
+    .rl-status-label { font-size: calc(var(--vu) * 9); letter-spacing: 1px; color: rgba(244,241,234,.55); white-space: nowrap; }
+    .rl-status-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; flex: none; }
+    .rl-status-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-status-dot.live { background: #4ade80; box-shadow: 0 0 6px 2px rgba(74,222,128,.7); }
+    .rl-status-dot.cached { background: var(--tan); box-shadow: 0 0 6px 2px rgba(217,184,114,.7); }
+    .rl-status-dot.offline { background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-stats-row { display: flex; gap: calc(var(--vu) * 20); margin-top: calc(var(--vu) * 10); }
+    .rl-stat { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-stat-value { font-size: calc(var(--vu) * 22); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .rl-stat-value.win { color: #4ade80; }
+    .rl-stat-value.loss { color: var(--blood); }
+    .rl-stat-value.rate { color: #f2c94c; }
+    .rl-stat-label { font-size: calc(var(--vu) * 9); letter-spacing: 1.5px; color: rgba(244,241,234,.5); }
+    .rl-reset-note { margin-top: calc(var(--vu) * 8); font-size: calc(var(--vu) * 8); letter-spacing: 1px; color: rgba(244,241,234,.4); }
+    .rl-stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 10); }
+    .rl-stats-card.is-offline .rl-stats-row,
+    .rl-stats-card.is-offline .rl-reset-note { display: none !important; }
+    .rl-stats-card.is-offline .rl-stats-offline-panel { display: flex; }
+    .rl-offline-tag { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 20); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .rl-offline-sub { font-size: calc(var(--vu) * 10); letter-spacing: 1.5px; color: var(--tan); }
+  </style>
+</head>
+<body>
+
+  <div class="widget-position">
+    <div class="rl-stats-card" id="rlStatsCard">
+      <div class="rl-stats-header">
+        <span class="rl-stats-title">ROCKET LEAGUE — HEUTE</span>
+        <div class="rl-status-group">
+          <span class="rl-status-dot connecting" id="rlStatusDot"></span>
+          <span class="rl-status-label" id="rlStatusLabel">Verbinde…</span>
+        </div>
+      </div>
+      <div class="rl-stats-row">
+        <div class="rl-stat"><span class="rl-stat-value win" id="rlWins">–</span><span class="rl-stat-label">SIEGE</span></div>
+        <div class="rl-stat"><span class="rl-stat-value loss" id="rlLosses">–</span><span class="rl-stat-label">NIEDERLAGEN</span></div>
+        <div class="rl-stat"><span class="rl-stat-value rate" id="rlWinrate">–</span><span class="rl-stat-label">WINRATE</span></div>
+      </div>
+      <div class="rl-reset-note">RESET TAEGLICH UM 00:00 UHR</div>
+      <div class="rl-stats-offline-panel" id="rlOfflinePanel">
+        <span class="rl-offline-tag">D5</span>
+        <span class="rl-offline-sub">DANGSXR1000</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const DAILY_STORAGE_KEY = 'dangsxr_rl_daily_baseline';
+
+    function getTodayKey() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function loadDailyBaseline() {
+      try {
+        const raw = localStorage.getItem(DAILY_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    function saveDailyBaseline(baseline) {
+      try {
+        localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(baseline));
+      } catch (e) {
+        console.warn('[RL-Daily] Konnte Tages-Baseline nicht speichern:', e.message);
+      }
+    }
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const card = document.getElementById('rlStatsCard');
+      dot.className = 'rl-status-dot ' + status;
+      const labels = { connecting: 'Verbinde…', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      label.textContent = labels[status] || '';
+      card.classList.toggle('is-offline', status === 'offline');
+    }
+    function updateRlStatsUI(dailyWins, dailyLosses) {
+      document.getElementById('rlWins').textContent = dailyWins;
+      document.getElementById('rlLosses').textContent = dailyLosses;
+      const total = dailyWins + dailyLosses;
+      const rate = total > 0 ? Math.round((dailyWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/stats`);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+
+          const today = getTodayKey();
+          let baseline = loadDailyBaseline();
+          if (!baseline || baseline.date !== today) {
+            baseline = { date: today, wins: data.wins, matches: data.matches };
+            saveDailyBaseline(baseline);
+          }
+          const dailyWins = Math.max(0, data.wins - baseline.wins);
+          const totalDailyMatches = Math.max(0, data.matches - baseline.matches);
+          const dailyLosses = Math.max(0, totalDailyMatches - dailyWins);
+          updateRlStatsUI(dailyWins, dailyLosses);
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
+
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
+  </script>
+
+</body>
+</html>

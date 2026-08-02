@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In-Game HUD</title>
+  <!-- Zusaetzliche, eigenstaendige Gameplay-Szene (1920x1080, transparent,
+       liegt wie goal.html/chat.html/overlay.html UEBER dem Gameplay) - kein
+       Ersatz fuer overlay.html, sondern eine zweite, alternative Browser-
+       Quellen-URL.
+
+       Runde 2 (aktuell): komplette Neufassung nach einem vom Nutzer in
+       Claude Design gebauten Standalone-Export ("Twitch In-Game HUD"), der
+       dasselbe visuelle System einfuehrt wie der parallel neu gebaute
+       start.html-Export: Anton (Display) + Share Tech Mono (Body), Blutrot
+       (#ff2340) + wandernde Gold-Chrom-Lichtreflex-Animation ("chromeShine")
+       statt der vorherigen, selbst erfundenen "Vintage Hip-Hop/Gold-Bling"-
+       Lederpalette (die nicht dem tatsaechlichen Nutzer-Design entsprach).
+       Baer-Darstellung von einem prozedural animierten Low-Poly-Kopfbild auf
+       zwei echte Ganzkoerper-Posen (idle/action) umgestellt - exakt dieselben
+       Bilder wie in avatar.html/overlay.html (assets/images/avatar_idle.png
+       / avatar_action.png; das Action-Bild im Export ist byte-identisch,
+       das Idle-Bild nahezu identisch - keine neuen Bild-Assets noetig).
+
+       Strukturelle Abweichungen vom Original-Design (bewusst, da das Design
+       mit Demo-/Platzhalterdaten arbeitet, diese Szene aber echte Daten
+       zeigen soll):
+       - Event-Karten oben rechts ("Letzter Follower"/"Letzte Subspruche"/
+         "Letzte Spende") zeigen nicht mehr die festen Demo-Werte aus dem
+         Design, sondern echte, live aus der Twitch-EventSub-Verbindung
+         gespeiste "letztes Event"-Daten - vor dem ersten echten Event ein
+         dezenter "Warte auf..."-Platzhalter statt erfundener Nutzernamen.
+       - "Letzte Spende" bleibt (wie zuvor mit dem Nutzer geklaert) an
+         Twitch-Bits/Cheers gekoppelt, nicht an eine echte Spendenplattform
+         (die im Projekt nicht existiert) - zeigt aber jetzt echte Cheer-
+         Nachrichten aus dem EventSub-Event, passend zum "Name + Betrag +
+         Zitat"-Format der Design-Karte.
+       - Chat-Panel zeigt "WARTE AUF NACHRICHTEN" (aus dem Design uebernommen)
+         bis die erste echte tmi.js-Nachricht eintrifft, statt der zwoelf
+         Demo-Chat-Zeilen aus dem Design.
+       - Baer reagiert (Crossfade idle->action, 1:1 aus avatar.html/
+         overlay.html uebernommenes Timing/Cooldown-Verhalten) auf echte
+         Chat-Nachrichten und Twitch-Events als primaere Quelle; Mikrofon
+         bleibt Bonus-Pfad (in der Streamlabs-Mobile-WebView bestaetigt
+         blockiert, siehe avatar.html).
+       - Hype-Level (Key dangsxr_hypeLevel, 1-5, mit Klick-Sterne UND
+         Cross-Tab-Sync per storage-Event) 1:1 aus dem Design uebernommen,
+         zusaetzlich um einen echten Auto-Increment bei Sub/Cheer-Events
+         ergaenzt (1 Punkt/Sub, 1 Punkt/100 Bits) - im Original-Design nur
+         klickbar, ohne Event-Anbindung.
+       - Rocket-League-Session-Stats-Widget (Runde 3, direkt nach dem ersten
+         Live-Einsatz nachgereicht): sitzt links zwischen Baer-Ticker und
+         Hype-Level, wiederverwendet dieselbe fetchStats()/Session-Delta-
+         Logik wie index.html/overlay.html gegen die bestehende api/stats.js
+         (kein neuer Server-Code), im aktuellen Chrome/Gold-Bling-Kartenstil
+         (nicht Teil des Original-Designs, da dort nicht vorgesehen).
+       - Kein Live-Spotify-Ticker in dieser ersten Fassung (mit dem Nutzer
+         besprochen, braucht erst eine einmalige Spotify-Developer-App-
+         Registrierung + OAuth-Token seinerseits - Ticker bleibt bei
+         ?track=/?artist=-Parametern, gleiche Begruendung wie oben).
+
+       Runde 4 (aktuell): Nutzer schickte einen Live-Screenshot aus dem
+       echten Stream - Baer, Ticker und RL-Stats-Karte waren als ein hoher
+       Block oben links gestapelt und ueberlappten dort sichtbar die echte
+       Rocket-League-Lobby-Menueliste (Item-Shop/Rocket-Pass/Einstellungen/
+       Verlassen). Drei Aenderungen: (a) Baer steht jetzt ALLEIN, freistehend
+       unten mittig (.bear-position, kollidiert dort weder mit Hype-Karte
+       unten links noch mit Chat/Event-Karten rechts), zusaetzlich mit einem
+       permanenten Idle-Wippen (.bear-bob, 1:1 Keyframe aus avatar.html) statt
+       vorher komplett statisch zwischen Events zu stehen - adressiert den
+       Nutzerwunsch "soll sich bewegen". Echte Audio-/Mikro-Reaktivitaet
+       bleibt technisch nicht verlaesslich (siehe avatar.html: getUserMedia()
+       in der Streamlabs-Mobile-WebView bestaetigt blockiert, und die Browser-
+       Quelle hat keinen Zugriff auf die von Streamlabs gemischte Musik) -
+       das permanente Wippen ist die ehrliche, dekorative Loesung dafuer,
+       zusaetzlich zur bereits bestehenden echten Reaktion auf Chat/Events.
+       (b) Ticker + RL-Stats wurden aus dem Eck-Block geloest und in einen
+       neuen, vertikal zentrierten Rand-Stack verschoben (.left-info-stack,
+       top:50%+translateY(-50%) - gleiches Prinzip wie overlay.html's
+       .left-edge-stack aus dessen eigener Runde 5). (c) RL-Stats-Karte zeigte
+       laut Nutzer "0/0/0%" ohne erkennbar ob das eine echte Session mit 0
+       Matches ist oder ein API-Fehler - Kartenkopf hat jetzt zusaetzlich zum
+       Punkt einen Text-Status ("Verbinde…"/"Live"/"Cached"/"Offline"), die
+       Werte starten bei "–" statt "0" bis der erste echte Session-Delta
+       vorliegt, und bei echtem API-Ausfall greift jetzt ein Offline-Panel
+       (.is-offline, gleiches Muster wie index.html/overlay.html) statt
+       stumm bei 0/0/0% zu bleiben.
+
+       Runde 5 (aktuell): Nutzer schickte einen weiteren Live-Screenshot -
+       der Baer stand fuer seinen Geschmack "in einem Kasten" (der Chrome-
+       Rahmen/dunkle Kartenhintergrund/Eckklammern/LIVE-Badge aus Runde 4).
+       Kompletter Kasten ersatzlos entfernt (.bear-outer/.bear-inner/
+       .bear-corner/.bear-live-badge geloescht) - der Baer besteht jetzt nur
+       noch aus den beiden Bild-Layern selbst mit rotem Glow-Drop-Shadow
+       statt einem umschliessenden Rahmen, dadurch auch deutlich groesser
+       darstellbar (.bear-position von 300x230 auf 320x460, da nicht mehr
+       durch eine Kartenbox begrenzt). Echte Musik-/Stimm-Erkennung bleibt
+       weiterhin technisch nicht moeglich (siehe Runde 4-Kommentar oben) -
+       als echter, technisch machbarer Ersatz fuer "reagiert auf Musik" ist
+       eine kuenftige Kopplung an Spotifys Track-Tempo/BPM (sobald die in
+       CLAUDE.md Punkt 16 geplante Spotify-Integration steht) im Gespraech,
+       noch nicht umgesetzt. Der weiterhin sichtbare Overlap von Ticker/
+       RL-Stats-Karte mit dem Rocket-League-Lobby-Menue (siehe Nutzer-
+       Screenshot) wurde in dieser Runde bewusst NICHT nachjustiert, da vom
+       Nutzer diesmal nicht explizit angesprochen und die exakte kollisions-
+       freie Zone fuer DIESEN Lobby-Screen (anders als das kompakte In-Match-
+       HUD) noch unklar ist - siehe CLAUDE.md Offene Punkte. -->
+  <script src="/assets/js/tmi-loader.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood: #ff2340;
+      --tan: #d9b872;
+      --cream: #f4f1ea;
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--cream);
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+
+    @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+    @keyframes eqBounce { 0%, 100% { transform: scaleY(.18); } 50% { transform: scaleY(1); } }
+    @keyframes marqueeScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes chromeShine { 0% { background-position: -160% 0, 0 0; } 45% { background-position: 160% 0, 0 0; } 100% { background-position: 160% 0, 0 0; } }
+    @keyframes tickerFade { 0% { opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+    @keyframes hypePulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(255,35,64,.5), 0 0 22px rgba(255,35,64,.35); } 50% { box-shadow: 0 0 0 1px rgba(255,35,64,.95), 0 0 46px rgba(255,35,64,.8); } }
+    @keyframes bearIdleBounce {
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      25% { transform: translate(1.5px, -3px) rotate(-1.4deg) scale(1.005); }
+      50% { transform: translate(0, -6px) rotate(0.6deg) scale(1.012); }
+      75% { transform: translate(-1.5px, -2.5px) rotate(1.4deg) scale(1.005); }
+    }
+
+    #shake-root { position: fixed; inset: 0; }
+
+    /* ---------- Vollflaechige FX-Layer (Scanlines/Korn/Vignette/Rahmen) ---------- */
+    .grain-scanlines { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .3; background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px); }
+    .grain-dots { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .25; background-image: repeating-radial-gradient(circle, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1.1px, transparent 1.1px, transparent 7px); }
+    .hud-frame { position: absolute; inset: calc(var(--vu) * 26); z-index: 3; border: 1px solid rgba(255, 35, 64, .14); pointer-events: none; }
+    .hud-corner { position: absolute; width: calc(var(--vu) * 60); height: calc(var(--vu) * 60); z-index: 3; pointer-events: none; }
+    .hud-corner.tl { top: calc(var(--vu) * 26); left: calc(var(--vu) * 26); border-top: 2px solid var(--blood); border-left: 2px solid var(--blood); box-shadow: -1px -1px 10px rgba(255, 35, 64, .6); }
+    .hud-corner.tr { top: calc(var(--vu) * 26); right: calc(var(--vu) * 26); border-top: 2px solid var(--blood); border-right: 2px solid var(--blood); box-shadow: 1px -1px 10px rgba(255, 35, 64, .6); }
+    .hud-corner.bl { bottom: calc(var(--vu) * 26); left: calc(var(--vu) * 26); border-bottom: 2px solid var(--blood); border-left: 2px solid var(--blood); box-shadow: -1px 1px 10px rgba(255, 35, 64, .6); }
+    .hud-corner.br { bottom: calc(var(--vu) * 26); right: calc(var(--vu) * 26); border-bottom: 2px solid var(--blood); border-right: 2px solid var(--blood); box-shadow: 1px 1px 10px rgba(255, 35, 64, .6); }
+
+    /* ---------- Chrom/Gold-Rahmen-Motiv (Karten-Umrandung mit Lichtreflex) ---------- */
+    .chrome-frame {
+      padding: 1.5px;
+      background-image: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.9) 50%, transparent 65%),
+        linear-gradient(180deg, #f2c94c, #8a6410 50%, #f6df9e 100%);
+      background-size: 260% 100%, 100% 100%; background-position: -160% 0, 0 0;
+      animation: chromeShine 6s ease-in-out infinite;
+      box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    }
+
+    /* ---------- Baer: steht ALLEIN, freistehend, OHNE Kasten/Rahmen -------
+       Runde 5: Nutzer-Feedback ("Bär sollte nicht in einem Kasten stehen")
+       - der komplette Chrome-Rahmen/dunkle-Karten-Hintergrund/Eckklammern/
+       LIVE-Badge-Container aus Runde 4 (.bear-outer/.bear-inner/.bear-corner/
+       .bear-live-badge) wurde ersatzlos entfernt. Der Bär ist jetzt nur noch
+       die beiden Bild-Layer selbst (mit rotem Glow-Drop-Shadow statt Kasten-
+       Rand) - dadurch auch deutlich groesser/praesenter darstellbar, da er
+       nicht mehr durch eine Kartenbox begrenzt wird. Position/Idle-Wippen
+       (.bear-bob) aus Runde 4 unveraendert. ---------- */
+    .bear-position { position: absolute; left: 50%; bottom: calc(var(--vu) * 104); width: calc(var(--vu) * 200); height: calc(var(--vu) * 288); transform: translateX(-50%); z-index: 20; }
+    .bear-bob { position: relative; width: 100%; height: 100%; animation: bearIdleBounce 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+
+    .bear-layer-stack { position: relative; width: 100%; height: 100%; }
+    .bear-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,35,64,.95)) drop-shadow(0 0 20px rgba(255,35,64,.65)) drop-shadow(0 0 46px rgba(255,35,64,.35)); transition: opacity .4s ease; }
+    .bear-layer-idle { opacity: 1; }
+    .bear-layer-action { opacity: 0; }
+    .bear-layer-stack.action .bear-layer-idle { opacity: 0; }
+    .bear-layer-stack.action .bear-layer-action { opacity: 1; }
+    .bear-placeholder { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; color: var(--tan); font-size: 11px; text-align: center; padding: 12px; }
+
+    /* ---------- Ticker + RL-Stats: gemeinsamer, vertikal zentrierter
+       Rand-Stack (Runde 4) - ersetzt die vorherige feste Stapelung unter dem
+       Baeren (siehe .bear-position-Kommentar oben fuer den Grund). Gleiches
+       Verankerungsprinzip wie overlay.html's .left-edge-stack (top:50% +
+       translateY(-50%)), damit der Block nicht mehr in der obersten Ecke
+       sitzt, wo laut Live-Screenshot die Rocket-League-Lobby-Menueliste
+       verlaeuft. ---------- */
+    .left-info-stack { position: absolute; top: 50%; left: calc(var(--vu) * 40); transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; gap: calc(var(--vu) * 14); width: calc(var(--vu) * 360); }
+
+    .bear-ticker { width: 100%; height: calc(var(--vu) * 36); flex: none; display: flex; align-items: center; gap: calc(var(--vu) * 8); padding: 0 calc(var(--vu) * 12); background: rgba(7,6,10,.55); border: 1px solid rgba(255,35,64,.35); }
+    .bear-ticker .dot { width: calc(var(--vu) * 6); height: calc(var(--vu) * 6); background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.6s ease-in-out infinite; flex: none; }
+    .bear-ticker span { font-size: calc(var(--vu) * 14); letter-spacing: 2px; color: var(--tan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bear-ticker span.fading { animation: tickerFade 3.6s ease; }
+
+    /* ---------- Rocket-League-Session-Stats - wiederverwendet die
+       bestehende api/stats.js (gleiche fetchStats()/Session-Delta-Logik wie
+       index.html/overlay.html), kein neuer Server-Code noetig. Runde 4:
+       Status jetzt zusaetzlich als Text (nicht nur als kleiner Punkt) +
+       Offline-Fallback-Panel analog index.html/overlay.html (.is-offline),
+       damit "0/0/0%" nicht mit "API kaputt" verwechselt wird. ---------- */
+    .rl-stats-card { position: relative; width: 100%; padding: calc(var(--vu) * 12) calc(var(--vu) * 16); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .rl-stats-header { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 10); }
+    .rl-stats-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 15); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; white-space: nowrap; }
+    .rl-status-group { display: flex; align-items: center; gap: calc(var(--vu) * 6); flex: none; }
+    .rl-status-label { font-size: calc(var(--vu) * 9); letter-spacing: 1px; color: rgba(244,241,234,.55); white-space: nowrap; }
+    .rl-status-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; flex: none; }
+    .rl-status-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-status-dot.live { background: #4ade80; box-shadow: 0 0 6px 2px rgba(74,222,128,.7); }
+    .rl-status-dot.cached { background: var(--tan); box-shadow: 0 0 6px 2px rgba(217,184,114,.7); }
+    .rl-status-dot.offline { background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-stats-row { display: flex; gap: calc(var(--vu) * 20); margin-top: calc(var(--vu) * 10); }
+    .rl-stat { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-stat-value { font-size: calc(var(--vu) * 22); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .rl-stat-value.win { color: #4ade80; }
+    .rl-stat-value.loss { color: var(--blood); }
+    .rl-stat-value.rate { color: #f2c94c; }
+    .rl-stat-label { font-size: calc(var(--vu) * 9); letter-spacing: 1.5px; color: rgba(244,241,234,.5); }
+    .rl-rank-row { display: none; align-items: center; gap: calc(var(--vu) * 10); margin-top: calc(var(--vu) * 10); padding-top: calc(var(--vu) * 10); border-top: 1px dashed rgba(217,184,114,.22); }
+    .rl-rank-icon { width: calc(var(--vu) * 32); height: calc(var(--vu) * 32); object-fit: contain; }
+    .rl-rank-text { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-rank-tier { font-size: calc(var(--vu) * 13); color: var(--cream); font-weight: 700; }
+    .rl-rank-mmr { font-size: calc(var(--vu) * 10); color: var(--tan); letter-spacing: 1px; }
+    .rl-stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 10); }
+    .rl-stats-card.is-offline .rl-stats-row,
+    .rl-stats-card.is-offline .rl-rank-row { display: none !important; }
+    .rl-stats-card.is-offline .rl-stats-offline-panel { display: flex; }
+    .rl-offline-tag { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 20); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .rl-offline-sub { font-size: calc(var(--vu) * 10); letter-spacing: 1.5px; color: var(--tan); }
+
+    /* ---------- Event-Karten (oben rechts) ---------- */
+    .event-stack { position: absolute; left: calc(var(--vu) * 1480); top: calc(var(--vu) * 40); width: calc(var(--vu) * 400); z-index: 20; display: flex; flex-direction: column; gap: calc(var(--vu) * 16); }
+    .event-card { height: calc(var(--vu) * 84); }
+    .event-card-inner { position: relative; width: 100%; height: 100%; background: linear-gradient(160deg, #1c1a17 0%, #100e0c 100%); display: flex; align-items: center; gap: calc(var(--vu) * 14); padding: 0 calc(var(--vu) * 16); overflow: hidden; }
+    .event-card-inner::before { content: ''; position: absolute; inset: 5px; border: 1px dashed rgba(217,184,114,.22); pointer-events: none; }
+    .event-icon { width: calc(var(--vu) * 56); height: calc(var(--vu) * 56); border-radius: 50%; flex: none; background: repeating-radial-gradient(circle, #1a1a1c 0 3px, #0d0d0e 3px 6px); display: flex; align-items: center; justify-content: center; }
+    .event-icon.follow { border: 2px solid rgba(255,35,64,.6); box-shadow: 0 0 10px rgba(255,35,64,.35); }
+    .event-icon.sub { border: 2px solid rgba(217,184,114,.65); box-shadow: 0 0 10px rgba(217,184,114,.4); }
+    .event-icon.bits { border: 2px solid rgba(217,184,114,.65); box-shadow: 0 0 10px rgba(217,184,114,.4); }
+    .event-icon span { font-family: 'Anton', sans-serif; }
+    .event-icon.follow span { font-size: calc(var(--vu) * 24); color: var(--blood); text-shadow: 0 0 8px rgba(255,35,64,.7); }
+    .event-icon.sub span { font-size: calc(var(--vu) * 22); color: #f2c94c; text-shadow: 0 0 8px rgba(242,201,76,.6); }
+    .event-icon.bits span { font-size: calc(var(--vu) * 20); color: #f2c94c; text-shadow: 0 0 8px rgba(242,201,76,.6); }
+    .event-text { display: flex; flex-direction: column; gap: calc(var(--vu) * 3); min-width: 0; }
+    .event-label { font-size: calc(var(--vu) * 11); letter-spacing: 2.5px; color: var(--tan); text-shadow: .5px .5px 0 rgba(255,35,64,.4); }
+    .event-value { font-size: calc(var(--vu) * 19); font-weight: 700; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-detail { font-size: calc(var(--vu) * 12); color: rgba(244,241,234,.5); letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ---------- Chat "CHAT VIBES" (rechts, TV/Boombox-Rahmen) ---------- */
+    .chat-position { position: absolute; left: calc(var(--vu) * 1480); top: calc(var(--vu) * 340); width: calc(var(--vu) * 400); height: calc(var(--vu) * 630); z-index: 20; padding: calc(var(--vu) * 9); background-image: repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 6px), linear-gradient(180deg, #3f3f3f 0%, #232323 45%, #2c2c2c 65%, #161616 100%); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+    .chat-screw { position: absolute; width: calc(var(--vu) * 10); height: calc(var(--vu) * 10); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #6b6b6b, #0d0d0d 70%); }
+    .chat-screw.tl { top: calc(var(--vu) * 14); left: calc(var(--vu) * 14); }
+    .chat-screw.tr { top: calc(var(--vu) * 14); right: calc(var(--vu) * 14); }
+    .chat-screw.bl { bottom: calc(var(--vu) * 14); left: calc(var(--vu) * 14); }
+    .chat-screw.br { bottom: calc(var(--vu) * 14); right: calc(var(--vu) * 14); }
+    .chat-panel { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: rgba(10,9,8,.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(255,35,64,.3); }
+    .chat-header { position: relative; flex: none; height: calc(var(--vu) * 50); display: flex; align-items: center; justify-content: space-between; padding: 0 calc(var(--vu) * 16); border-bottom: 1px solid rgba(255,35,64,.4); background: linear-gradient(180deg, rgba(0,0,0,.35), transparent); }
+    .chat-header-left { display: flex; align-items: center; gap: calc(var(--vu) * 10); }
+    .chat-knob { width: calc(var(--vu) * 13); height: calc(var(--vu) * 13); border-radius: 50%; background: radial-gradient(circle, #2a2a2a 0%, #0d0d0d 70%); border: 1px solid rgba(217,184,114,.5); flex: none; }
+    .chat-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 22); letter-spacing: 2px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; text-shadow: 0 1px 0 rgba(58,38,10,.7); }
+    .chat-header-right { display: flex; align-items: center; gap: calc(var(--vu) * 6); }
+    .chat-header-right .dot { width: calc(var(--vu) * 6); height: calc(var(--vu) * 6); border-radius: 50%; background: var(--tan); box-shadow: 0 0 6px rgba(217,184,114,.7); }
+    .chat-header-right span { font-size: calc(var(--vu) * 12); letter-spacing: 1.5px; color: rgba(244,241,234,.55); }
+    .chat-list { position: relative; flex: 1 1 auto; overflow: hidden; padding: calc(var(--vu) * 10) calc(var(--vu) * 8); display: flex; flex-direction: column; gap: 2px; -webkit-mask-image: linear-gradient(180deg, transparent 0, black 26px, black calc(100% - 8px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, black 26px, black calc(100% - 8px), transparent 100%); }
+    .chat-msg { padding: calc(var(--vu) * 11) calc(var(--vu) * 10); font-size: calc(var(--vu) * 15); line-height: 1.3; word-break: break-word; opacity: 0; transform: translateY(6px); transition: opacity .3s ease, transform .3s ease; }
+    .chat-msg.visible { opacity: 1; transform: translateY(0); }
+    .chat-msg .u { font-weight: 700; }
+    .chat-msg .sep { color: rgba(244,241,234,.5); }
+    .chat-msg .t { color: #e9e4d8; }
+    .chat-emote { height: calc(var(--vu) * 20); vertical-align: middle; }
+    .chat-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--vu) * 10); }
+    .chat-empty span:first-child { font-size: calc(var(--vu) * 13); letter-spacing: 3px; color: rgba(217,184,114,.6); }
+    .chat-empty span:last-child { font-size: calc(var(--vu) * 20); color: rgba(255,35,64,.7); animation: blinkDot 1s steps(2,start) infinite; }
+
+    /* ---------- Hype-/Wanted-Level (unten links) ---------- */
+    .hype-position { position: absolute; left: calc(var(--vu) * 40); top: calc(var(--vu) * 820); width: calc(var(--vu) * 360); height: calc(var(--vu) * 150); z-index: 20; }
+    .hype-card { position: absolute; inset: 0; padding: calc(var(--vu) * 16) calc(var(--vu) * 18); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .hype-corner { position: absolute; width: calc(var(--vu) * 16); height: calc(var(--vu) * 16); pointer-events: none; }
+    .hype-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .hype-corner.tr { top: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .hype-corner.bl { bottom: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .hype-corner.br { bottom: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .hype-header { display: flex; align-items: baseline; justify-content: space-between; }
+    .hype-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 22); letter-spacing: 1.5px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .hype-subtitle { font-size: calc(var(--vu) * 10); letter-spacing: 2px; color: rgba(244,241,234,.4); }
+    .hype-stars { display: flex; align-items: center; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 10); }
+    .hype-star { cursor: pointer; line-height: 1; user-select: none; font-size: calc(var(--vu) * 40); }
+    .hype-star .empty-glyph { color: transparent; -webkit-text-stroke: 1.5px rgba(244,241,234,.25); }
+    .hype-star .filled-glyph { display: none; background-image: linear-gradient(180deg,#fff6d9 0%,#f2c94c 25%,#b8860b 50%,#f6df9e 75%,#6b4c0c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; text-shadow: 0 0 16px rgba(255,35,64,.6); }
+    .hype-star.filled .empty-glyph { display: none; }
+    .hype-star.filled .filled-glyph { display: inline; }
+    .hype-flavor { margin-top: calc(var(--vu) * 10); font-size: calc(var(--vu) * 13); letter-spacing: 1.5px; color: var(--tan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hype-max-border { position: absolute; inset: 0; border: 1px solid rgba(255,35,64,.9); pointer-events: none; display: none; }
+    .hype-max-border.show { display: block; animation: hypePulse 1s ease-in-out infinite; }
+
+    /* ---------- Bottom-Leiste (EQ + Plattenspieler + Track + Status) ---------- */
+    .bottom-bar { position: absolute; left: 0; top: calc(var(--vu) * 990); width: 100%; height: calc(var(--vu) * 90); z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 0 calc(var(--vu) * 44); background: linear-gradient(0deg, rgba(0,0,0,.6), rgba(0,0,0,.15)); border-top: 1px solid rgba(255,35,64,.5); box-shadow: 0 -1px 14px rgba(255,35,64,.3); }
+    .bottom-left { display: flex; align-items: center; gap: calc(var(--vu) * 16); }
+    .eq-group { display: flex; align-items: flex-end; gap: calc(var(--vu) * 4); height: calc(var(--vu) * 40); }
+    .eq-bar { width: calc(var(--vu) * 6); height: calc(var(--vu) * 40); border-radius: 1px 1px 0 0; background: linear-gradient(180deg,#e8b25a,var(--blood)); transform-origin: bottom; animation-name: eqBounce; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+    .vinyl { width: calc(var(--vu) * 36); height: calc(var(--vu) * 36); border-radius: 50%; background: repeating-radial-gradient(circle, #1a1a1c 0 2px, #0d0d0e 2px 4px); border: 2px solid rgba(217,184,114,.55); display: flex; align-items: center; justify-content: center; animation: spinSlow 4s linear infinite; flex: none; }
+    .vinyl-dot { width: calc(var(--vu) * 10); height: calc(var(--vu) * 10); border-radius: 50%; background: var(--blood); box-shadow: 0 0 6px rgba(255,35,64,.8); }
+    .track-info { display: flex; flex-direction: column; gap: calc(var(--vu) * 3); }
+    .track-label { font-size: calc(var(--vu) * 12); letter-spacing: 3px; color: var(--tan); white-space: nowrap; }
+    .track-marquee-mask { width: calc(var(--vu) * 320); overflow: hidden; }
+    .track-marquee { display: flex; gap: calc(var(--vu) * 50); width: max-content; animation: marqueeScroll 13s linear infinite; }
+    .track-marquee span { font-size: calc(var(--vu) * 17); letter-spacing: 1.5px; color: var(--cream); white-space: nowrap; }
+    .bottom-right { display: flex; align-items: center; gap: calc(var(--vu) * 22); }
+    .status-group { display: flex; align-items: center; gap: calc(var(--vu) * 18); }
+    .status-item { display: flex; align-items: center; gap: calc(var(--vu) * 6); }
+    .status-item .dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; }
+    .status-item .dot.stable { background: var(--tan); box-shadow: 0 0 6px rgba(217,184,114,.7); }
+    .status-item .dot.warn { background: var(--blood); box-shadow: 0 0 6px rgba(255,35,64,.8); animation: blinkDot 1s ease-in-out infinite; }
+    .status-item span { font-size: calc(var(--vu) * 11); letter-spacing: 2px; color: rgba(244,241,234,.6); }
+    .status-sep { width: 1px; height: calc(var(--vu) * 26); background: rgba(255,35,64,.4); }
+    .live-group { display: flex; align-items: center; gap: calc(var(--vu) * 8); }
+    .live-group .dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.4s ease-in-out infinite; flex: none; }
+    .live-group span { font-size: calc(var(--vu) * 16); letter-spacing: 2px; color: var(--cream); font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+  <div id="shake-root">
+    <div class="grain-scanlines"></div>
+    <div class="grain-dots"></div>
+    <div class="hud-frame"></div>
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+
+    <div class="bear-position">
+      <div class="bear-bob">
+        <div class="bear-layer-stack" id="bearLayerStack">
+          <img class="bear-layer bear-layer-idle" id="bearIdle" src="/assets/images/avatar_idle.png" alt="DaN Maskottchen"
+            onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';">
+          <img class="bear-layer bear-layer-action" id="bearAction" src="/assets/images/avatar_action.png" alt="DaN Maskottchen">
+        </div>
+        <div class="bear-placeholder" id="bearPlaceholder">BÄR-BILD FEHLT<br><code>/assets/images/avatar_idle.png</code></div>
+      </div>
+    </div>
+
+    <div class="left-info-stack">
+      <div class="bear-ticker">
+        <span class="dot"></span>
+        <span id="bearTickerText"></span>
+      </div>
+
+      <div class="rl-stats-card" id="rlStatsCard">
+        <div class="rl-stats-header">
+          <span class="rl-stats-title">ROCKET LEAGUE — SESSION</span>
+          <div class="rl-status-group">
+            <span class="rl-status-dot connecting" id="rlStatusDot"></span>
+            <span class="rl-status-label" id="rlStatusLabel">Verbinde…</span>
+          </div>
+        </div>
+        <div class="rl-stats-row">
+          <div class="rl-stat"><span class="rl-stat-value win" id="rlWins">–</span><span class="rl-stat-label">SIEGE</span></div>
+          <div class="rl-stat"><span class="rl-stat-value loss" id="rlLosses">–</span><span class="rl-stat-label">NIEDERLAGEN</span></div>
+          <div class="rl-stat"><span class="rl-stat-value rate" id="rlWinrate">–</span><span class="rl-stat-label">WINRATE</span></div>
+        </div>
+        <div class="rl-rank-row" id="rlRankRow">
+          <img class="rl-rank-icon" id="rlRankIcon" src="" alt="" onerror="this.style.display='none';">
+          <div class="rl-rank-text">
+            <span class="rl-rank-tier" id="rlRankTier">-</span>
+            <span class="rl-rank-mmr" id="rlRankMmr">-</span>
+          </div>
+        </div>
+        <div class="rl-stats-offline-panel" id="rlOfflinePanel">
+          <span class="rl-offline-tag">D5</span>
+          <span class="rl-offline-sub">DANGSXR1000</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="event-stack">
+      <div class="event-card chrome-frame">
+        <div class="event-card-inner">
+          <div class="event-icon follow"><span>+</span></div>
+          <div class="event-text">
+            <span class="event-label">LETZTER FOLLOWER</span>
+            <span class="event-value" id="followerValue">–</span>
+            <span class="event-detail" id="followerDetail">Warte auf ersten Follower...</span>
+          </div>
+        </div>
+      </div>
+      <div class="event-card chrome-frame">
+        <div class="event-card-inner">
+          <div class="event-icon sub"><span>★</span></div>
+          <div class="event-text">
+            <span class="event-label">LETZTE SUBSPRÜCHE</span>
+            <span class="event-value" id="subValue">–</span>
+            <span class="event-detail" id="subDetail">Warte auf ersten Sub...</span>
+          </div>
+        </div>
+      </div>
+      <div class="event-card chrome-frame">
+        <div class="event-card-inner">
+          <div class="event-icon bits"><span>€</span></div>
+          <div class="event-text">
+            <span class="event-label">LETZTE SPENDE</span>
+            <span class="event-value" id="bitsValue">–</span>
+            <span class="event-detail" id="bitsDetail">Warte auf erste Bits...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-position">
+      <div class="chat-screw tl"></div><div class="chat-screw tr"></div><div class="chat-screw bl"></div><div class="chat-screw br"></div>
+      <div class="chat-panel">
+        <div class="chat-header">
+          <div class="chat-header-left">
+            <div class="chat-knob"></div>
+            <span class="chat-title">CHAT VIBES</span>
+            <div class="chat-knob"></div>
+          </div>
+          <div class="chat-header-right">
+            <div class="dot"></div>
+            <span id="chatViewerCount">0</span>
+          </div>
+        </div>
+        <div class="chat-list" id="chatList">
+          <div class="chat-empty" id="chatEmpty">
+            <span>WARTE AUF NACHRICHTEN</span>
+            <span>_</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hype-position">
+      <div class="hype-card">
+        <div class="hype-header">
+          <span class="hype-title">HYPE LEVEL</span>
+          <span class="hype-subtitle">WANTED-METER</span>
+        </div>
+        <div class="hype-stars" id="hypeStars"></div>
+        <div class="hype-flavor" id="hypeFlavor">CHAT IST ENTSPANNT</div>
+      </div>
+      <div class="hype-corner tl"></div><div class="hype-corner tr"></div><div class="hype-corner bl"></div><div class="hype-corner br"></div>
+      <div class="hype-max-border" id="hypeMaxBorder"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="bottom-left">
+        <div class="eq-group" id="eqGroup"></div>
+        <div class="vinyl"><div class="vinyl-dot"></div></div>
+        <div class="track-info">
+          <span class="track-label">LÄUFT GERADE</span>
+          <div class="track-marquee-mask">
+            <div class="track-marquee">
+              <span id="trackTitle1">BOOM BAP INSTRUMENTAL — LO-FI CREW</span>
+              <span id="trackTitle2">BOOM BAP INSTRUMENTAL — LO-FI CREW</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-right">
+        <div class="status-group">
+          <div class="status-item"><div class="dot stable"></div><span>MIC</span></div>
+          <div class="status-item"><div class="dot stable"></div><span>CAM</span></div>
+          <div class="status-item"><div class="dot stable" id="netDot"></div><span>NET</span></div>
+        </div>
+        <div class="status-sep"></div>
+        <div class="live-group"><span class="dot"></span><span id="uptimeText">00:00:00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const OVERLAY_CHANNEL = 'dangsxr1000';
+    const params = new URLSearchParams(location.search);
+
+    // =====================================================================
+    // Rocket-League-Session-Stats: wiederverwendet dieselbe fetchStats()/
+    // Session-Delta-Logik wie index.html/overlay.html gegen die bestehende
+    // api/stats.js - kein neuer Server-Code noetig.
+    // =====================================================================
+    let rlStartWins = null;
+    let rlStartMatches = null;
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const card = document.getElementById('rlStatsCard');
+      dot.className = 'rl-status-dot ' + status;
+      const labels = { connecting: 'Verbinde…', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      label.textContent = labels[status] || '';
+      card.classList.toggle('is-offline', status === 'offline');
+    }
+    function updateRlStatsUI(sessionWins, sessionLosses) {
+      document.getElementById('rlWins').textContent = sessionWins;
+      document.getElementById('rlLosses').textContent = sessionLosses;
+      const total = sessionWins + sessionLosses;
+      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+    function updateRlRankUI(rank) {
+      const row = document.getElementById('rlRankRow');
+      if (!rank) { row.style.display = 'none'; return; }
+      document.getElementById('rlRankIcon').style.display = '';
+      document.getElementById('rlRankIcon').src = rank.tierIconUrl || '';
+      document.getElementById('rlRankIcon').alt = rank.tierName || '';
+      document.getElementById('rlRankTier').textContent = rank.tierName || '-';
+      document.getElementById('rlRankMmr').textContent = rank.mmr != null ? rank.mmr + ' MMR' : (rank.playlist || '-');
+      row.style.display = 'flex';
+    }
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/stats`);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+          updateRlRankUI(data.rank);
+          if (rlStartWins === null) {
+            rlStartWins = data.wins;
+            rlStartMatches = data.matches;
+          } else {
+            const sessionWins = Math.max(0, data.wins - rlStartWins);
+            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateRlStatsUI(sessionWins, sessionLosses);
+          }
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
+
+    // ---------- Track-Marquee (?track=/?artist=) ----------
+    const TRACK_PARAM = params.get('track') || 'BOOM BAP INSTRUMENTAL';
+    const ARTIST_PARAM = params.get('artist') || 'LO-FI CREW';
+    const trackText = TRACK_PARAM + ' — ' + ARTIST_PARAM;
+    document.getElementById('trackTitle1').textContent = trackText;
+    document.getElementById('trackTitle2').textContent = trackText;
+
+    // ---------- EQ-Balken (16 Stueck, individuelle Dauer/Delay aus dem Design) ----------
+    const EQ_SPECS = [
+      ['.9s','0s'],['1.2s','.15s'],['.7s','.05s'],['1.4s','.3s'],['.85s','.2s'],['1.1s','0s'],
+      ['.65s','.4s'],['1.3s','.1s'],['.95s','.25s'],['1.05s','.05s'],['.75s','.35s'],['1.25s','.15s'],
+      ['.6s','.2s'],['1.15s','0s'],['.8s','.3s'],['1.35s','.1s'],
+    ];
+    const eqGroup = document.getElementById('eqGroup');
+    EQ_SPECS.forEach(([dur, delay]) => {
+      const bar = document.createElement('div');
+      bar.className = 'eq-bar';
+      bar.style.animationDuration = dur;
+      bar.style.animationDelay = delay;
+      eqGroup.appendChild(bar);
+    });
+
+    // ---------- Bear-Ticker (rotierende Meldungen) ----------
+    const TICKER_PARAM = params.get('ticker');
+    const TICKER_MESSAGES = TICKER_PARAM ? TICKER_PARAM.split('|').map(s => s.trim()).filter(Boolean) : [
+      'TWITCH.TV/DANGSXR1000', 'ROCKET LEAGUE', 'HYPE VIBES ◆ OLD SCHOOL HIP HOP ◆',
+    ];
+    const bearTickerEl = document.getElementById('bearTickerText');
+    let lastTickerIdx = -1;
+    function tickTicker(nowMs) {
+      const idx = Math.floor(nowMs / 1000 / 3.6) % TICKER_MESSAGES.length;
+      if (idx !== lastTickerIdx) {
+        lastTickerIdx = idx;
+        bearTickerEl.textContent = TICKER_MESSAGES[idx];
+        bearTickerEl.classList.remove('fading');
+        void bearTickerEl.offsetWidth;
+        bearTickerEl.classList.add('fading');
+      }
+    }
+
+    // ---------- Uptime (zaehlt seit Laden dieser Seite) ----------
+    const uptimeStart = performance.now();
+    const uptimeEl = document.getElementById('uptimeText');
+    function formatUptime(totalSec) {
+      const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      return h + ':' + m + ':' + s;
+    }
+
+    function mainTick(nowMs) {
+      tickTicker(nowMs);
+      uptimeEl.textContent = formatUptime(Math.floor((nowMs - uptimeStart) / 1000));
+      requestAnimationFrame(mainTick);
+    }
+    requestAnimationFrame(mainTick);
+
+    // =====================================================================
+    // Baer: idle/action-Bild-Crossfade, 1:1 aus avatar.html/overlay.html
+    // uebernommenes Timing (3.5s Anzeigedauer, 350ms Cooldown, Verlaengerung
+    // bei wiederholten Events waehrend der Anzeige).
+    // =====================================================================
+    const bearLayerStack = document.getElementById('bearLayerStack');
+    const BEAR_ACTION_DURATION_MS = 3500;
+    const BEAR_PUNCH_COOLDOWN_MS = 350;
+    let bearActionResetTimer = null;
+    let lastBearPunchAt = 0;
+
+    function triggerBearReaction() {
+      const now = performance.now();
+      lastBearPunchAt = now;
+      bearLayerStack.classList.add('action');
+      clearTimeout(bearActionResetTimer);
+      bearActionResetTimer = setTimeout(() => {
+        bearLayerStack.classList.remove('action');
+      }, BEAR_ACTION_DURATION_MS);
+    }
+
+    // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
+    const MIC_SPEAK_THRESHOLD = 0.08;
+    function startMicVisualLoop(getLevel) {
+      function step() {
+        const level = getLevel();
+        if (level > MIC_SPEAK_THRESHOLD) triggerBearReaction();
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+    function startMicTestMode() {
+      let t = 0;
+      startMicVisualLoop(() => { t += 0.05; return Math.max(0, Math.sin(t) * 0.5 + 0.5) * (0.6 + Math.random() * 0.4); });
+    }
+    async function tryStartMic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = micCtx.createMediaStreamSource(stream);
+        const analyser = micCtx.createAnalyser();
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        source.connect(analyser);
+        startMicVisualLoop(() => {
+          analyser.getByteTimeDomainData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += Math.abs(dataArray[i] - 128);
+          return Math.min(1, (sum / dataArray.length) / 40);
+        });
+      } catch (err) {
+        console.log('[Baer] Mikrofon-Bonus nicht verfuegbar (' + (err.name || 'Fehler') + ') - Chat-/Event-Reaktion laeuft normal weiter.');
+      }
+    }
+    if (params.get('test') === 'speak') startMicTestMode();
+    else tryStartMic();
+
+    // =====================================================================
+    // Hype-/Wanted-Level: 1:1 aus dem Claude-Design-Export uebernommene
+    // Logik (Key dangsxr_hypeLevel, 1-5, klickbare Sterne, Cross-Tab-Sync
+    // per storage-Event), ergaenzt um echten Auto-Increment bei Sub/Cheer.
+    // =====================================================================
+    const HYPE_STORAGE_KEY = 'dangsxr_hypeLevel';
+    const HYPE_MAX = 5;
+    const HYPE_FLAVORS = [
+      'CHAT IST ENTSPANNT', 'LANGSAM WIRD ES LEBENDIG', 'HYPE STEIGT SPÜRBAR!',
+      'CHAT EXPLODIERT GERADE!', 'MAXIMALER HYPE – VOLLALARM!',
+    ];
+    const hypeStarsEl = document.getElementById('hypeStars');
+    for (let n = 1; n <= HYPE_MAX; n++) {
+      const star = document.createElement('span');
+      star.className = 'hype-star';
+      star.dataset.n = n;
+      star.innerHTML = '<span class="filled-glyph">★</span><span class="empty-glyph">★</span>';
+      star.addEventListener('click', () => setHypeLevel(n));
+      hypeStarsEl.appendChild(star);
+    }
+    function getHypeLevel() {
+      try {
+        const n = parseInt(localStorage.getItem(HYPE_STORAGE_KEY), 10);
+        if (n >= 1 && n <= HYPE_MAX) return n;
+      } catch (e) {}
+      return 1;
+    }
+    function renderHype(n) {
+      document.querySelectorAll('.hype-star').forEach((el) => {
+        el.classList.toggle('filled', parseInt(el.dataset.n, 10) <= n);
+      });
+      document.getElementById('hypeFlavor').textContent = HYPE_FLAVORS[Math.max(0, Math.min(4, n - 1))];
+      document.getElementById('hypeMaxBorder').classList.toggle('show', n >= HYPE_MAX);
+    }
+    function setHypeLevel(n) {
+      n = Math.max(1, Math.min(HYPE_MAX, n));
+      try { localStorage.setItem(HYPE_STORAGE_KEY, String(n)); } catch (e) {}
+      renderHype(n);
+    }
+    function addHypeProgress(type, amount) {
+      let delta = 0;
+      if (type === 'sub') delta = 1;
+      else if (type === 'bits') delta = Math.floor((Number(amount) || 0) / 100);
+      if (delta <= 0) return;
+      setHypeLevel(getHypeLevel() + delta);
+    }
+    window.addEventListener('storage', (e) => {
+      if (e.key === HYPE_STORAGE_KEY) {
+        const n = parseInt(e.newValue, 10);
+        if (n >= 1 && n <= HYPE_MAX) renderHype(n);
+      }
+    });
+    renderHype(getHypeLevel());
+
+    // =====================================================================
+    // Event-Karten: echte "letztes Event"-Anzeige statt Demo-Daten, gespeist
+    // aus der Twitch-EventSub-Verbindung weiter unten.
+    // =====================================================================
+    function relativeTimeText(ts) {
+      const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+      if (diffSec < 60) return 'gerade eben';
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return 'vor ' + diffMin + ' Minute' + (diffMin === 1 ? '' : 'n');
+      const diffH = Math.floor(diffMin / 60);
+      return 'vor ' + diffH + ' Stunde' + (diffH === 1 ? '' : 'n');
+    }
+    let latestFollowerAt = null;
+    function renderFollowerDetail() {
+      if (latestFollowerAt) document.getElementById('followerDetail').textContent = relativeTimeText(latestFollowerAt);
+    }
+    setInterval(renderFollowerDetail, 30000);
+
+    function showLatestFollower(name, followedAtIso) {
+      document.getElementById('followerValue').textContent = name;
+      latestFollowerAt = followedAtIso ? new Date(followedAtIso).getTime() : Date.now();
+      renderFollowerDetail();
+    }
+
+    // Holt beim Laden einmalig den ECHTEN letzten Follower (Twitch liefert
+    // keine rueckwirkenden EventSub-Events, aber die Helix-Follower-Liste
+    // ist bereits nach juengstem Follow sortiert). Ein neuer, echter
+    // Live-Follow ueberschreibt das danach ganz normal ueber
+    // handleTwitchNotification(). Fuer Subs/Bits gibt es kein
+    // vergleichbares Helix-Endpoint, die Karten bleiben dafuer bewusst live.
+    async function syncLatestFollowerFromApi() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-followers`);
+        const data = await res.json();
+        if (data && data.success && data.latestFollower) {
+          showLatestFollower(data.latestFollower.name, data.latestFollower.followedAt);
+        }
+      } catch (e) {
+        console.warn('[Event-Karten] Konnte letzten Follower nicht laden:', e.message);
+      }
+    }
+    function showLatestSub(name, months) {
+      document.getElementById('subValue').textContent = name + (months ? ' — Monat ' + months : '');
+      document.getElementById('subDetail').textContent = 'Danke fuers Abo!';
+    }
+    function showLatestBits(name, amount, message) {
+      document.getElementById('bitsValue').textContent = name + ' — ' + amount + ' Bits';
+      document.getElementById('bitsDetail').textContent = message ? '„' + message + '“' : 'Danke fuer die Bits!';
+    }
+
+    // =====================================================================
+    // Chat ("CHAT VIBES") - einfache Fade-In-Liste, XSS-sicheres Emote-
+    // Rendering 1:1 aus overlay.html uebernommen.
+    // =====================================================================
+    const MAX_VISIBLE_MESSAGES = 8;
+    const AUTO_HIDE_MS = 20000;
+    const chatList = document.getElementById('chatList');
+    const chatEmpty = document.getElementById('chatEmpty');
+    const chatMsgs = [];
+    let viewerCountSim = 0;
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function renderMessageHtml(message, emotesTag) {
+      if (!emotesTag || Object.keys(emotesTag).length === 0) return escapeHtml(message);
+      const ranges = [];
+      for (const id in emotesTag) {
+        emotesTag[id].forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          ranges.push({ id, start, end });
+        });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+      let html = '';
+      let cursor = 0;
+      ranges.forEach(({ id, start, end }) => {
+        if (start < cursor) return;
+        if (start > cursor) html += escapeHtml(message.slice(cursor, start));
+        const code = message.slice(start, end + 1);
+        const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        html += `<img class="chat-emote" src="${src}" alt="${escapeHtml(code)}" title="${escapeHtml(code)}" draggable="false">`;
+        cursor = end + 1;
+      });
+      if (cursor < message.length) html += escapeHtml(message.slice(cursor));
+      return html;
+    }
+    function removeChatMsg(msgDiv) {
+      const idx = chatMsgs.indexOf(msgDiv);
+      if (idx !== -1) chatMsgs.splice(idx, 1);
+      if (msgDiv.parentNode === chatList) chatList.removeChild(msgDiv);
+    }
+    function addChatMessage(username, text, color, emotesTag) {
+      if (chatEmpty.parentNode) chatEmpty.remove();
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-msg';
+      msgDiv.innerHTML = `<span class="u" style="color:${color}">${username}</span><span class="sep">: </span><span class="t">${renderMessageHtml(text, emotesTag)}</span>`;
+      chatList.appendChild(msgDiv);
+      chatMsgs.push(msgDiv);
+      requestAnimationFrame(() => msgDiv.classList.add('visible'));
+
+      while (chatMsgs.length > MAX_VISIBLE_MESSAGES) removeChatMsg(chatMsgs[0]);
+      setTimeout(() => removeChatMsg(msgDiv), AUTO_HIDE_MS);
+
+      viewerCountSim = Math.min(999, viewerCountSim + 1);
+      document.getElementById('chatViewerCount').textContent = viewerCountSim;
+    }
+
+    loadTmiWithFallback(function () {
+      try {
+        const twitchChat = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [OVERLAY_CHANNEL]
+        });
+        twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
+        twitchChat.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          const userColor = tags.color || '#f2c94c';
+          const displayName = tags['display-name'] || tags.username;
+          addChatMessage(displayName, message, userColor, tags.emotes);
+          triggerBearReaction();
+        });
+      } catch (e) {
+        console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Baer-Reaktion darueber deaktiviert (Idle-Animation laeuft unabhaengig davon weiter):', e.message);
+      }
+    }, function () {
+      console.warn('[Chat] tmi.js konnte von keinem CDN geladen werden, Chat-Feed/Baer-Reaktion darueber deaktiviert (Idle-Animation laeuft unabhaengig davon weiter).');
+    });
+
+    // =====================================================================
+    // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
+    // aus overlay.html uebernommen).
+    // =====================================================================
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    const netDot = document.getElementById('netDot');
+
+    function setNetStatus(stable) {
+      netDot.classList.toggle('stable', stable);
+      netDot.classList.toggle('warn', !stable);
+    }
+
+    function scheduleReconnect(reason) {
+      setNetStatus(false);
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+
+      if (type === 'channel.follow') {
+        showLatestFollower(event.user_name || 'Zuschauer');
+        triggerBearReaction();
+        return;
+      }
+      if (type === 'channel.subscribe' || type === 'channel.subscription.message') {
+        showLatestSub(event.user_name || 'Zuschauer', event.cumulative_months || event.streak_months || null);
+        addHypeProgress('sub');
+        triggerBearReaction();
+        return;
+      }
+      if (type === 'channel.cheer') {
+        showLatestBits(event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer'), event.bits || 0, event.message || '');
+        addHypeProgress('bits', event.bits || 0);
+        triggerBearReaction();
+        return;
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          setNetStatus(true);
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|react|hype) ----------
+    function runTestMode() {
+      const testParam = params.get('test');
+      if (!testParam) return;
+      if (testParam === 'react') { triggerBearReaction(); return; }
+      if (testParam === 'hype') { setHypeLevel(HYPE_MAX); return; }
+      const typeMap = { follow: 'channel.follow', sub: 'channel.subscribe', resub: 'channel.subscription.message', bits: 'channel.cheer', cheer: 'channel.cheer' };
+      const type = typeMap[testParam.toLowerCase()];
+      if (!type) return;
+      const fakeEvent = type === 'channel.cheer' ? { bits: 100, user_name: 'TestCheerer', message: 'Feuer Stream!' } : (type.indexOf('sub') !== -1 ? { user_name: 'TestSubscriber', cumulative_months: 6 } : { user_name: 'TestFollower' });
+      handleTwitchNotification({ subscription: { type }, event: fakeEvent });
+    }
+
+    // ---------- Bootstrap ----------
+    connectTwitchEventSub();
+    runTestMode();
+    syncLatestFollowerFromApi();
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
+  </script>
+
+</body>
+</html>
