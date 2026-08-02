@@ -22,7 +22,14 @@
        Einzelaktionen, deshalb keine fabrizierten Beschreibungen. Ohne
        Supporter diese Woche: statischer Platzhaltertext statt einer leeren
        Endlos-Laufschrift. Alert-Popup = echte EventSub-Verbindung. Spray-
-       Titel/Vinyl-Deko/Social-Chips sind reine Ornamentik. -->
+       Titel/Vinyl-Deko sind reine Ornamentik.
+
+       Nutzer-Feedback nach Live-Screenshot von oldschool-starting.html
+       (aktuell, hier gleich mit angewendet): Social-Chips auf nur noch
+       TWITCH reduziert (Twitter/X, Discord entfernt) - echte Handles fuer
+       die anderen Plattformen stehen laut CLAUDE.md/PANEL_CONCEPT.md
+       ohnehin noch aus. -->
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -90,9 +97,6 @@
     .social-row { position: absolute; bottom: calc(var(--vu) * 70); left: 0; right: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: calc(var(--vu) * 22); z-index: 6; }
     .social-chip { font-weight: 700; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 12) calc(var(--vu) * 26); border-radius: calc(var(--vu) * 6); box-shadow: calc(var(--vu) * 4) calc(var(--vu) * 4) 0 rgba(0,0,0,.4); white-space: nowrap; }
     .social-chip.primary { color: var(--ink); background: var(--paper); transform: rotate(-2deg); }
-    .social-chip.alt { color: var(--cream); background: #111111; border: calc(var(--vu) * 2) solid var(--paper); }
-    .social-chip.alt.r1 { transform: rotate(1.5deg); }
-    .social-chip.alt.r2 { transform: rotate(-1.5deg); }
 
     .alert-card { position: absolute; top: calc(var(--vu) * 70); right: calc(var(--vu) * 70); width: calc(var(--vu) * 520); background: #000000; border-radius: calc(var(--vu) * 16); padding: calc(var(--vu) * 26) calc(var(--vu) * 30); display: none; align-items: center; gap: calc(var(--vu) * 20); border: calc(var(--vu) * 3) solid var(--alert-accent, #FFFFFF); box-shadow: 0 0 0 calc(var(--vu) * 6) rgba(0,0,0,.35), 0 calc(var(--vu) * 18) calc(var(--vu) * 40) rgba(0,0,0,.5), 0 0 calc(var(--vu) * 46) var(--alert-accent, #FFFFFF); z-index: 80; }
     .alert-card.visible { display: flex; animation: alertPop .5s cubic-bezier(.2,1.4,.4,1); }
@@ -124,8 +128,6 @@
 
     <div class="social-row">
       <div class="social-chip primary">TWITCH · DANGSXR1000</div>
-      <div class="social-chip alt r1">TWITTER/X · @DANGSXR1000</div>
-      <div class="social-chip alt r2">DISCORD · DANGSXR1000</div>
     </div>
 
     <div class="scanline-overlay"></div>
