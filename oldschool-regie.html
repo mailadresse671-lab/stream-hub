@@ -121,6 +121,7 @@
       opacity: .85;
       margin-top: 8px;
     }
+    .hint strong { color: var(--paper); }
   </style>
 </head>
 <body>
@@ -194,7 +195,7 @@
         <button id="btnSetFile">Datei setzen</button>
         <button id="btnSetFilePlay">Datei + Play</button>
       </div>
-      <div class="hint">Ideal fuer eigene Suno-Tracks. Der Titel wird automatisch vom Dateinamen genommen.</div>
+      <div class="hint">Ideal fuer eigene Suno-Tracks. Die Datei muss <strong>wirklich lokal</strong> auf dem Tablet liegen, nicht nur in Google Drive verknuepft sein. Der Titel wird automatisch vom Dateinamen genommen.</div>
     </section>
 
     <section class="card">
@@ -308,6 +309,10 @@
 
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
+        if (file && file.size && file.size > 30 * 1024 * 1024) {
+          reject(new Error('Datei ist zu gross fuer den Regie-Upload. Bitte MP3 kleiner als 30 MB nutzen.'));
+          return;
+        }
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
         reader.onerror = () => reject(reader.error || new Error('Datei konnte nicht gelesen werden.'));
@@ -406,6 +411,7 @@
         setStatus('Bitte zuerst eine Audiodatei auswählen.');
         return;
       }
+      setStatus('Lese Datei: ' + file.name + ' ...');
       readFileAsDataUrl(file).then(dataUrl => {
         return sendCommand('music.track.set', {
           source: String(dataUrl),
@@ -423,6 +429,7 @@
         setStatus('Bitte zuerst eine Audiodatei auswählen.');
         return;
       }
+      setStatus('Lese Datei: ' + file.name + ' ...');
       readFileAsDataUrl(file).then(dataUrl => {
         return sendCommand('music.track.set', {
           source: String(dataUrl),
