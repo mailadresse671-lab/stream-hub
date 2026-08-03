@@ -38,6 +38,16 @@ Randlos ausgelegt (`--vu`-Fluid-Unit-System), eigenständige Szenen-Sammlung —
 
 **Live-Validierung läuft bereits** — `oldschool-starting.html` und `oldschool-chatting.html`/`oldschool-brb.html` wurden je mind. einmal live in Streamlabs Mobile getestet und nachgebessert (Social-Chips reduziert, Countdown-Clipping behoben, tanzender Bär, Bär statt leerem Facecam-Slot, sichtbarer Chat-Status, Chat-Box-Positionierung robuster gegen schmale Browser-Quellen). `oldschool-gameplay.html`/`oldschool-outro.html` noch ungetestet. Details + volle Live-Test-Historie siehe `CLAUDE.md`, Offene Punkte #18.
 
+## Regie-Tools (Browser-Steuerung)
+
+Diese Seiten sind Regie-/Control-UIs und keine Streamlabs-Overlay-Szenen:
+
+| Dateiname | Zweck | Status |
+| :--- | :--- | :---: |
+| `oldschool-regie.html` | Hub-Startseite mit klarer Auswahl zwischen Live Deck und Studio Console | 🟢 |
+| `oldschool-live.html` | Minimales Handy-Live-Deck (1-Tap Szenenwechsel auf `oldschool-master`) | 🟢 |
+| `oldschool-studio.html` | Vollständige Studio-Console mit erweiterten Settings (Track, Ordner, Audio, API/Key) | 🟢 |
+
 ## Frei positionierbare Einzel-Widget-Quellen
 
 Kanonische Quellseiten dieser Gruppe liegen unter `widgets/`; die gleichnamigen Root-Dateien bleiben als stabile Browser-Quellen-Einstiege erhalten.
