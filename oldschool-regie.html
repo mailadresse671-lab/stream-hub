@@ -3,156 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Oldschool Regie Hub</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <title>Oldschool Regie</title>
   <style>
     :root {
       --bg: #070709;
       --fg: #f4f4f6;
       --muted: #b4b6bf;
       --blood: #c8102e;
-      --panel: #101015;
       --line: rgba(255,255,255,.22);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       min-height: 100%;
       color: var(--fg);
-      font-family: 'Barlow Condensed', sans-serif;
+      font-family: Arial, sans-serif;
       background:
         radial-gradient(900px 600px at 12% -10%, rgba(200,16,46,.2), transparent 60%),
         radial-gradient(1000px 700px at 90% 120%, rgba(255,255,255,.08), transparent 60%),
         var(--bg);
     }
-    body { padding: 16px; }
-    .wrap {
-      width: min(980px, 100%);
-      margin: 0 auto;
+    body {
       display: grid;
-      gap: 12px;
+      place-items: center;
+      padding: 16px;
     }
-    .hero, .card {
+    .card {
+      width: min(560px, 100%);
       border: 1px solid var(--line);
       border-radius: 14px;
       background: linear-gradient(180deg, rgba(18,18,24,.95), rgba(9,9,13,.95));
       box-shadow: 0 10px 34px rgba(0,0,0,.35), inset 0 0 0 1px rgba(200,16,46,.18);
+      padding: 18px;
+      text-align: center;
     }
-    .hero {
-      padding: 14px;
-    }
-    .title {
-      font-family: 'Rubik Spray Paint', cursive;
-      font-size: clamp(30px, 7vw, 58px);
-      line-height: 1;
-      text-shadow: 3px 3px 0 #8f0c22;
-    }
-    .subtitle {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 18px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .card { padding: 14px; }
-    .card h2 {
-      font-size: 26px;
-      letter-spacing: .7px;
-      margin-bottom: 8px;
-    }
-    .card p {
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.35;
+    h1 {
+      font-size: 30px;
       margin-bottom: 10px;
+    }
+    p {
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 14px;
     }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 54px;
+      min-height: 52px;
       width: 100%;
       border: 1px solid rgba(255,255,255,.55);
       border-radius: 12px;
-      padding: 10px;
       color: #fff;
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: .4px;
+      font-size: 20px;
+      font-weight: 700;
       text-decoration: none;
       background: linear-gradient(180deg, rgba(200,16,46,.85), rgba(143,12,34,.95));
+      margin-bottom: 10px;
     }
-    .btn.secondary {
-      font-size: 20px;
-      background: rgba(255,255,255,.08);
-    }
-    .list {
-      display: grid;
-      gap: 8px;
-      margin-top: 10px;
-      font-size: 15px;
-    }
-    .item {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 9px 10px;
-      background: rgba(255,255,255,.04);
-      word-break: break-all;
-    }
-    .mini {
+    .link {
       color: var(--muted);
       font-size: 14px;
-      margin-top: 6px;
-    }
-    @media (max-width: 860px) {
-      .grid { grid-template-columns: 1fr; }
-      .card h2 { font-size: 24px; }
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <section class="hero">
-      <div class="title">Oldschool Regie</div>
-      <p class="subtitle">Professionell aufgeteilt in Live Deck (Handy) und Studio Console (Setup).</p>
-    </section>
-
-    <section class="grid">
-      <article class="card">
-        <h2>Live Deck</h2>
-        <p>Fuer den Stream. Grosse 1-Tap Buttons, keine ueberfluessigen Menues.</p>
-        <a class="btn" href="/oldschool-live.html">Live Deck oeffnen</a>
-      </article>
-
-      <article class="card">
-        <h2>Studio Console</h2>
-        <p>Alle erweiterten Einstellungen: Track, Bibliothek, Presets, Volume, Key/API.</p>
-        <a class="btn secondary" href="/oldschool-studio.html">Studio Console oeffnen</a>
-      </article>
-    </section>
-
-    <section class="card">
-      <h2>Sofort-Links</h2>
-      <div class="list">
-        <div class="item" id="liveUrl"></div>
-        <div class="item" id="studioUrl"></div>
-        <div class="item" id="masterUrl"></div>
-        <div class="item" id="apiUrl"></div>
-      </div>
-      <p class="mini">In Streamlabs pro Szene nur eine Browser-Quelle nutzen. Empfohlen: oldschool-master.html?hud=0</p>
-    </section>
+  <main class="card">
+    <h1>Regie wird geladen</h1>
+    <p>Du wirst automatisch auf das Live Deck weitergeleitet, damit du nur noch eine zentrale Steuerseite auf dem Handy hast.</p>
+    <a class="btn" href="/oldschool-live.html">Jetzt zum Live Deck</a>
+    <a class="link" href="/oldschool-studio.html">Studio Console oeffnen</a>
   </main>
 
   <script>
-    const origin = location.origin.replace(/\/$/, '');
-    document.getElementById('liveUrl').textContent = 'Live Deck: ' + origin + '/oldschool-live.html';
-    document.getElementById('studioUrl').textContent = 'Studio Console: ' + origin + '/oldschool-studio.html';
-    document.getElementById('masterUrl').textContent = 'Master Quelle: ' + origin + '/oldschool-master.html?hud=0';
-    document.getElementById('apiUrl').textContent = 'Regie API: ' + origin + '/api/regie-control';
+    const params = new URLSearchParams(location.search);
+    const target = params.get('studio') === '1' ? '/oldschool-studio.html' : '/oldschool-live.html';
+    location.replace(target);
   </script>
 </body>
 </html>
