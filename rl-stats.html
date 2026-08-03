@@ -2,12 +2,174 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weiterleitung …</title>
-  <meta http-equiv="refresh" content="0; url=/widgets/rl-stats.html">
-  <script>location.replace('/widgets/rl-stats.html' + location.search + location.hash);</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RL Session Stats</title>
+  <!-- Eigenstaendige Rocket-League-Session-Stats-Quelle, aus in-game.html
+       herausgeloest (Runde 6 der in-game.html-Historie: Nutzer wollte jedes
+       Widget als eigene, frei per Streamlabs-Transform-Panel positionierbare
+       Browser-Quelle statt fest im Code positioniert - nach wiederholten
+       Kollisionen mit verschiedenen Rocket-League-Bildschirmen, siehe
+       CLAUDE.md fuer die volle Historie). Wiederverwendet dieselbe
+       fetchStats()/Session-Delta-Logik wie index.html/overlay.html/
+       in-game.html gegen die bestehende api/stats.js (kein neuer Server-
+       Code). Fuellt die eigene Seite randlos aus (siehe STREAMLABS_SETUP.md)
+       - Streamlabs' Transform-Panel entscheidet ueber Endgroesse/Position.
+
+       Runde 2 (aktuell): Nutzer meldete, dass mehrere der neu ausgekoppelten
+       Widgets in Streamlabs winzig/abgeschnitten statt korrekt skaliert
+       ankamen. Ursache: --vu war hier fest auf 1px gesetzt (Annahme, dass
+       Streamlabs' Transform-Panel den Inhalt beim Verkleinern proportional
+       mitskaliert) - tut es aber nicht, es aendert nur die Render-Viewport-
+       Groesse, alles was nicht mehr reinpasst wird bei overflow:hidden
+       schlicht abgeschnitten. Fix: --vu jetzt wie bei den vollflaechigen
+       Szenen als vw-basierte clamp()-Formel, hier auf die natuerliche
+       Design-Breite dieser Karte (~380px) kalibriert statt auf 1920px -
+       der Inhalt skaliert dadurch jetzt tatsaechlich proportional mit,
+       egal welche W/H der Nutzer im Transform-Panel waehlt. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood: #ff2340;
+      --tan: #d9b872;
+      --cream: #f4f1ea;
+      --vu: clamp(0.3px, 0.263vw, 3px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
+
+    @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+
+    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+
+    .rl-stats-card { position: relative; width: 100%; padding: calc(var(--vu) * 12) calc(var(--vu) * 16); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    .rl-stats-header { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 10); }
+    .rl-stats-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 15); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; white-space: nowrap; }
+    .rl-status-group { display: flex; align-items: center; gap: calc(var(--vu) * 6); flex: none; }
+    .rl-status-label { font-size: calc(var(--vu) * 9); letter-spacing: 1px; color: rgba(244,241,234,.55); white-space: nowrap; }
+    .rl-status-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; flex: none; }
+    .rl-status-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-status-dot.live { background: #4ade80; box-shadow: 0 0 6px 2px rgba(74,222,128,.7); }
+    .rl-status-dot.cached { background: var(--tan); box-shadow: 0 0 6px 2px rgba(217,184,114,.7); }
+    .rl-status-dot.offline { background: var(--blood); box-shadow: 0 0 6px 2px rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-stats-row { display: flex; gap: calc(var(--vu) * 20); margin-top: calc(var(--vu) * 10); }
+    .rl-stat { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-stat-value { font-size: calc(var(--vu) * 22); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .rl-stat-value.win { color: #4ade80; }
+    .rl-stat-value.loss { color: var(--blood); }
+    .rl-stat-value.rate { color: #f2c94c; }
+    .rl-stat-label { font-size: calc(var(--vu) * 9); letter-spacing: 1.5px; color: rgba(244,241,234,.5); }
+    .rl-rank-row { display: none; align-items: center; gap: calc(var(--vu) * 10); margin-top: calc(var(--vu) * 10); padding-top: calc(var(--vu) * 10); border-top: 1px dashed rgba(217,184,114,.22); }
+    .rl-rank-icon { width: calc(var(--vu) * 32); height: calc(var(--vu) * 32); object-fit: contain; }
+    .rl-rank-text { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-rank-tier { font-size: calc(var(--vu) * 13); color: var(--cream); font-weight: 700; }
+    .rl-rank-mmr { font-size: calc(var(--vu) * 10); color: var(--tan); letter-spacing: 1px; }
+    .rl-stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); margin-top: calc(var(--vu) * 10); }
+    .rl-stats-card.is-offline .rl-stats-row,
+    .rl-stats-card.is-offline .rl-rank-row { display: none !important; }
+    .rl-stats-card.is-offline .rl-stats-offline-panel { display: flex; }
+    .rl-offline-tag { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 20); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .rl-offline-sub { font-size: calc(var(--vu) * 10); letter-spacing: 1.5px; color: var(--tan); }
+  </style>
 </head>
 <body>
-  <p>Weiterleitung zu <a href="/widgets/rl-stats.html">widgets/rl-stats.html</a> …</p>
+
+  <div class="widget-position">
+    <div class="rl-stats-card" id="rlStatsCard">
+      <div class="rl-stats-header">
+        <span class="rl-stats-title">ROCKET LEAGUE — SESSION</span>
+        <div class="rl-status-group">
+          <span class="rl-status-dot connecting" id="rlStatusDot"></span>
+          <span class="rl-status-label" id="rlStatusLabel">Verbinde…</span>
+        </div>
+      </div>
+      <div class="rl-stats-row">
+        <div class="rl-stat"><span class="rl-stat-value win" id="rlWins">–</span><span class="rl-stat-label">SIEGE</span></div>
+        <div class="rl-stat"><span class="rl-stat-value loss" id="rlLosses">–</span><span class="rl-stat-label">NIEDERLAGEN</span></div>
+        <div class="rl-stat"><span class="rl-stat-value rate" id="rlWinrate">–</span><span class="rl-stat-label">WINRATE</span></div>
+      </div>
+      <div class="rl-rank-row" id="rlRankRow">
+        <img class="rl-rank-icon" id="rlRankIcon" src="" alt="" onerror="this.style.display='none';">
+        <div class="rl-rank-text">
+          <span class="rl-rank-tier" id="rlRankTier">-</span>
+          <span class="rl-rank-mmr" id="rlRankMmr">-</span>
+        </div>
+      </div>
+      <div class="rl-stats-offline-panel" id="rlOfflinePanel">
+        <span class="rl-offline-tag">D5</span>
+        <span class="rl-offline-sub">DANGSXR1000</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const STATS_URL_PARAMS = new URLSearchParams(location.search);
+    const RL_MODE = (STATS_URL_PARAMS.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (STATS_URL_PARAMS.get('rlPlaylist') || '').trim();
+
+    let rlStartWins = null;
+    let rlStartMatches = null;
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const card = document.getElementById('rlStatsCard');
+      dot.className = 'rl-status-dot ' + status;
+      const labels = { connecting: 'Verbinde…', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      label.textContent = labels[status] || '';
+      card.classList.toggle('is-offline', status === 'offline');
+    }
+    function updateRlStatsUI(sessionWins, sessionLosses) {
+      document.getElementById('rlWins').textContent = sessionWins;
+      document.getElementById('rlLosses').textContent = sessionLosses;
+      const total = sessionWins + sessionLosses;
+      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+    function updateRlRankUI(rank) {
+      const row = document.getElementById('rlRankRow');
+      if (!rank) { row.style.display = 'none'; return; }
+      document.getElementById('rlRankIcon').style.display = '';
+      document.getElementById('rlRankIcon').src = rank.tierIconUrl || '';
+      document.getElementById('rlRankIcon').alt = rank.tierName || '';
+      document.getElementById('rlRankTier').textContent = rank.tierName || '-';
+      document.getElementById('rlRankMmr').textContent = rank.mmr != null ? rank.mmr + ' MMR' : (rank.playlist || '-');
+      row.style.display = 'flex';
+    }
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+          updateRlRankUI(data.rank);
+          if (rlStartWins === null) {
+            rlStartWins = data.wins;
+            rlStartMatches = data.matches;
+          } else {
+            const sessionWins = Math.max(0, data.wins - rlStartWins);
+            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateRlStatsUI(sessionWins, sessionLosses);
+          }
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
+
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
+  </script>
+
 </body>
 </html>

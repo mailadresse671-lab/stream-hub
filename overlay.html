@@ -2,12 +2,2202 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weiterleitung …</title>
-  <meta http-equiv="refresh" content="0; url=/scenes/core/overlay.html">
-  <script>location.replace('/scenes/core/overlay.html' + location.search + location.hash);</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Overlay (All-In-One)</title>
+  <!-- All-In-One Master-Szene (1920x1080): kombiniert goal.html (Follower-
+       Goal, Wanted-Level, Party-Popup/Alerts, FX-Layer, Soundtrack-Badge),
+       chat.html (physik-basierter Chat-Feed), avatar.html (Hood-Masken-
+       Avatar), index.html (Session-Stats + Rang/MMR) und branding.html
+       (Marken-Tag) auf EINER Browser-Quelle. Die bestehenden Einzelseiten
+       bleiben unveraendert als modulare Backup-Szenen bestehen - dies ist
+       eine Ergaenzung, kein Ersatz. Alle drei tmi.js-Anwendungsfaelle
+       (Chat-Feed rendern, Chat-Commands, Avatar-Reaktion) laufen hier ueber
+       EINE gemeinsame Verbindung statt drei getrennter (das war in den
+       Einzelseiten noetig, weil es dort getrennte Browser-Quellen waren -
+       auf einer Seite gibt es diese Einschraenkung nicht mehr). -->
+  <script src="/assets/js/tmi-loader.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* "Urban Blackout" - siehe goal.html fuer die volle Token-Doku */
+      --asphalt: #08090a;
+      --asphalt-mid: rgba(9, 9, 11, 0.92);
+      --steel: #202226;
+      --steel-raw: rgba(30, 32, 37, 0.55);
+      --steel-line: rgba(255, 255, 255, 0.1);
+      --chrome-1: #eef0f2;
+      --chrome-2: #8b8d93;
+      --blood: #ff1a1a;
+      --blood-glow: rgba(255, 26, 26, 0.65);
+      --gold: #ffd700;
+      --gold-glow: rgba(255, 215, 0, 0.55);
+      --text-primary: #f5f5f7;
+      --text-muted: #9a9ca3;
+      --success: #22c55e;
+      --danger: #ef4444;
+      /* Kein transform:scale() mehr (Streamlabs-Mobile-WebView rendert
+         herunterskalierte Layer sichtbar unscharf/verpixelt - Text und
+         Bilder werden dort offenbar nicht bei der finalen Groesse neu
+         rasterisiert). Stattdessen ist die Basis-Einheit selbst fluide:
+         --vu ("viewport unit") loest sich zu 1px bei 1920px Browser-
+         Quellen-Breite auf, skaliert aber proportional mit der TATSAECH-
+         LICHEN Breite mit (Boden bei 0.5px) - falls Streamlabs Mobile dem
+         iframe eine viel kleinere interne Aufloesung meldet als erwartet,
+         schrumpfen Fonts/Paddings/Border automatisch mit, statt in
+         absoluten px riesig zu wirken. calc(var(--vu) * N) ersetzt ueberall
+         dort, wo bisher ein hartes "Npx" stand - bleibt dabei "nativ"
+         (calc()/clamp() werden vor dem Rendern aufgeloest, kein
+         nachtraegliches Herunterskalieren wie bei transform:scale()). */
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+      --cut: calc(var(--vu) * 8);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: var(--text-primary);
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* KEIN festes 1920x1080-Design-Raster mehr (siehe Git-Historie fuer den
+       verworfenen #stage-scale-JS-Scaling-Versuch - Streamlabs Mobile
+       rendert das iframe intern offenbar bei einer eigenen, per JS nicht
+       zuverlaessig auslesbaren Aufloesung, wodurch jede auf
+       window.innerWidth/innerHeight basierende Skalierung dort ins Leere
+       lief). Stattdessen rein CSS-basiertes, fluides Layout: #shake-root
+       fuellt per "position:fixed; inset:0" IMMER exakt den echten Viewport
+       (das ist Browser-natives Verhalten, unabhaengig von JS-Messwerten),
+       und alle Widget-Anker darunter positionieren sich relativ dazu ueber
+       vw/vh statt fixer px-Werte - dadurch "atmet" das Layout mit jedem
+       Viewport mit, egal wie krumm/klein/verzerrt Streamlabs Mobile das
+       iframe tatsaechlich rendert. */
+    #shake-root {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .crack-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ---------- Gemeinsames Karten-Aussehen (goal-card/hud-card-merged
+       teilen sich dieses Vokabular: zerklueftete Geometrie statt runder
+       Ecken, siehe Styling-Guide) ---------- */
+    .bullet-hole {
+      position: absolute;
+      width: calc(var(--vu) * 7);
+      height: calc(var(--vu) * 7);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #000 0%, #131417 55%, transparent 75%);
+      box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      animation: bulletGlow 2.6s ease-in-out infinite;
+      z-index: 2;
+    }
+    .bullet-hole::before {
+      content: '';
+      position: absolute;
+      inset: calc(var(--vu) * -4);
+      background:
+        linear-gradient(12deg, transparent 47%, rgba(255, 26, 26, 0.4) 49%, transparent 51%),
+        linear-gradient(96deg, transparent 47%, rgba(255, 26, 26, 0.32) 49%, transparent 51%),
+        linear-gradient(163deg, transparent 47%, rgba(255, 26, 26, 0.3) 49%, transparent 51%),
+        linear-gradient(210deg, transparent 47%, rgba(255, 26, 26, 0.28) 49%, transparent 51%);
+      border-radius: 50%;
+    }
+    @keyframes bulletGlow {
+      0%, 100% { box-shadow: 0 0 6px 1px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9); }
+      50% { box-shadow: 0 0 11px 3px var(--blood-glow), inset 0 0 4px rgba(0, 0, 0, 0.9); }
+    }
+
+    .shimmer-frame {
+      position: relative;
+      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+      padding: 1px;
+      background: linear-gradient(155deg, var(--blood), var(--steel) 55%, var(--blood));
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      animation: framePulse 4s ease-in-out infinite;
+    }
+
+    @keyframes framePulse {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.35); }
+    }
+
+    .hud-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--vu) * 4);
+      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
+      backdrop-filter: blur(calc(var(--vu) * 7));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 7));
+      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+      overflow: hidden;
+    }
+
+    .hud-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 8)),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 8));
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .hud-watermark {
+      position: absolute;
+      right: calc(var(--vu) * 5);
+      bottom: calc(var(--vu) * 3);
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: calc(var(--vu) * 5);
+      letter-spacing: calc(var(--vu) * 1);
+      color: var(--chrome-2);
+      opacity: 0.4;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .tape-corner {
+      position: absolute;
+      top: calc(var(--vu) * 3);
+      left: calc(var(--vu) * -7);
+      width: calc(var(--vu) * 25);
+      height: calc(var(--vu) * 6);
+      background: repeating-linear-gradient(45deg, var(--gold) 0 calc(var(--vu) * 3), #0a0a0a calc(var(--vu) * 3) calc(var(--vu) * 7));
+      transform: rotate(-45deg);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    /* ---------- Linker Rand, vertikal zentriert: Wanted-Level + Session-
+       Stats/Rang gestapelt ----------
+       Bewusst NICHT oben links (dort liegt in Rocket League der In-Game-
+       Chat) und NICHT oben mittig (Tor-/Zeit-Anzeige) - die vertikal
+       zentrierte linke Kante ist in RL HUD-frei. vw/vh statt fixer px-
+       Werte: klebt so am Viewport-Rand, egal welche tatsaechliche
+       Aufloesung die Browser-Quelle liefert (kein festes 1920x1080-
+       Design-Raster mehr, siehe Kommentar bei #shake-root). */
+    .left-edge-stack {
+      position: absolute;
+      top: 50%;
+      left: 1.25vw;
+      transform: translateY(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--vu) * 9);
+    }
+
+    .goal-card, .hud-card-merged {
+      /* min() statt fixer px, damit die Karten auch in schmalen/krummen
+         Viewports schrumpfen koennen, statt garantiert zu ueberlappen. */
+      min-width: min(calc(var(--vu) * 132), 34vw);
+    }
+    .goal-card { padding: calc(var(--vu) * 11) calc(var(--vu) * 14) calc(var(--vu) * 10); }
+
+    /* Wanted-Level + Stats/Rang liegen jetzt in EINER gemeinsamen Karte
+       (.hud-card-merged) statt in zwei einzeln gerahmten Karten - wirkt
+       kompakter/professioneller als zwei separate Panels mit Luecke
+       dazwischen (Nutzer-Feedback nach Runde 5). .wanted-card/.stats-card
+       sind dadurch keine eigenstaendigen Karten mehr, sondern nur noch
+       interne Abschnitte innerhalb der gemeinsamen Karte, getrennt durch
+       .hud-divider. */
+    .hud-card-merged {
+      min-width: min(calc(var(--vu) * 110), 30vw);
+      padding: calc(var(--vu) * 9) calc(var(--vu) * 13) calc(var(--vu) * 8);
+      gap: calc(var(--vu) * 6);
+    }
+    .wanted-card, .stats-card {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--vu) * 4);
+    }
+    .hud-divider {
+      height: 1px;
+      flex-shrink: 0;
+      background: linear-gradient(90deg, transparent, var(--blood) 15%, var(--gold) 50%, var(--blood) 85%, transparent);
+      opacity: 0.55;
+    }
+
+    .goal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: calc(var(--vu) * 8);
+    }
+
+    .goal-title, .wanted-title, .stats-title {
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: calc(var(--vu) * 7);
+      font-weight: 400;
+      letter-spacing: calc(var(--vu) * 1);
+      color: var(--gold);
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+
+    .goal-stats {
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-weight: 800;
+      font-size: calc(var(--vu) * 8);
+      color: var(--chrome-1);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+
+    .bar-bg {
+      width: 100%;
+      height: calc(var(--vu) * 8);
+      background: rgba(0, 0, 0, 0.35);
+      clip-path: polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%);
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--steel-line);
+    }
+
+    .liquid-bar-canvas { display: block; width: 100%; height: 100%; }
+
+    .debug-line {
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-size: calc(var(--vu) * 4);
+      color: var(--text-muted);
+      letter-spacing: 0.2px;
+      font-variant-numeric: tabular-nums;
+      white-space: normal;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+
+    .wanted-stars { display: flex; gap: calc(var(--vu) * 3); font-size: calc(var(--vu) * 12); line-height: 1; }
+    .wanted-star {
+      color: #35373c;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+      transition: color 0.3s ease, text-shadow 0.3s ease;
+    }
+    .wanted-star.filled {
+      color: var(--gold);
+      text-shadow: 0 0 8px var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+
+    /* Session-Stats/Rang-Karte - Hood-Restyle statt des alten Glassmorphism-
+       Looks aus index.html, damit die Master-Szene optisch aus einem Guss
+       bleibt (siehe Styling-Guide: Hood/Ghetto vs. Glassmorphism nicht
+       vermischen - hier ist alles Hood). */
+    .stats-header { display: flex; align-items: center; gap: calc(var(--vu) * 4); }
+
+    .stats-status-dot {
+      width: calc(var(--vu) * 4);
+      height: calc(var(--vu) * 4);
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .stats-status-dot.status-live { background: var(--success); box-shadow: 0 0 7px var(--success); animation: statsPulse 1.8s ease-in-out infinite; }
+    .stats-status-dot.status-cached { background: var(--gold); box-shadow: 0 0 7px var(--gold-glow); }
+    .stats-status-dot.status-offline { background: var(--danger); box-shadow: 0 0 7px var(--danger); animation: statsPulse 1.8s ease-in-out infinite; }
+    @keyframes statsPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.75); }
+    }
+
+    .stats-row { display: flex; gap: calc(var(--vu) * 10); }
+    .stat { text-align: center; min-width: calc(var(--vu) * 22); }
+    .stat .stat-value {
+      display: block;
+      font-family: 'Montserrat', sans-serif;
+      font-size: calc(var(--vu) * 10);
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+    .stat .stat-label {
+      display: block;
+      font-size: calc(var(--vu) * 4);
+      margin-top: calc(var(--vu) * 2);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .val-win { color: var(--success); }
+    .val-loss { color: var(--danger); }
+    .val-rate { color: var(--gold); }
+
+    .rank-row { display: flex; align-items: center; gap: calc(var(--vu) * 4); padding-top: 1px; border-top: 1px solid var(--steel-line); }
+    .rank-icon { width: calc(var(--vu) * 14); height: calc(var(--vu) * 14); object-fit: contain; flex-shrink: 0; }
+    .rank-text { display: flex; flex-direction: column; line-height: 1.15; }
+    .rank-tier { font-size: calc(var(--vu) * 6); font-weight: 800; color: var(--gold); white-space: nowrap; }
+    .rank-mmr { font-size: calc(var(--vu) * 4); color: var(--text-muted); font-variant-numeric: tabular-nums; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    /* Stylisches Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige,
+       wenn api/stats.js dauerhaft nicht erreichbar ist (siehe
+       setStatsStatus() in JS) - .stats-row/.rank-row werden dabei
+       ausgeblendet, dieses Panel eingeblendet. */
+    .stats-offline-panel { display: none; align-items: baseline; gap: calc(var(--vu) * 8); }
+    .stats-card.is-offline .stats-row,
+    .stats-card.is-offline .rank-row { display: none !important; }
+    .stats-card.is-offline .stats-offline-panel { display: flex; }
+    .offline-tag {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: calc(var(--vu) * 20);
+      color: var(--gold);
+      letter-spacing: 1px;
+      line-height: 1;
+      text-shadow: 0 0 8px var(--gold-glow), 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+    .offline-sub {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: calc(var(--vu) * 6);
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    /* ---------- Oben rechts: Follower-Goal ---------- */
+    .goal-position {
+      position: absolute;
+      top: 2.2vh;
+      right: 1.25vw;
+      z-index: 10;
+    }
+
+    /* ---------- Unten links: Bild-Avatar (Baer) ---------- */
+    .avatar-position {
+      position: absolute;
+      bottom: 2.2vh;
+      left: 1.25vw;
+      z-index: 10;
+      /* vw-basierte Breite mit Klammern nach oben/unten statt starrer
+         Pixel-Zahl (die bei kleinen/verzerrten Viewports den Baeren aus
+         dem Bild schieben wuerde) - bleibt proportional zum Viewport,
+         ohne auf sehr breiten/schmalen Quellen absurd zu wachsen/
+         schrumpfen. Klammern nochmals abgesenkt (40-110px), damit der
+         Baer auch bei einer sehr klein gemeldeten Streamlabs-Mobile-
+         Aufloesung nicht zu dominant wirkt. */
+      width: clamp(40px, 5vw, 110px);
+    }
+
+    /* Glow-Impuls im Hintergrund waehrend des Action-Zustands - pulsiert
+       kontinuierlich in Neon-Rot statt nur einmalig aufzublitzen. */
+    .avatar-glow-bg {
+      position: absolute;
+      inset: calc(var(--vu) * -14);
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--blood-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+    }
+    .avatar-glow-bg.action {
+      opacity: 1;
+      animation: avatarGlowPulse 0.8s ease-in-out infinite;
+    }
+    @keyframes avatarGlowPulse {
+      0%, 100% { transform: scale(1); opacity: 0.75; }
+      50% { transform: scale(1.4); opacity: 1; }
+    }
+
+    /* Organischeres Idle-Wippen: leichtes Schaukeln (statt reinem
+       Auf-Ab) durch zusaetzliche horizontale Verschiebung + wechselnde
+       Rotationsrichtung ueber 4 Punkte, damit der Baer auch in den
+       >95% Sendezeit ohne Event lebendig wirkt statt nur simpel zu
+       hüpfen. */
+    .avatar-bob {
+      animation: avatarIdleBounce 3.6s ease-in-out infinite;
+      transform-origin: 50% 100%;
+    }
+    @keyframes avatarIdleBounce {
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      25% { transform: translate(1.5px, -3px) rotate(-1.4deg) scale(1.005); }
+      50% { transform: translate(0, -6px) rotate(0.6deg) scale(1.012); }
+      75% { transform: translate(-1.5px, -2.5px) rotate(1.4deg) scale(1.005); }
+    }
+
+    /* Punch-Wrapper: kurzer Bounce-Impuls bei jedem Trigger, unabhaengig
+       vom darunterliegenden Idle-Wippen. Haelt die beiden gestapelten
+       Bild-Layer, die per Opacity ueberblendet werden (fliessender
+       Uebergang statt hartem src-Swap). Staerkerer Ausschlag (Rotation
+       + mehr Scale) fuer mehr "Hype"-Gefuehl bei Interaktionen. */
+    .avatar-punch {
+      position: relative;
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: 50% 100%;
+    }
+    .avatar-punch.punch {
+      transform: translateY(-13px) scale(1.09) rotate(-4deg);
+    }
+
+    .avatar-layer {
+      display: block;
+      width: 100%;
+      height: auto;
+      filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.65));
+      transition: opacity 0.4s ease;
+    }
+    .avatar-layer-idle { position: relative; opacity: 1; }
+    .avatar-layer-action { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+    .avatar-punch.action .avatar-layer-idle { opacity: 0; }
+    .avatar-punch.action .avatar-layer-action { opacity: 1; }
+
+    /* ---------- Rechter Rand, vertikal zentriert: Chat-Feed + Branding-Tag ----------
+       Bewusst NICHT unten rechts (dort sitzt in Rocket League die Boost-
+       Anzeige) - die vertikal zentrierte rechte Kante ist HUD-frei,
+       spiegelt den .left-edge-stack auf der anderen Seite. */
+    .right-edge-stack {
+      position: absolute;
+      top: 50%;
+      right: 1.25vw;
+      transform: translateY(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: calc(var(--vu) * 9);
+    }
+
+    .chat-stage-box {
+      position: relative;
+      width: 9vw;
+      height: 22vh;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .chat-card {
+      position: absolute;
+      top: 0;
+      left: 4%;
+      width: 92%;
+      display: flex;
+      align-items: flex-start;
+      gap: calc(var(--vu) * 6);
+      background: var(--asphalt-mid);
+      border: 1px solid var(--steel-line);
+      border-left: 2px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 7px, 100% 100%, 0 100%);
+      padding: calc(var(--vu) * 6) calc(var(--vu) * 9) calc(var(--vu) * 6) calc(var(--vu) * 8);
+      backdrop-filter: blur(calc(var(--vu) * 7));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 7));
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+      font-size: calc(var(--vu) * 7);
+      line-height: 1.45;
+      opacity: 0;
+      will-change: transform;
+      transition: opacity 0.35s ease;
+    }
+    .chat-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 7)),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px calc(var(--vu) * 7));
+      opacity: 0.3;
+      pointer-events: none;
+    }
+    .chat-card.visible { opacity: 1; }
+    .chat-card.fade-out { transition: opacity 0.6s ease; opacity: 0; }
+    .avatar-dot { width: calc(var(--vu) * 4); height: calc(var(--vu) * 4); margin-top: calc(var(--vu) * 3); border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; flex-shrink: 0; }
+    .msg-body { min-width: 0; }
+    .username {
+      font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
+      font-weight: 400;
+      font-size: calc(var(--vu) * 9);
+      letter-spacing: 0.3px;
+      margin-right: calc(var(--vu) * 3);
+      display: inline;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.7);
+    }
+    .text { color: var(--text-primary); word-break: break-word; }
+    .chat-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -1px 1px; }
+
+    .branding-tag {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--vu) * 4);
+      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
+      border: 1px solid var(--blood);
+      clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+      padding: calc(var(--vu) * 4) calc(var(--vu) * 9);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    }
+    .branding-name { font-family: 'Bebas Neue', sans-serif; font-size: calc(var(--vu) * 8); letter-spacing: 0.5px; color: var(--chrome-1); }
+    .branding-pipe { color: var(--chrome-2); margin: 0 calc(var(--vu) * 3); font-family: 'Montserrat', sans-serif; }
+    .branding-live { font-family: 'Bebas Neue', sans-serif; font-size: calc(var(--vu) * 8); letter-spacing: 0.5px; color: var(--gold); }
+    .branding-dot {
+      width: calc(var(--vu) * 3); height: calc(var(--vu) * 3); border-radius: 50%;
+      background: var(--blood);
+      box-shadow: 0 0 6px var(--blood-glow);
+      display: inline-block;
+      margin-left: calc(var(--vu) * 2);
+      animation: brandPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes brandPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.75); } }
+
+    /* ---------- Unten mittig: Soundtrack-Badge ---------- */
+    .soundtrack-position {
+      position: absolute;
+      bottom: 2.2vh;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      max-width: 18vw;
+    }
+    .soundtrack-badge {
+      position: relative;
+      background: linear-gradient(155deg, var(--asphalt-mid), var(--steel-raw));
+      border: 1px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+      padding: calc(var(--vu) * 4) calc(var(--vu) * 11);
+      overflow: hidden;
+      backdrop-filter: blur(calc(var(--vu) * 6));
+      -webkit-backdrop-filter: blur(calc(var(--vu) * 6));
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    }
+    /* Weiche Kanten NUR waehrend des Scrollens (siehe .is-scrolling unten) -
+       ohne diese Maske wuerde der laufende Text hart am overflow:hidden-Rand
+       abgeschnitten wirken statt sauber rein-/rauszulaufen. */
+    .soundtrack-badge.is-scrolling {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--vu) * 10), #000 calc(100% - var(--vu) * 10), transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 calc(var(--vu) * 10), #000 calc(100% - var(--vu) * 10), transparent 100%);
+    }
+    .soundtrack-text {
+      display: inline-block;
+      white-space: nowrap;
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-weight: 700;
+      font-size: calc(var(--vu) * 7);
+      letter-spacing: 0.3px;
+      color: var(--gold);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+    }
+    /* Laeuft nur, wenn setupSoundtrackMarquee() (siehe JS) erkennt, dass der
+       Text breiter als die Badge ist - passt der Text hinein, bleibt er
+       statisch stehen und zentriert, statt permanent (und ohne Not) zu
+       scrollen und dabei an beiden Raendern abgeschnitten zu wirken. */
+    .soundtrack-text.is-scrolling {
+      padding-left: 100%;
+      animation: soundtrackMarquee 16s linear infinite;
+    }
+    @keyframes soundtrackMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+
+    /* ---------- Bildschirmmitte: Party-Popup (Alerts) ---------- */
+    #party-popup {
+      position: absolute;
+      top: 42%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+                  transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 100;
+    }
+    #party-popup.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+    #party-panel {
+      position: relative;
+      background: linear-gradient(155deg, rgba(6, 6, 7, 0.97), var(--steel-raw));
+      border: 2px solid var(--blood);
+      clip-path: polygon(26px 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%, 0 26px);
+      padding: 38px 66px 34px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+    #party-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(55deg, var(--steel-line) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-55deg, var(--steel-line) 0 1px, transparent 1px 14px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .party-tag {
+      position: relative;
+      font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+      font-size: 17px;
+      font-weight: 400;
+      color: var(--gold);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin: 6px 0 12px;
+      text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.85);
+    }
+    .party-name {
+      position: relative;
+      font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif;
+      font-weight: 400;
+      font-size: 58px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      margin: 8px 0;
+      word-break: break-word;
+      text-shadow: 3px 3px 0 var(--blood), 5px 5px 0 rgba(0, 0, 0, 0.65), 0 0 26px var(--gold-glow);
+    }
+    .party-name::before, .party-name::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      text-shadow: none;
+      filter: none;
+    }
+    #party-panel.glitching .party-name::before { color: var(--chrome-1); opacity: 0.85; transform: translate(-4px, 1px); mix-blend-mode: screen; }
+    #party-panel.glitching .party-name::after { color: var(--blood); opacity: 0.85; transform: translate(4px, -1px); mix-blend-mode: screen; }
+    #party-panel.glitching { animation: tear 0.4s steps(1); }
+    @keyframes tear {
+      0%, 100% { clip-path: inset(0 0 0 0); }
+      15% { clip-path: inset(10% 0 60% 0); }
+      30% { clip-path: inset(55% 0 8% 0); }
+      45%, 100% { clip-path: inset(0 0 0 0); }
+    }
+    .party-thanks {
+      position: relative;
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    .most-wanted-badge {
+      position: absolute;
+      top: -16px;
+      left: 28px;
+      background: var(--blood);
+      color: var(--text-primary);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 14px;
+      letter-spacing: 1.5px;
+      padding: 6px 16px 5px;
+      border: 2px solid var(--gold);
+      border-radius: 2px;
+      transform: rotate(-4deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), 0 0 16px var(--blood-glow);
+      white-space: nowrap;
+      z-index: 6;
+    }
+    .license-plate {
+      position: absolute;
+      bottom: -20px;
+      right: 26px;
+      background: linear-gradient(180deg, #f2f1ea, #dcdad0);
+      color: #15130f;
+      text-align: center;
+      padding: 4px 14px 3px;
+      border: 2px solid #15130f;
+      border-radius: 3px;
+      transform: rotate(3deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+      line-height: 1.05;
+      z-index: 6;
+    }
+    .license-plate .plate-state { display: block; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 7px; letter-spacing: 2px; }
+    .license-plate .plate-number { display: block; font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1.5px; }
+
+    .crime-tape {
+      position: absolute;
+      left: 50%;
+      width: 132%;
+      height: 20px;
+      background: repeating-linear-gradient(45deg, var(--gold) 0 16px, #0a0a0a 16px 32px);
+      color: #0a0a0a;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .crime-tape--a { top: 12%; transform: translateX(-50%) rotate(-5deg); }
+    .crime-tape--b { bottom: 8%; transform: translateX(-50%) rotate(4deg); }
+
+    /* ---------- Vollflaechige FX-Layer ---------- */
+    #spray-canvas { position: absolute; inset: 0; z-index: 90; }
+    #impact-flash {
+      position: absolute;
+      inset: 0;
+      z-index: 95;
+      background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.9), rgba(179, 0, 0, 0.42) 55%, transparent 80%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    #muzzle-flash {
+      position: absolute;
+      inset: 0;
+      z-index: 96;
+      background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.95), rgba(255, 215, 0, 0.5) 35%, transparent 70%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    #muzzle-flash.fire { animation: muzzleFlashPulse 0.22s ease-out; }
+    @keyframes muzzleFlashPulse {
+      0% { opacity: 0; transform: scale(0.7); }
+      15% { opacity: 1; transform: scale(1.15); }
+      100% { opacity: 0; transform: scale(1.4); }
+    }
+    #cop-siren { position: absolute; inset: 0; z-index: 3; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+    #cop-siren.active { animation: copSiren 0.5s steps(1) infinite; }
+    @keyframes copSiren {
+      0%, 49% { background: radial-gradient(circle at 15% 45%, rgba(220, 20, 20, 0.5), transparent 62%); opacity: 1; }
+      50%, 100% { background: radial-gradient(circle at 85% 45%, rgba(20, 70, 220, 0.5), transparent 62%); opacity: 1; }
+    }
+    #scanline-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      pointer-events: none;
+      background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.12) 0px, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 3px);
+      mix-blend-mode: overlay;
+      opacity: 0.55;
+    }
+  </style>
 </head>
 <body>
-  <p>Weiterleitung zu <a href="/scenes/core/overlay.html">scenes/core/overlay.html</a> …</p>
+
+  <div id="shake-root">
+
+    <!-- Linker Rand, vertikal zentriert: Wanted-Level + Session-Stats/Rang als
+         EIN gemeinsames Panel (siehe .hud-card-merged) statt zwei einzeln
+         gerahmter Karten. -->
+    <div class="left-edge-stack">
+      <div class="shimmer-frame">
+        <div class="hud-card hud-card-merged" id="hudLeftCard">
+          <div class="tape-corner"></div>
+
+          <div class="wanted-card" id="wantedContainer">
+            <div class="wanted-title">Wanted Level</div>
+            <div class="wanted-stars" id="wantedStars">
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+              <span class="wanted-star">★</span>
+            </div>
+          </div>
+
+          <div class="hud-divider"></div>
+
+          <div class="stats-card" id="statsContainer">
+            <div class="stats-header">
+              <span class="stats-status-dot" id="statusDot"></span>
+              <span class="stats-title" id="statusLabel">Session Stats</span>
+            </div>
+            <div class="stats-row">
+              <div class="stat"><span class="stat-value val-win" id="wins">0</span><span class="stat-label">Wins</span></div>
+              <div class="stat"><span class="stat-value val-loss" id="losses">0</span><span class="stat-label">Losses</span></div>
+              <div class="stat"><span class="stat-value val-rate" id="winrate">0%</span><span class="stat-label">Winrate</span></div>
+            </div>
+            <div class="rank-row" id="rankBlock" style="display: none;">
+              <img class="rank-icon" id="rankIcon" src="" alt="" onerror="this.style.display='none';">
+              <div class="rank-text">
+                <span class="rank-tier" id="rankTier">-</span>
+                <span class="rank-mmr" id="rankMmr">-</span>
+              </div>
+            </div>
+            <!-- Faellt automatisch ein, sobald api/stats.js dauerhaft nicht
+                 erreichbar ist (siehe setStatsStatus() in JS) - stylisches
+                 Branding-Panel statt kaputt wirkender 0/0/0%-Anzeige. -->
+            <div class="stats-offline-panel" id="statsOfflinePanel">
+              <span class="offline-tag">D5</span>
+              <span class="offline-sub">DaN · DANGSXR1000</span>
+            </div>
+          </div>
+
+          <span class="hud-watermark">DANGSXR1000</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Oben rechts: Follower-Goal -->
+    <div class="goal-position">
+      <div class="shimmer-frame">
+        <div class="hud-card goal-card" id="goalContainer">
+          <div class="tape-corner"></div>
+          <div class="bullet-hole" style="top: 8px; right: 16px; animation-delay: 0.4s;"></div>
+          <div class="bullet-hole" style="bottom: 10px; left: 18px; animation-delay: 1.2s;"></div>
+          <div class="goal-header">
+            <span class="goal-title" id="goalTitle">Ziel: 210 Follower</span>
+            <span class="goal-stats" id="goalText">209 / 210</span>
+          </div>
+          <div class="bar-bg">
+            <canvas id="liquidBarCanvas" class="liquid-bar-canvas"></canvas>
+          </div>
+          <div class="debug-line" id="debugLine">Twitch EventSub: … wird initialisiert</div>
+          <span class="hud-watermark">DANGSXR1000</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unten links: Bild-Avatar (Baer, assets/images/avatar_idle.png / avatar_action.png) -->
+    <div class="avatar-position">
+      <div class="avatar-glow-bg" id="avatarGlow"></div>
+      <div class="avatar-bob">
+        <div class="avatar-punch" id="avatarPunch">
+          <img class="avatar-layer avatar-layer-idle" src="assets/images/avatar_idle.png" alt="DaN Avatar">
+          <img class="avatar-layer avatar-layer-action" src="assets/images/avatar_action.png" alt="DaN Avatar (Action)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Rechter Rand, vertikal zentriert: Chat-Feed + Branding-Tag -->
+    <div class="right-edge-stack">
+      <div class="chat-stage-box" id="chat-stage"></div>
+      <div class="branding-tag">
+        <span class="branding-name">DaN</span><span class="branding-pipe">|</span><span class="branding-live">LIVE</span><span class="branding-dot"></span>
+      </div>
+    </div>
+
+    <!-- Unten mittig: Soundtrack-Badge -->
+    <div class="soundtrack-position">
+      <div class="soundtrack-badge" id="soundtrackBadge">
+        <span class="soundtrack-text" id="soundtrackText">🎵 SOUNDTRACK: StreamBeats Hip-Hop (DMCA-Safe)</span>
+      </div>
+    </div>
+
+    <!-- Bildschirmmitte: Party-Popup -->
+    <div id="party-popup">
+      <div id="party-panel">
+        <svg class="crack-overlay" viewBox="0 0 400 300" preserveAspectRatio="none">
+          <path d="M0,35 L55,50 L38,85 L105,95 L85,142 L150,132" stroke="rgba(232,230,225,0.16)" stroke-width="1.4" fill="none"/>
+          <path d="M400,255 L342,236 L360,198 L302,188 L320,150" stroke="rgba(232,230,225,0.14)" stroke-width="1.2" fill="none"/>
+        </svg>
+        <div class="bullet-hole" style="top: 16px; left: 22px; animation-delay: 0s;"></div>
+        <div class="bullet-hole" style="top: 30%; right: 14px; animation-delay: 0.7s;"></div>
+        <div class="bullet-hole" style="bottom: 24px; left: 16%; animation-delay: 1.5s;"></div>
+        <div class="bullet-hole" style="bottom: 40%; right: 22%; animation-delay: 0.3s;"></div>
+        <div class="bullet-hole" style="top: 45%; left: 10px; animation-delay: 1.9s;"></div>
+        <div class="party-tag" id="partyTag">🎉 NEUER FOLLOWER! 🎉</div>
+        <div class="party-name" id="partyName" data-text="Name">Name</div>
+        <div class="party-thanks" id="partyThanks">Vielen Dank für deinen Support!</div>
+      </div>
+      <div class="most-wanted-badge">☠️ MOST WANTED</div>
+      <div class="license-plate">
+        <span class="plate-state">CALIFORNIA</span>
+        <span class="plate-number">THUG-90</span>
+      </div>
+      <div class="crime-tape crime-tape--a">☠ CRIME SCENE ☠ DO NOT CROSS ☠ CRIME SCENE ☠ DO NOT CROSS ☠</div>
+      <div class="crime-tape crime-tape--b">☠ CRIME SCENE ☠ DO NOT CROSS ☠ CRIME SCENE ☠ DO NOT CROSS ☠</div>
+    </div>
+
+    <canvas id="spray-canvas"></canvas>
+    <div id="impact-flash"></div>
+    <div id="muzzle-flash"></div>
+    <div id="cop-siren"></div>
+  </div>
+
+  <div id="scanline-overlay"></div>
+
+  <script>
+    // DEINE FESTE VERCEL-CLOUD ADRESSE
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const CACHE_BUST = Date.now();
+    const OVERLAY_CHANNEL = 'dangsxr1000';
+    const STATS_URL_PARAMS = new URLSearchParams(location.search);
+    const RL_MODE = (STATS_URL_PARAMS.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (STATS_URL_PARAMS.get('rlPlaylist') || '').trim();
+
+    // Soundtrack-Badge: Text kommt aus dem ?track=-URL-Parameter, gleiches
+    // Prinzip wie chat.html's ?channel=. innerText macht Escaping ueberfluessig.
+    const TRACK_PARAM = new URLSearchParams(location.search).get('track');
+    if (TRACK_PARAM) {
+      document.getElementById('soundtrackText').innerText = TRACK_PARAM;
+    }
+
+    // Laufschrift nur aktivieren, wenn der Text tatsaechlich breiter als die
+    // Badge ist - passt er hinein, bleibt er statisch stehen und wird nie
+    // hart am overflow:hidden-Rand abgeschnitten. Erst nach document.fonts.
+    // ready messen, sonst verfaelscht die Fallback-Schrift (vor dem Google-
+    // Fonts-Swap) die Breitenmessung. Bei Resize erneut pruefen, falls sich
+    // die 18vw-Badge-Breite mit der tatsaechlichen Viewport-Groesse aendert.
+    function setupSoundtrackMarquee() {
+      const textEl = document.getElementById('soundtrackText');
+      const badgeEl = document.getElementById('soundtrackBadge');
+      const isOverflowing = textEl.scrollWidth > badgeEl.clientWidth;
+      textEl.classList.toggle('is-scrolling', isOverflowing);
+      badgeEl.classList.toggle('is-scrolling', isOverflowing);
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(setupSoundtrackMarquee);
+    } else {
+      setupSoundtrackMarquee();
+    }
+    window.addEventListener('resize', setupSoundtrackMarquee);
+
+    // ---------- Follower-Goal-Fortschritt ----------
+    // Platzhalter, bis syncRealFollowerCount() die echte Zahl von Twitch
+    // geladen hat - war frueher dauerhaft hart auf 209 gesetzt und daher NIE
+    // mit dem echten Twitch-Account synchron (Nutzer-Meldung: Widget zeigte
+    // einen Stand, der nichts mit den echten Followern zu tun hatte).
+    let currentFollowers = 209;
+    const STEP_SIZE = 10;
+
+    function calculateTarget(followers) {
+      return Math.ceil((followers + 1) / STEP_SIZE) * STEP_SIZE;
+    }
+
+    let targetFollowers = calculateTarget(currentFollowers);
+
+    function updateGoalUI() {
+      const previousTarget = targetFollowers - STEP_SIZE;
+      const progressInStep = currentFollowers - previousTarget;
+      const pct = Math.min(100, Math.max(0, Math.round((progressInStep / STEP_SIZE) * 100)));
+
+      document.getElementById('goalTitle').innerText = `Ziel: ${targetFollowers} Follower`;
+      document.getElementById('goalText').innerText = `${currentFollowers} / ${targetFollowers}`;
+      liquidBar.setFill(pct / 100);
+    }
+
+    // Holt die echte, aktuelle Gesamt-Follower-Zahl von Twitch (api/twitch-
+    // followers.js) und ersetzt damit den obigen Platzhalter, bevor die UI
+    // zum ersten Mal gerendert wird. Schlaegt der Call fehl, bleibt der
+    // Platzhalter stehen statt die Seite kaputt zu zeigen.
+    async function syncRealFollowerCount() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-followers`);
+        const data = await res.json();
+        if (data && data.success && typeof data.total === 'number') {
+          currentFollowers = data.total;
+          targetFollowers = calculateTarget(currentFollowers);
+        } else {
+          console.warn('[Follower-Ziel] api/twitch-followers lieferte keinen gueltigen Wert, bleibe bei Platzhalter:', data && data.message);
+        }
+      } catch (e) {
+        console.warn('[Follower-Ziel] Konnte echte Follower-Zahl nicht laden, bleibe bei Platzhalterwert:', e.message);
+      }
+      updateGoalUI();
+    }
+
+    // =====================================================================
+    // 2D Simplex Noise
+    // =====================================================================
+    class SimplexNoise2D {
+      constructor(seed = 1) {
+        const p = new Uint8Array(256);
+        let s = (seed >>> 0) || 1;
+        const rand = () => {
+          s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+          return ((s >>> 0) % 100000) / 100000;
+        };
+        for (let i = 0; i < 256; i++) p[i] = i;
+        for (let i = 255; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          const tmp = p[i]; p[i] = p[j]; p[j] = tmp;
+        }
+        this.perm = new Uint8Array(512);
+        this.permMod12 = new Uint8Array(512);
+        for (let i = 0; i < 512; i++) {
+          this.perm[i] = p[i & 255];
+          this.permMod12[i] = this.perm[i] % 12;
+        }
+      }
+      noise(xin, yin) {
+        const grad3 = SimplexNoise2D.GRAD3;
+        const F2 = 0.5 * (Math.sqrt(3) - 1);
+        const G2 = (3 - Math.sqrt(3)) / 6;
+        const s = (xin + yin) * F2;
+        const i = Math.floor(xin + s);
+        const j = Math.floor(yin + s);
+        const t = (i + j) * G2;
+        const X0 = i - t, Y0 = j - t;
+        const x0 = xin - X0, y0 = yin - Y0;
+        let i1, j1;
+        if (x0 > y0) { i1 = 1; j1 = 0; } else { i1 = 0; j1 = 1; }
+        const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+        const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+        const ii = i & 255, jj = j & 255;
+        const gi0 = this.permMod12[ii + this.perm[jj]];
+        const gi1 = this.permMod12[ii + i1 + this.perm[jj + j1]];
+        const gi2 = this.permMod12[ii + 1 + this.perm[jj + 1]];
+
+        let n0 = 0, n1 = 0, n2 = 0;
+        let t0 = 0.5 - x0 * x0 - y0 * y0;
+        if (t0 >= 0) { t0 *= t0; n0 = t0 * t0 * (grad3[gi0][0] * x0 + grad3[gi0][1] * y0); }
+        let t1 = 0.5 - x1 * x1 - y1 * y1;
+        if (t1 >= 0) { t1 *= t1; n1 = t1 * t1 * (grad3[gi1][0] * x1 + grad3[gi1][1] * y1); }
+        let t2 = 0.5 - x2 * x2 - y2 * y2;
+        if (t2 >= 0) { t2 *= t2; n2 = t2 * t2 * (grad3[gi2][0] * x2 + grad3[gi2][1] * y2); }
+
+        return 70 * (n0 + n1 + n2);
+      }
+    }
+    SimplexNoise2D.GRAD3 = [
+      [1, 1], [-1, 1], [1, -1], [-1, -1],
+      [1, 0], [-1, 0], [1, 0], [-1, 0],
+      [0, 1], [0, -1], [0, 1], [0, -1]
+    ];
+    const noise = new SimplexNoise2D(42);
+
+    // ---------- Web-Audio-Alertsystem ----------
+    const SOUND_FILES = { follow: 'follow.mp3', sub: 'sub.mp3', bits: 'bits.mp3', raid: 'raid.mp3' };
+    let audioCtx = null;
+    const soundBuffers = {};
+    const soundUrls = {};
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('[Audio] AudioContext erstellt, initialer state:', audioCtx.state);
+      }
+      return audioCtx;
+    }
+
+    class AudioAnalysisRig {
+      constructor(ctx) {
+        this.ctx = ctx;
+        this.lowpass = ctx.createBiquadFilter();
+        this.lowpass.type = 'lowpass';
+        this.lowpass.frequency.value = 120;
+        this.highpass = ctx.createBiquadFilter();
+        this.highpass.type = 'highpass';
+        this.highpass.frequency.value = 120;
+
+        this.subAnalyser = ctx.createAnalyser();
+        this.subAnalyser.fftSize = 256;
+        this.midAnalyser = ctx.createAnalyser();
+        this.midAnalyser.fftSize = 256;
+
+        this.lowpass.connect(this.subAnalyser);
+        this.lowpass.connect(ctx.destination);
+        this.highpass.connect(this.midAnalyser);
+        this.highpass.connect(ctx.destination);
+
+        this._subData = new Uint8Array(this.subAnalyser.frequencyBinCount);
+        this._midData = new Uint8Array(this.midAnalyser.frequencyBinCount);
+      }
+      connectSource(node) {
+        node.connect(this.lowpass);
+        node.connect(this.highpass);
+      }
+      readBands() {
+        this.subAnalyser.getByteTimeDomainData(this._subData);
+        this.midAnalyser.getByteTimeDomainData(this._midData);
+        let subSum = 0, midSum = 0;
+        for (let i = 0; i < this._subData.length; i++) subSum += Math.abs(this._subData[i] - 128);
+        for (let i = 0; i < this._midData.length; i++) midSum += Math.abs(this._midData[i] - 128);
+        const sub = Math.min(1, (subSum / this._subData.length) / 16);
+        const mid = Math.min(1, (midSum / this._midData.length) / 90);
+        return { sub, mid };
+      }
+    }
+
+    let audioRig = null;
+    function getAudioRig() {
+      if (!audioRig) audioRig = new AudioAnalysisRig(getAudioContext());
+      return audioRig;
+    }
+
+    async function resumeAudioContext(reason) {
+      const ctx = getAudioContext();
+      if (ctx.state !== 'suspended') return ctx;
+      try {
+        await Promise.race([
+          ctx.resume(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('resume() Timeout nach 500ms')), 500))
+        ]);
+      } catch (err) {
+        console.warn(`[Audio] resume() fehlgeschlagen/blockiert (Auslöser: ${reason}):`, err);
+      }
+      return ctx;
+    }
+
+    const AUDIO_UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'click', 'keydown'];
+    function unlockAudioOnFirstInteraction() {
+      resumeAudioContext('erste Nutzer-Interaktion');
+      AUDIO_UNLOCK_EVENTS.forEach(evt => document.removeEventListener(evt, unlockAudioOnFirstInteraction));
+    }
+    AUDIO_UNLOCK_EVENTS.forEach(evt => document.addEventListener(evt, unlockAudioOnFirstInteraction, { passive: true }));
+
+    async function preloadSounds() {
+      const ctx = getAudioContext();
+      getAudioRig();
+      await Promise.all(Object.entries(SOUND_FILES).map(async ([key, file]) => {
+        const url = `${VERCEL_URL}/assets/audio/${file}?v=${CACHE_BUST}`;
+        soundUrls[key] = url;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const arrayBuffer = await res.arrayBuffer();
+          soundBuffers[key] = await ctx.decodeAudioData(arrayBuffer);
+        } catch (e) {
+          console.warn(`[Audio] Sound "${file}" nicht verfügbar, Alert "${key}" bleibt stumm:`, e.message);
+        }
+      }));
+    }
+
+    function playHtmlAudioFallback(key) {
+      const url = soundUrls[key];
+      if (!url) return;
+      const el = new Audio(url);
+      el.play().catch(err => console.warn(`[Audio] Fallback ebenfalls blockiert:`, err));
+    }
+
+    async function playFileSound(key) {
+      if (!soundBuffers[key]) return;
+      const ctx = await resumeAudioContext(`Wiedergabe "${key}"`);
+      if (ctx.state === 'running') {
+        const source = ctx.createBufferSource();
+        source.buffer = soundBuffers[key];
+        getAudioRig().connectSource(source);
+        source.start(0);
+        return;
+      }
+      playHtmlAudioFallback(key);
+    }
+
+    async function playGoalSound() {
+      try {
+        const ctx = await resumeAudioContext('Wiedergabe "goal"');
+        if (ctx.state !== 'running') return;
+        const rig = getAudioRig();
+        const now = ctx.currentTime;
+        const chord = [261.63, 329.63, 392.00, 523.25, 659.25];
+        chord.forEach(freq => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+          osc.connect(gain);
+          rig.connectSource(gain);
+          osc.start(now);
+          osc.stop(now + 1.2);
+        });
+        setTimeout(() => {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.5);
+            osc.connect(gain);
+            rig.connectSource(gain);
+            osc.start(ctx.currentTime + idx * 0.1);
+            osc.stop(ctx.currentTime + idx * 0.1 + 0.5);
+          });
+        }, 300);
+      } catch (e) { console.log(e); }
+    }
+
+    async function playFailSound() {
+      try {
+        const ctx = await resumeAudioContext('Wiedergabe "fail"');
+        if (ctx.state !== 'running') return;
+        const rig = getAudioRig();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.8);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.connect(gain);
+        rig.connectSource(gain);
+        osc.start(now);
+        osc.stop(now + 0.9);
+      } catch (e) { console.log(e); }
+    }
+
+    // =====================================================================
+    // Liquid Gold/Chrome Fortschrittsbalken
+    // =====================================================================
+    class LiquidBar {
+      constructor(canvas, columns = 40) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.columns = columns;
+        this.heights = new Array(columns).fill(0);
+        this.velocities = new Array(columns).fill(0);
+        this.spread = 0.18;
+        this.tension = 0.02;
+        this.dampingLoss = 0.045;
+        this.fillPct = 0;
+        this._raf = null;
+        this._resize();
+        window.addEventListener('resize', () => this._resize());
+      }
+      _resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.w = rect.width;
+        this.h = rect.height;
+      }
+      setFill(pct) { this.fillPct = Math.max(0, Math.min(1, pct)); }
+      impulse(strength = 1) {
+        const col = Math.floor(Math.random() * this.columns);
+        this.velocities[col] += strength * 5;
+      }
+      start() {
+        if (this._raf) return;
+        const step = () => { this._update(); this._draw(); this._raf = requestAnimationFrame(step); };
+        this._raf = requestAnimationFrame(step);
+      }
+      stop() { if (this._raf) cancelAnimationFrame(this._raf); this._raf = null; }
+      _update() {
+        const n = this.columns;
+        for (let i = 0; i < n; i++) {
+          const accel = this.tension * (0 - this.heights[i]) - this.velocities[i] * this.dampingLoss;
+          this.velocities[i] += accel;
+          this.heights[i] += this.velocities[i];
+        }
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 0; i < n; i++) {
+            if (i > 0) {
+              const d = this.spread * (this.heights[i] - this.heights[i - 1]);
+              this.heights[i - 1] += d;
+            }
+            if (i < n - 1) {
+              const d = this.spread * (this.heights[i] - this.heights[i + 1]);
+              this.heights[i + 1] += d;
+            }
+          }
+        }
+      }
+      _draw() {
+        const { ctx, w, h, columns, heights, fillPct } = this;
+        if (w <= 0 || h <= 0) return;
+        ctx.clearRect(0, 0, w, h);
+        const fillW = Math.max(2, w * fillPct);
+        const colW = w / (columns - 1);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, fillW, h);
+        ctx.clip();
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i < columns; i++) ctx.lineTo(i * colW, h * 0.5 + heights[i]);
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, 0, w, 0);
+        grad.addColorStop(0, '#ffd700');
+        grad.addColorStop(0.5, '#e8e6e1');
+        grad.addColorStop(1, '#b30000');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, h * 0.32, fillW, 1.4);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+
+    const liquidBar = new LiquidBar(document.getElementById('liquidBarCanvas'));
+    liquidBar.start();
+
+    // =====================================================================
+    // GPU Spray Physics
+    // =====================================================================
+    class SpraySystem {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.particles = [];
+        this.holes = [];
+        this.maxParticles = 260;
+        this._raf = null;
+        this._resize();
+        window.addEventListener('resize', () => this._resize());
+      }
+      // Wandelt Viewport-Koordinaten (z.B. aus element.getBoundingClientRect())
+      // in Canvas-lokale CSS-Pixel-Koordinaten um, damit FX-Positionen auch
+      // dann stimmen, wenn der Canvas nicht bei (0,0) im Viewport sitzt.
+      toLocal(x, y) {
+        const rect = this.canvas.getBoundingClientRect();
+        return [x - rect.left, y - rect.top];
+      }
+      spawnBulletHole(x, y) {
+        [x, y] = this.toLocal(x, y);
+        if (this.holes.length > 30) this.holes.shift();
+        const spikes = 5 + Math.floor(Math.random() * 3);
+        const angles = [];
+        for (let i = 0; i < spikes; i++) angles.push((Math.PI * 2 / spikes) * i + (Math.random() - 0.5) * 0.7);
+        this.holes.push({ x, y, life: 1, decay: 0.012 + Math.random() * 0.006, angles, len: 12 + Math.random() * 20 });
+        this._ensureLoop();
+      }
+      _resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      emitBurst(x, y, colors, seed, count = 70) {
+        [x, y] = this.toLocal(x, y);
+        for (let i = 0; i < count && this.particles.length < this.maxParticles; i++) {
+          const n = noise.noise(seed + i * 0.15, seed * 0.7);
+          const angle = n * Math.PI * 2;
+          const speedNoise = noise.noise(seed * 1.3 + i * 0.15, seed);
+          const speed = 2 + Math.abs(speedNoise) * 7;
+          this.particles.push({
+            x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1.5,
+            r: 1 + Math.abs(n) * 4.5, life: 1, decay: 0.008 + Math.random() * 0.01,
+            color: colors[Math.floor(Math.abs(n) * colors.length) % colors.length], smoke: (i % 3 === 0)
+          });
+        }
+        this._ensureLoop();
+      }
+      emitAmbient(x, y, colors, rate) {
+        [x, y] = this.toLocal(x, y);
+        if (this.particles.length >= this.maxParticles) return;
+        if (Math.random() > rate) return;
+        const n = noise.noise(performance.now() * 0.003, 0);
+        const angle = n * Math.PI * 2;
+        this.particles.push({
+          x: x + (Math.random() - 0.5) * 50, y,
+          vx: Math.cos(angle) * 1.4, vy: Math.sin(angle) * 1.4 - 0.4,
+          r: 1 + Math.random() * 2.2, life: 1, decay: 0.014,
+          color: colors[Math.floor(Math.random() * colors.length)], smoke: Math.random() < 0.3
+        });
+        this._ensureLoop();
+      }
+      _ensureLoop() {
+        if (this._raf) return;
+        const step = () => {
+          this._update();
+          this._draw();
+          if (this.particles.length > 0 || this.holes.length > 0) {
+            this._raf = requestAnimationFrame(step);
+          } else {
+            this._raf = null;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          }
+        };
+        this._raf = requestAnimationFrame(step);
+      }
+      _update() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx; p.y += p.vy;
+          p.vy += 0.035; p.vx *= 0.99; p.life -= p.decay;
+          if (p.life <= 0) this.particles.splice(i, 1);
+        }
+        for (let i = this.holes.length - 1; i >= 0; i--) {
+          const hole = this.holes[i];
+          hole.life -= hole.decay;
+          if (hole.life <= 0) this.holes.splice(i, 1);
+        }
+      }
+      _draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.globalCompositeOperation = 'source-over';
+        for (const hole of this.holes) {
+          const alpha = Math.max(0, hole.life);
+          ctx.globalAlpha = alpha * 0.8;
+          ctx.strokeStyle = '#e8e6e1';
+          ctx.lineWidth = 1.4;
+          for (const angle of hole.angles) {
+            const len = hole.len * (0.5 + hole.life * 0.5);
+            ctx.beginPath();
+            ctx.moveTo(hole.x, hole.y);
+            ctx.lineTo(hole.x + Math.cos(angle) * len, hole.y + Math.sin(angle) * len);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#0a0a0a';
+          ctx.globalAlpha = alpha * 0.85;
+          ctx.beginPath(); ctx.arc(hole.x, hole.y, 3.5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of this.particles) {
+          const alpha = Math.max(0, p.life);
+          if (p.smoke) {
+            const radius = p.r * (2.2 - p.life) * 4;
+            const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+            grad.addColorStop(0, p.color + 'aa');
+            grad.addColorStop(1, p.color + '00');
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = alpha * 0.35;
+            ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fill();
+          } else {
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha * 0.85;
+            ctx.fill();
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    const spraySystem = new SpraySystem(document.getElementById('spray-canvas'));
+
+    // ---------- Idle-Ambient-Layer ----------
+    const IDLE_SPARK_COLORS = ['#ffd700', '#e8e6e1', '#b30000'];
+    let idleSparkTimer = null;
+    function emitIdleSpark() {
+      const rect = spraySystem.canvas.getBoundingClientRect();
+      const x = rect.left + Math.random() * rect.width;
+      const y = rect.top + rect.height * (0.15 + Math.random() * 0.7);
+      spraySystem.emitAmbient(x, y, IDLE_SPARK_COLORS, 1);
+    }
+    function startIdleAmbient() {
+      if (idleSparkTimer) return;
+      idleSparkTimer = setInterval(emitIdleSpark, 700 + Math.random() * 500);
+    }
+    function stopIdleAmbient() { if (idleSparkTimer) { clearInterval(idleSparkTimer); idleSparkTimer = null; } }
+    startIdleAmbient();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { liquidBar.stop(); stopIdleAmbient(); }
+      else { liquidBar.start(); startIdleAmbient(); }
+    });
+
+    // ---------- Alert-Konfiguration ----------
+    const ALERT_CONFIG = {
+      follow: { tag: '🎉 NEUER FOLLOWER! 🎉', color: '#ffd700', glow: 'rgba(255, 215, 0, 0.6)', spray: ['#ffd700', '#fff3b0', '#e8e6e1', '#b30000'], sprayCount: 60, thanks: p => `Vielen Dank für deinen Support, ${p.name}! Willkommen im Stream!`, sound: () => playFileSound('follow') },
+      goal: { tag: '🚀 ZIEL KRACHER! HYPE! 🚀', color: '#ffd700', glow: 'rgba(255, 215, 0, 0.85)', spray: ['#ffd700', '#fff3b0', '#e8e6e1', '#b30000'], sprayCount: 110, thanks: p => `Mega! Ziel erreicht! Nächstes Ziel: ${p.nextTarget} Follower!`, sound: () => playGoalSound() },
+      sub: { tag: '⭐ NEUER SUB! ⭐', color: '#e8e6e1', glow: 'rgba(232, 230, 225, 0.55)', spray: ['#e8e6e1', '#9a958a', '#ffd700', '#b30000'], sprayCount: 80, thanks: p => `Willkommen in der Community, ${p.name}!`, sound: () => playFileSound('sub') },
+      resub: { tag: '🔥 RESUB! 🔥', color: '#e8e6e1', glow: 'rgba(232, 230, 225, 0.55)', spray: ['#e8e6e1', '#9a958a', '#ffd700', '#b30000'], sprayCount: 80, thanks: p => `Danke, dass du seit ${p.months} Monaten dabei bist, ${p.name}!`, sound: () => playFileSound('sub') },
+      cheer: { tag: '💎 BITS! 💎', color: '#ffd700', glow: 'rgba(255, 215, 0, 0.65)', spray: ['#ffd700', '#fff3b0', '#e8e6e1'], sprayCount: 90, thanks: p => `Danke für ${p.amount} Bits, ${p.name}!`, sound: () => playFileSound('bits') },
+      raid: { tag: '🚨 RAID! 🚨', color: '#b30000', glow: 'rgba(179, 0, 0, 0.75)', spray: ['#b30000', '#7a0000', '#e8e6e1'], sprayCount: 120, thanks: p => `Willkommen, ${p.name}, mit ${p.viewers} Zuschauern!`, sound: () => playFileSound('raid') },
+      tor: { tag: '⚽ TOOOOR! ⚽', color: '#ffd700', glow: 'rgba(255, 215, 0, 0.85)', spray: ['#ffd700', '#fff3b0', '#e8e6e1'], sprayCount: 100, thanks: () => `Eingelocht! Weiter geht's!`, sound: () => playGoalSound() },
+      fail: { tag: '💀 VERKACKT! 💀', color: '#b30000', glow: 'rgba(179, 0, 0, 0.85)', spray: ['#b30000', '#7a0000', '#e8e6e1'], sprayCount: 90, thanks: () => `Naechste Runde wird's besser...`, sound: () => playFailSound() },
+      wanted: { tag: '🚨 WANTED LEVEL: BUSTED! 🚨', color: '#b30000', glow: 'rgba(179, 0, 0, 0.85)', spray: ['#b30000', '#ffd700', '#e8e6e1'], sprayCount: 140, thanks: () => `5 Sterne voll! Die Cops sind da - danke fuer den Support!`, sound: () => playFileSound('raid') }
+    };
+
+    // ---------- Alert-reaktive FX-Schleife ----------
+    const ALERT_FX_DURATION_MS = 5000;
+    let alertFxActive = false;
+    let alertFxStopAt = 0;
+    let lastImpulseAt = 0;
+    let lastGlitchAt = 0;
+
+    let hopY = 0, hopVelocity = 0, hopRot = 0, hopRotVelocity = 0, lastHopKickAt = 0;
+    const HOP_SPRING = 0.26, HOP_DAMPING = 0.74, ROT_SPRING = 0.2, ROT_DAMPING = 0.8;
+    let recoilX = 0, recoilXVelocity = 0;
+    const RECOIL_SPRING = 0.3, RECOIL_DAMPING = 0.7;
+
+    function triggerRecoil() {
+      hopVelocity -= 30;
+      hopRotVelocity += (Math.random() < 0.5 ? -1 : 1) * 15;
+      recoilXVelocity += (Math.random() < 0.5 ? -1 : 1) * 22;
+    }
+
+    function fireMuzzleFlash() {
+      const flash = document.getElementById('muzzle-flash');
+      flash.classList.remove('fire');
+      void flash.offsetWidth;
+      flash.classList.add('fire');
+    }
+
+    function updateHydraulics(sub, now, popupRect) {
+      if (sub > 0.4 && now - lastHopKickAt > 190) {
+        const side = Math.random() < 0.5 ? -1 : 1;
+        hopVelocity -= 9 + sub * 20;
+        hopRotVelocity += side * (3.5 + sub * 9);
+        lastHopKickAt = now;
+        if (popupRect) {
+          spraySystem.spawnBulletHole(popupRect.left + Math.random() * popupRect.width, popupRect.top + Math.random() * popupRect.height);
+        }
+      }
+      hopVelocity += (0 - hopY) * HOP_SPRING;
+      hopVelocity *= HOP_DAMPING;
+      hopY += hopVelocity;
+      hopRotVelocity += (0 - hopRot) * ROT_SPRING;
+      hopRotVelocity *= ROT_DAMPING;
+      hopRot += hopRotVelocity;
+      recoilXVelocity += (0 - recoilX) * RECOIL_SPRING;
+      recoilXVelocity *= RECOIL_DAMPING;
+      recoilX += recoilXVelocity;
+    }
+
+    function startAlertFx() {
+      alertFxActive = true;
+      alertFxStopAt = performance.now() + ALERT_FX_DURATION_MS;
+      requestAnimationFrame(stepAlertFx);
+    }
+
+    function stepAlertFx(now) {
+      if (!alertFxActive) return;
+      if (now >= alertFxStopAt) { alertFxActive = false; resetAlertFxVisuals(); return; }
+      const bands = audioRig ? audioRig.readBands() : { sub: 0, mid: 0 };
+      const sub = Math.max(bands.sub, 0.12);
+      const mid = Math.max(bands.mid, 0.18);
+      applySubBassFx(sub, now);
+      applyMidHighFx(mid);
+      requestAnimationFrame(stepAlertFx);
+    }
+
+    function applySubBassFx(sub, now) {
+      const popup = document.getElementById('party-popup');
+      const panel = document.getElementById('party-panel');
+      const popupRect = popup.getBoundingClientRect();
+      updateHydraulics(sub, now, popupRect);
+      const shakeAmp = sub * 10;
+      const shakeX = (Math.random() - 0.5) * shakeAmp;
+      const shakeY = (Math.random() - 0.5) * shakeAmp;
+      popup.style.transform = `translate(calc(-50% + ${(shakeX + recoilX).toFixed(1)}px), calc(-50% + ${(shakeY + hopY).toFixed(1)}px)) rotate(${hopRot.toFixed(1)}deg) scale(1)`;
+      document.getElementById('impact-flash').style.opacity = (sub * 0.4).toFixed(2);
+      if (sub > 0.42 && now - lastImpulseAt > 140) { liquidBar.impulse(sub); lastImpulseAt = now; }
+      if (sub > 0.5 && now - lastGlitchAt > 250) {
+        panel.classList.add('glitching');
+        lastGlitchAt = now;
+        setTimeout(() => panel.classList.remove('glitching'), 150);
+      }
+    }
+
+    function applyMidHighFx(mid) {
+      const popup = document.getElementById('party-popup');
+      popup.style.boxShadow = `0 0 ${40 + mid * 60}px ${popup.dataset.glow || 'rgba(255, 215, 0, 0.6)'}`;
+      const rect = popup.getBoundingClientRect();
+      spraySystem.emitAmbient(rect.left + rect.width / 2, rect.top + rect.height / 2, popup._sprayColors || ['#ffd700'], mid * 0.85);
+    }
+
+    function resetAlertFxVisuals() {
+      const popup = document.getElementById('party-popup');
+      const panel = document.getElementById('party-panel');
+      popup.style.transform = '';
+      panel.classList.remove('glitching');
+      document.getElementById('impact-flash').style.opacity = '0';
+      document.getElementById('cop-siren').classList.remove('active');
+      hopY = 0; hopVelocity = 0; hopRot = 0; hopRotVelocity = 0; recoilX = 0; recoilXVelocity = 0;
+    }
+
+    function showPartyPopup(kind, payload) {
+      const config = ALERT_CONFIG[kind];
+      if (!config) { popupBusy = false; processPopupQueue(); return; }
+
+      const popup = document.getElementById('party-popup');
+      const panel = document.getElementById('party-panel');
+      const tag = document.getElementById('partyTag');
+      const nameElem = document.getElementById('partyName');
+      const thanks = document.getElementById('partyThanks');
+
+      tag.innerText = config.tag;
+      tag.style.color = config.color;
+      nameElem.innerText = payload.name;
+      nameElem.setAttribute('data-text', payload.name);
+      thanks.innerText = config.thanks(payload);
+      panel.style.borderColor = config.color;
+      popup.style.boxShadow = `0 0 60px ${config.glow}`;
+      popup.dataset.glow = config.glow;
+      popup._sprayColors = config.spray;
+
+      config.sound();
+
+      const rect = popup.getBoundingClientRect();
+      spraySystem.emitBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, config.spray, Math.random() * 1000, config.sprayCount);
+
+      triggerRecoil();
+      fireMuzzleFlash();
+      document.getElementById('cop-siren').classList.add('active');
+      triggerAvatarReaction();
+
+      startAlertFx();
+      popup.classList.add('show');
+
+      setTimeout(() => {
+        popup.classList.remove('show');
+        document.getElementById('cop-siren').classList.remove('active');
+        setTimeout(() => { popupBusy = false; processPopupQueue(); }, 450);
+      }, ALERT_FX_DURATION_MS);
+    }
+
+    const popupQueue = [];
+    let popupBusy = false;
+    function queuePopup(kind, payload) { popupQueue.push({ kind, payload }); processPopupQueue(); }
+    function processPopupQueue() {
+      if (popupBusy || popupQueue.length === 0) return;
+      popupBusy = true;
+      const next = popupQueue.shift();
+      showPartyPopup(next.kind, next.payload);
+    }
+
+    // ---------- GTA-Wanted-Level (localStorage, keine Datenbank) ----------
+    const WANTED_STARS_MAX = 5;
+    const WANTED_POINTS_PER_SUB = 1;
+    const WANTED_POINTS_PER_100_BITS = 1;
+    const WANTED_STORAGE_KEY = 'dangsxr_wanted_points';
+
+    function getWantedPoints() {
+      try { return parseFloat(localStorage.getItem(WANTED_STORAGE_KEY) || '0') || 0; }
+      catch (e) { return 0; }
+    }
+    function setWantedPoints(points) {
+      try { localStorage.setItem(WANTED_STORAGE_KEY, String(points)); }
+      catch (e) { console.warn('[Wanted] localStorage nicht beschreibbar:', e.message); }
+    }
+    function renderWantedStars(stars) {
+      document.querySelectorAll('.wanted-star').forEach((el, idx) => el.classList.toggle('filled', idx < stars));
+    }
+    function loadWantedState() {
+      renderWantedStars(Math.min(WANTED_STARS_MAX, Math.floor(getWantedPoints())));
+    }
+    function addWantedProgress(type, amount) {
+      let delta = 0;
+      if (type === 'sub') delta = WANTED_POINTS_PER_SUB;
+      else if (type === 'bits') delta = (Number(amount) || 0) / 100 * WANTED_POINTS_PER_100_BITS;
+      if (delta <= 0) return;
+
+      let points = getWantedPoints() + delta;
+      const triggered = points >= WANTED_STARS_MAX;
+      if (triggered) points = 0;
+
+      setWantedPoints(points);
+      renderWantedStars(Math.floor(points));
+      if (triggered) queuePopup('wanted', { name: 'BUSTED!' });
+    }
+
+    // ---------- Session-Stats + Rang/MMR (aus api/stats.js) ----------
+    let startWins = null;
+    let startMatches = null;
+    let sessionWins = 0;
+    let sessionLosses = 0;
+
+    function updateStatsUI() {
+      document.getElementById('wins').innerText = sessionWins;
+      document.getElementById('losses').innerText = sessionLosses;
+      let rate = 0;
+      const total = sessionWins + sessionLosses;
+      if (total > 0) rate = Math.round((sessionWins / total) * 100);
+      document.getElementById('winrate').innerText = rate + '%';
+    }
+
+    function updateRankDisplay(rank) {
+      const block = document.getElementById('rankBlock');
+      if (!rank) { block.style.display = 'none'; return; }
+      document.getElementById('rankIcon').style.display = '';
+      document.getElementById('rankIcon').src = rank.tierIconUrl || '';
+      document.getElementById('rankIcon').alt = rank.tierName;
+      document.getElementById('rankTier').innerText = rank.tierName;
+      document.getElementById('rankMmr').innerText = rank.mmr != null ? `${rank.mmr} MMR` : rank.playlist;
+      block.style.display = '';
+    }
+
+    function setStatsStatus(status) {
+      const dot = document.getElementById('statusDot');
+      const label = document.getElementById('statusLabel');
+      // Bewusst kein sichtbares "Offline"-Fehlerlabel - liest sich sonst wie
+      // ein kaputtes Widget. Der Dot bleibt rot (kleines Diagnose-Signal),
+      // aber der Kartenkoerper faellt stattdessen auf ein stylisches
+      // DaN/D5-Branding-Panel zurueck (siehe .stats-offline-panel).
+      const labels = { live: 'Live', cached: 'Cached', offline: 'DANGSXR1000' };
+      dot.className = 'stats-status-dot status-' + status;
+      label.innerText = labels[status] || 'Session Stats';
+      document.getElementById('statsContainer').classList.toggle('is-offline', status === 'offline');
+    }
+
+    async function fetchStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data && data.success) {
+          setStatsStatus(data.stale ? 'cached' : 'live');
+          updateRankDisplay(data.rank);
+          const currentWins = data.wins;
+          const currentMatches = data.matches;
+          if (startWins === null) {
+            startWins = currentWins;
+            startMatches = currentMatches;
+          } else {
+            sessionWins = Math.max(0, currentWins - startWins);
+            const totalSessionMatches = Math.max(0, currentMatches - startMatches);
+            sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateStatsUI();
+          }
+        } else {
+          setStatsStatus('offline');
+        }
+      } catch (e) {
+        setStatsStatus('offline');
+      }
+    }
+
+    // ---------- Sichtbarer EventSub-Verbindungsstatus ----------
+    function setDebugStatus(state, detail) {
+      const el = document.getElementById('debugLine');
+      if (!el) return;
+      const labels = {
+        connecting: '… verbindet',
+        connected: '✓ verbunden, melde Events an…',
+        ready: '✓ Verbunden',
+        reconnecting: `… verbinde neu${detail ? ' (' + detail + ')' : ''}`,
+        closed: `✗ getrennt${detail ? ' (' + detail + ')' : ''}`,
+        error: `✗ ${detail || 'Fehler'}`
+      };
+      el.innerText = `Twitch EventSub: ${labels[state] || state}`;
+    }
+
+    function formatErrorDetail(err) {
+      if (!err) return 'unbekannter Fehler (kein err-Objekt)';
+      if (typeof err === 'string') return err;
+      if (err.message) return err.message;
+      if (err.description) {
+        if (typeof err.description === 'string') return err.description;
+        if (err.description.message) return err.description.message;
+      }
+      try {
+        const json = JSON.stringify(err);
+        if (json && json !== '{}') return json;
+      } catch (e) {}
+      return String(err);
+    }
+
+    // ---------- Twitch EventSub (natives WebSocket) ----------
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let twitchSocket = null;
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      setDebugStatus('reconnecting', `in ${delay / 1000}s`);
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          const failedTypes = ((data && data.subscriptions) || []).filter(s => !s.success).map(s => s.type);
+          const detail = failedTypes.length ? `Subscription fehlgeschlagen: ${failedTypes.join(', ')}` : ((data && data.message) || 'Subscription fehlgeschlagen');
+          setDebugStatus('error', detail);
+          return;
+        }
+        setDebugStatus('ready');
+      } catch (e) {
+        setDebugStatus('error', formatErrorDetail(e));
+      }
+    }
+
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      resumeAudioContext(`Twitch-Event "${type}"`);
+
+      if (type === 'channel.follow') {
+        const followerName = event.user_name || 'Zuschauer';
+        currentFollowers += 1;
+        if (currentFollowers >= targetFollowers) {
+          const nextTarget = calculateTarget(currentFollowers);
+          queuePopup('goal', { name: followerName, nextTarget });
+          targetFollowers = nextTarget;
+        } else {
+          queuePopup('follow', { name: followerName });
+        }
+        updateGoalUI();
+        return;
+      }
+      if (type === 'channel.subscribe') {
+        queuePopup('sub', { name: event.user_name || 'Zuschauer' });
+        addWantedProgress('sub');
+        return;
+      }
+      if (type === 'channel.subscription.message') {
+        queuePopup('resub', { name: event.user_name || 'Zuschauer', months: event.cumulative_months || event.streak_months || '?' });
+        addWantedProgress('sub');
+        return;
+      }
+      if (type === 'channel.cheer') {
+        queuePopup('cheer', { name: event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer'), amount: event.bits || 0 });
+        addWantedProgress('bits', event.bits || 0);
+        return;
+      }
+      if (type === 'channel.raid') {
+        queuePopup('raid', { name: event.from_broadcaster_user_name || 'Ein Raid', viewers: event.viewers || '?' });
+        return;
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      setDebugStatus(isReconnectHandoff ? 'reconnecting' : 'connecting');
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          const sessionId = data.payload.session.id;
+          twitchSocket = ws;
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) { setDebugStatus('ready'); return; }
+          setDebugStatus('connected');
+          subscribeToTwitchEvents(sessionId);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          setDebugStatus('error', `Subscription widerrufen (${data.payload.subscription.type})`);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        setDebugStatus('closed', event.reason || `Code ${event.code}`);
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid|goal) ----------
+    const TEST_KIND_MAP = { follow: 'follow', goal: 'goal', sub: 'sub', resub: 'resub', bits: 'cheer', cheer: 'cheer', raid: 'raid' };
+    const TEST_PAYLOADS = {
+      follow: { name: 'TestFollower' },
+      goal: { name: 'TestFollower', nextTarget: calculateTarget(currentFollowers) },
+      sub: { name: 'TestSubscriber' },
+      resub: { name: 'TestSubscriber', months: 6 },
+      cheer: { name: 'TestCheerer', amount: 100 },
+      raid: { name: 'TestRaider', viewers: 25 }
+    };
+    function runTestMode() {
+      const testParam = new URLSearchParams(location.search).get('test');
+      if (!testParam) return;
+      const kind = TEST_KIND_MAP[testParam.toLowerCase()];
+      if (!kind) return;
+      queuePopup(kind, TEST_PAYLOADS[kind]);
+    }
+
+    // =====================================================================
+    // Chat-Feed (physik-basierte fallende/abprallende Karten)
+    // =====================================================================
+    const GRAVITY = 0.55, RESTITUTION = 0.36, FRICTION = 0.8, SETTLE_VELOCITY = 0.5;
+    const AUTO_HIDE_MS = 15000, MAX_VISIBLE_MESSAGES = 5, BOTTOM_MARGIN = 24;
+    const chatStage = document.getElementById('chat-stage');
+    const chatCards = [];
+    let chatPhysicsRaf = null;
+
+    function ensureChatPhysicsLoop() {
+      if (chatPhysicsRaf) return;
+      chatPhysicsRaf = requestAnimationFrame(chatPhysicsStep);
+    }
+
+    function chatPhysicsStep() {
+      let anyActive = false;
+      const stageWidth = chatStage.clientWidth;
+      const stageHeight = chatStage.clientHeight;
+
+      for (const card of chatCards) {
+        if (card.settled) continue;
+        anyActive = true;
+        card.vy += GRAVITY;
+        card.x += card.vx;
+        card.y += card.vy;
+        card.rot += card.angVel;
+        card.rot = Math.max(-32, Math.min(32, card.rot));
+
+        if (card.x < 0) { card.x = 0; card.vx = Math.abs(card.vx) * RESTITUTION; }
+        const maxX = Math.max(0, stageWidth - card.w - 20);
+        if (card.x > maxX) { card.x = maxX; card.vx = -Math.abs(card.vx) * RESTITUTION; }
+
+        let floor = stageHeight - BOTTOM_MARGIN - card.h;
+        for (const other of chatCards) {
+          if (other === card || !other.settled) continue;
+          const overlapX = card.x < other.x + other.w && card.x + card.w > other.x;
+          if (overlapX && other.y < floor) floor = other.y - card.h;
+        }
+
+        if (card.y >= floor) {
+          card.y = floor;
+          card.vy = -card.vy * RESTITUTION;
+          card.vx *= FRICTION;
+          card.angVel *= FRICTION;
+          if (Math.abs(card.vy) < SETTLE_VELOCITY && Math.abs(card.vx) < 0.3) {
+            card.vy = 0; card.vx = 0; card.angVel = 0; card.settled = true;
+          }
+        }
+        card.el.style.transform = `translate(${card.x.toFixed(1)}px, ${card.y.toFixed(1)}px) rotate(${card.rot.toFixed(1)}deg)`;
+      }
+
+      if (anyActive) chatPhysicsRaf = requestAnimationFrame(chatPhysicsStep);
+      else chatPhysicsRaf = null;
+    }
+
+    function removeChatCard(cardObj) {
+      const idx = chatCards.indexOf(cardObj);
+      if (idx !== -1) chatCards.splice(idx, 1);
+      if (cardObj.el.parentNode === chatStage) chatStage.removeChild(cardObj.el);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderMessageHtml(message, emotesTag) {
+      if (!emotesTag || Object.keys(emotesTag).length === 0) return escapeHtml(message);
+      const ranges = [];
+      for (const id in emotesTag) {
+        emotesTag[id].forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          ranges.push({ id, start, end });
+        });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+      let html = '';
+      let cursor = 0;
+      ranges.forEach(({ id, start, end }) => {
+        if (start < cursor) return;
+        if (start > cursor) html += escapeHtml(message.slice(cursor, start));
+        const code = message.slice(start, end + 1);
+        const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        html += `<img class="chat-emote" src="${src}" alt="${escapeHtml(code)}" title="${escapeHtml(code)}" draggable="false">`;
+        cursor = end + 1;
+      });
+      if (cursor < message.length) html += escapeHtml(message.slice(cursor));
+      return html;
+    }
+
+    function addChatMessage(username, text, color, isSystem, emotesTag) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-card';
+      const accentColor = isSystem ? '#ffd700' : color;
+      msgDiv.style.borderLeftColor = accentColor;
+      msgDiv.innerHTML = `
+        <span class="avatar-dot" style="color: ${accentColor}"></span>
+        <span class="msg-body">
+          <span class="username" style="color: ${accentColor}">${username}:</span>
+          <span class="text">${renderMessageHtml(text, emotesTag)}</span>
+        </span>
+      `;
+      chatStage.appendChild(msgDiv);
+      while (chatCards.length >= MAX_VISIBLE_MESSAGES) removeChatCard(chatCards[0]);
+
+      const rect = msgDiv.getBoundingClientRect();
+      const cardObj = {
+        el: msgDiv,
+        x: Math.random() * Math.max(0, chatStage.clientWidth - rect.width - 40),
+        y: -rect.height - 20,
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: 0,
+        rot: (Math.random() - 0.5) * 8,
+        angVel: (Math.random() - 0.5) * 1.4,
+        w: rect.width,
+        h: rect.height,
+        settled: false
+      };
+      chatCards.push(cardObj);
+      msgDiv.style.transform = `translate(${cardObj.x}px, ${cardObj.y}px) rotate(${cardObj.rot}deg)`;
+      requestAnimationFrame(() => msgDiv.classList.add('visible'));
+      ensureChatPhysicsLoop();
+
+      setTimeout(() => {
+        msgDiv.classList.add('fade-out');
+        setTimeout(() => removeChatCard(cardObj), 650);
+      }, isSystem ? 6000 : AUTO_HIDE_MS);
+    }
+
+    // =====================================================================
+    // Bild-Avatar (Baer): dauerhaftes Idle-Wippen (CSS, avatar_idle.png) +
+    // Event-Reaktion (primaer) - bei jedem Chat-Nachricht/Command/Alert
+    // wechselt das Bild fuer ca. 3.5s auf avatar_action.png (Bounce +
+    // Neon-Rot-Glow-Puls), danach fliessend zurueck. Getriggert aus dem
+    // tmi.js-Nachrichten-Handler (Chat + Commands) und aus showPartyPopup
+    // (Alerts). Mikro-Reaktivitaet bleibt als kostenloser Bonus-Pfad im
+    // Code (in Streamlabs Mobile bestaetigt blockiert, siehe avatar.html).
+    // =====================================================================
+    const avatarPunch = document.getElementById('avatarPunch');
+    const avatarGlow = document.getElementById('avatarGlow');
+
+    const AVATAR_ACTION_DURATION_MS = 3500;
+    let avatarActionResetTimer = null;
+
+    let lastAvatarPunchAt = 0;
+    const AVATAR_PUNCH_COOLDOWN_MS = 350;
+
+    // Reagiert auf jedes Event (Chat-Nachricht, Command, Alert): kurzer
+    // Bounce-Impuls + ca. 3.5s Bild-Swap auf avatar_action.png mit Neon-
+    // Rot-Glow-Puls, danach fliessender Opacity-Crossfade zurueck auf
+    // avatar_idle.png. Weitere Events waehrend der 3.5s verlaengern die
+    // Anzeigedauer, statt hart abzuschneiden.
+    function triggerAvatarReaction() {
+      const now = performance.now();
+      if (now - lastAvatarPunchAt >= AVATAR_PUNCH_COOLDOWN_MS) {
+        lastAvatarPunchAt = now;
+        avatarPunch.classList.add('punch');
+        setTimeout(() => avatarPunch.classList.remove('punch'), 280);
+      }
+
+      avatarPunch.classList.add('action');
+      avatarGlow.classList.add('action');
+      clearTimeout(avatarActionResetTimer);
+      avatarActionResetTimer = setTimeout(() => {
+        avatarPunch.classList.remove('action');
+        avatarGlow.classList.remove('action');
+      }, AVATAR_ACTION_DURATION_MS);
+    }
+
+    // ---------- Mikro-Reaktivitaet (kostenloser Bonus-Pfad) ----------
+    const AVATAR_TEST_MODE = new URLSearchParams(location.search).get('test') === 'speak';
+    const MIC_SPEAK_THRESHOLD = 0.08;
+
+    function startMicVisualLoop(getLevel) {
+      function step() {
+        const level = getLevel();
+        if (level > MIC_SPEAK_THRESHOLD) triggerAvatarReaction();
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function startMicTestMode() {
+      let t = 0;
+      startMicVisualLoop(() => {
+        t += 0.05;
+        return Math.max(0, Math.sin(t) * 0.5 + 0.5) * (0.6 + Math.random() * 0.4);
+      });
+    }
+
+    async function tryStartMic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = micCtx.createMediaStreamSource(stream);
+        const analyser = micCtx.createAnalyser();
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        // Bewusst NICHT mit micCtx.destination verbunden - sonst waere das
+        // eigene Mikrofon im Stream als Echo/Feedback zu hoeren.
+        source.connect(analyser);
+        startMicVisualLoop(() => {
+          analyser.getByteTimeDomainData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += Math.abs(dataArray[i] - 128);
+          return Math.min(1, (sum / dataArray.length) / 40);
+        });
+      } catch (err) {
+        console.log('[Avatar] Mikrofon-Bonus nicht verfuegbar (' + (err.name || 'Fehler') + ') - Idle-/Chat-Animation laeuft normal weiter.');
+      }
+    }
+
+    if (AVATAR_TEST_MODE) startMicTestMode();
+    else tryStartMic();
+
+    // =====================================================================
+    // EINE gemeinsame Twitch-Chat-Verbindung fuer: Chat-Feed rendern,
+    // Chat-Commands (!shoot/!siren/!tor/!fail), Avatar-Reaktion. In
+    // try/catch gekapselt, damit ein CDN-Ausfall von tmi.js nicht den Rest
+    // des Bootstraps (Wanted-State, Sound-Preload, EventSub-Verbindung)
+    // mitreisst.
+    // =====================================================================
+    const COMMAND_COOLDOWN_MS = 2500;
+    let lastCommandAt = 0;
+
+    function isModOrBroadcaster(tags) {
+      const badges = tags.badges || {};
+      return !!(badges.broadcaster || badges.moderator);
+    }
+
+    function handleChatCommand(tags, message) {
+      const text = message.trim().toLowerCase();
+      const now = performance.now();
+      if (now - lastCommandAt < COMMAND_COOLDOWN_MS) return;
+
+      if (text === '!shoot') {
+        lastCommandAt = now;
+        const rect = document.getElementById('party-panel').getBoundingClientRect();
+        spraySystem.spawnBulletHole(rect.left + Math.random() * rect.width, rect.top + Math.random() * rect.height);
+        return;
+      }
+      if (!isModOrBroadcaster(tags)) return;
+      if (text === '!siren') {
+        lastCommandAt = now;
+        const siren = document.getElementById('cop-siren');
+        siren.classList.add('active');
+        setTimeout(() => siren.classList.remove('active'), 3000);
+        return;
+      }
+      if (text === '!tor') { lastCommandAt = now; queuePopup('tor', { name: 'TOOOOR!' }); return; }
+      if (text === '!fail') { lastCommandAt = now; queuePopup('fail', { name: 'VERKACKT' }); return; }
+    }
+
+    loadTmiWithFallback(function () {
+      try {
+        const twitchChat = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [OVERLAY_CHANNEL]
+        });
+        twitchChat.connect().catch(err => console.warn('[Chat] Verbindung fehlgeschlagen:', err.message || err));
+        twitchChat.on('message', (channel, tags, message, self) => {
+          if (self) return;
+          const userColor = tags.color || '#ffd700';
+          const displayName = tags['display-name'] || tags.username;
+          addChatMessage(displayName, message, userColor, false, tags.emotes);
+          handleChatCommand(tags, message);
+          triggerAvatarReaction();
+        });
+      } catch (e) {
+        console.warn('[Chat] tmi.js nicht verfuegbar, Chat-Feed/Commands/Avatar-Reaktion deaktiviert (Idle-Animationen laufen unabhaengig davon weiter):', e.message);
+      }
+    }, function () {
+      console.warn('[Chat] tmi.js konnte von keinem CDN geladen werden, Chat-Feed/Commands/Avatar-Reaktion deaktiviert (Idle-Animationen laufen unabhaengig davon weiter).');
+    });
+
+    // ---------- Bootstrap ----------
+    syncRealFollowerCount();
+    loadWantedState();
+    preloadSounds().then(runTestMode);
+    connectTwitchEventSub();
+    fetchStats();
+    setInterval(fetchStats, 20000);
+  </script>
+
 </body>
 </html>

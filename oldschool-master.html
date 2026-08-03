@@ -75,7 +75,7 @@
 </head>
 <body>
   <iframe id="stage" allow="autoplay"></iframe>
-  <div id="hud"><span class="dot"></span><span class="state" id="state">Verbinde…</span> <span class="mode" id="mode">starting</span></div>
+  <div id="hud"><span class="dot"></span><span class="state" id="state">Verbinde...</span> <span class="mode" id="mode">starting</span></div>
 
   <script>
     const params = new URLSearchParams(location.search);
@@ -99,6 +99,15 @@
       outro: '/oldschool-outro.html'
     };
 
+    const FORWARDED_PARAMS = [
+      'channel',
+      'track',
+      'artist',
+      'minutes',
+      'rlMode',
+      'rlPlaylist'
+    ];
+
     const defaultMode = (params.get('mode') || 'starting').toLowerCase();
     let currentMode = sceneMap[defaultMode] ? defaultMode : 'starting';
     let since = 0;
@@ -107,8 +116,18 @@
 
     function buildSceneUrl(mode) {
       const raw = params.get(mode);
-      if (raw && raw.trim()) return raw.trim();
-      return sceneMap[mode];
+      const base = raw && raw.trim() ? raw.trim() : sceneMap[mode];
+      if (!base) return '';
+
+      const url = new URL(base, location.origin);
+      FORWARDED_PARAMS.forEach((key) => {
+        const value = params.get(key);
+        if (value !== null && !url.searchParams.has(key)) {
+          url.searchParams.set(key, value);
+        }
+      });
+
+      return url.pathname + url.search + url.hash;
     }
 
     function setStatus(text, kind) {

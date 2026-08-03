@@ -1,15 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Weiterleitung …</title>
-    <!-- Reiner Tippfehler-Redirect: die echte Szene liegt jetzt gesammelt unter
-      /scenes/oldschool/chatting.html. Diese Datei faengt die Variante ohne
-      Bindestrich ab und behaelt Query-Parameter/Hash bei. -->
-    <meta http-equiv="refresh" content="0; url=/scenes/oldschool/chatting.html">
-    <script>location.replace('/scenes/oldschool/chatting.html' + location.search + location.hash);</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weiterleitung...</title>
+  <meta http-equiv="refresh" content="0; url=/chat.html">
 </head>
 <body>
-  <p>Weiterleitung zu <a href="/scenes/oldschool/chatting.html">scenes/oldschool/chatting.html</a> …</p>
+  <p>Diese URL wurde verschoben. Weiterleitung zu <a href="/chat.html">/chat.html</a> ...</p>
+  <script>
+    (function () {
+      var target = "/chat.html" + window.location.search + window.location.hash;
+      window.location.replace(target);
+    })();
+  </script>
 </body>
 </html>

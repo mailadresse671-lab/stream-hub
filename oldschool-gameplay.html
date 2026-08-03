@@ -1,13 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weiterleitung …</title>
-  <meta http-equiv="refresh" content="0; url=/scenes/oldschool/gameplay.html">
-  <script>location.replace('/scenes/oldschool/gameplay.html' + location.search + location.hash);</script>
+  <title>Weiterleitung...</title>
+  <meta http-equiv="refresh" content="0; url=/in-game.html">
 </head>
 <body>
-  <p>Weiterleitung zu <a href="/scenes/oldschool/gameplay.html">scenes/oldschool/gameplay.html</a> …</p>
+  <p>Diese URL wurde verschoben. Weiterleitung zu <a href="/in-game.html">/in-game.html</a> ...</p>
+  <script>
+    (function () {
+      var target = "/in-game.html" + window.location.search + window.location.hash;
+      window.location.replace(target);
+    })();
+  </script>
 </body>
 </html>

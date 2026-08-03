@@ -2,12 +2,190 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weiterleitung …</title>
-  <meta http-equiv="refresh" content="0; url=/scenes/oldschool/brb.html">
-  <script>location.replace('/scenes/oldschool/brb.html' + location.search + location.hash);</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oldschool BRB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood: #ff2340;
+      --tan: #d9b872;
+      --cream: #f4f1ea;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 42%, #201b1f 0%, #100d10 44%, #07060a 100%);
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--cream);
+    }
+    .stage { position: fixed; inset: 0; }
+    .center {
+      position: absolute;
+      left: 50%;
+      top: 48%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 10;
+    }
+    .kicker {
+      font-size: 20px;
+      letter-spacing: 6px;
+      color: var(--tan);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+    .headline {
+      font-family: 'Anton', sans-serif;
+      font-size: 120px;
+      letter-spacing: 4px;
+      line-height: 0.9;
+      background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 18%, #b8860b 42%, #fff3c4 58%, #8a6410 78%, #f2c94c 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(255,35,64,.35);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .sub {
+      margin-top: 16px;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: #f2ede3;
+      text-transform: uppercase;
+    }
+    .rl-hud {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      z-index: 20;
+      width: 290px;
+      padding: 10px 12px;
+      background: rgba(9, 9, 11, 0.88);
+      border: 1px solid rgba(255, 35, 64, .42);
+      box-shadow: 0 0 16px rgba(255, 35, 64, .22);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .rl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .rl-title { font-size: 16px; letter-spacing: 2px; color: var(--tan); text-transform: uppercase; }
+    .rl-status { display: flex; align-items: center; gap: 5px; }
+    .rl-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .rl-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-dot.live { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,.7); }
+    .rl-dot.cached { background: var(--tan); box-shadow: 0 0 6px rgba(217,184,114,.7); }
+    .rl-dot.offline { background: var(--blood); box-shadow: 0 0 6px rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-status-label { font-size: 10px; letter-spacing: 1px; color: rgba(244,241,234,.75); text-transform: uppercase; }
+    .rl-values { display: flex; gap: 14px; margin-top: 8px; }
+    .rl-value { display: flex; flex-direction: column; gap: 2px; }
+    .rl-value-num { font-size: 18px; font-weight: 700; color: var(--cream); font-variant-numeric: tabular-nums; }
+    .rl-value-num.win { color: #4ade80; }
+    .rl-value-num.loss { color: var(--blood); }
+    .rl-value-num.rate { color: #f2c94c; }
+    .rl-value-label { font-size: 9px; letter-spacing: 1px; color: rgba(244,241,234,.48); text-transform: uppercase; }
+    .rl-rank { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(217,184,114,.25); font-size: 11px; color: var(--tan); }
+    .rl-rank-tier { color: var(--cream); font-size: 12px; font-weight: 700; margin-right: 6px; }
+    @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+  </style>
 </head>
 <body>
-  <p>Weiterleitung zu <a href="/scenes/oldschool/brb.html">scenes/oldschool/brb.html</a> …</p>
+  <div class="stage">
+    <div class="rl-hud">
+      <div class="rl-head">
+        <span class="rl-title">Rocket League Live</span>
+        <div class="rl-status">
+          <span class="rl-dot connecting" id="rlStatusDot"></span>
+          <span class="rl-status-label" id="rlStatusLabel">Verbinde</span>
+        </div>
+      </div>
+      <div class="rl-values">
+        <div class="rl-value"><span class="rl-value-num win" id="rlWins">-</span><span class="rl-value-label">Siege</span></div>
+        <div class="rl-value"><span class="rl-value-num loss" id="rlLosses">-</span><span class="rl-value-label">Niederlagen</span></div>
+        <div class="rl-value"><span class="rl-value-num rate" id="rlWinrate">-</span><span class="rl-value-label">Winrate</span></div>
+      </div>
+      <div class="rl-rank"><span class="rl-rank-tier" id="rlRankTier">Rang verborgen</span><span id="rlRankMmr"></span></div>
+    </div>
+
+    <div class="center">
+      <div class="kicker">Kurze Pause</div>
+      <div class="headline">BRB</div>
+      <div class="sub">Bin gleich wieder da</div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = 'https://stream-hub-three-gold.vercel.app';
+    const params = new URLSearchParams(location.search);
+    const RL_MODE = (params.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (params.get('rlPlaylist') || '').trim();
+
+    let rlStartWins = null;
+    let rlStartMatches = null;
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const labels = { connecting: 'Verbinde', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      dot.className = 'rl-dot ' + status;
+      label.textContent = labels[status] || 'Verbinde';
+    }
+
+    function updateRlStatsUI(sessionWins, sessionLosses) {
+      document.getElementById('rlWins').textContent = sessionWins;
+      document.getElementById('rlLosses').textContent = sessionLosses;
+      const total = sessionWins + sessionLosses;
+      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+
+    function updateRlRankUI(rank) {
+      const tierEl = document.getElementById('rlRankTier');
+      const mmrEl = document.getElementById('rlRankMmr');
+      if (!rank) {
+        tierEl.textContent = 'Rang verborgen';
+        mmrEl.textContent = '';
+        return;
+      }
+      tierEl.textContent = rank.tierName || (rank.playlist || 'Ranked');
+      mmrEl.textContent = rank.mmr != null ? rank.mmr + ' MMR' : '';
+    }
+
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, '');
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = cleanUrl + '/api/stats' + (apiParams.toString() ? '?' + apiParams.toString() : '');
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+          updateRlRankUI(data.rank);
+          if (rlStartWins === null) {
+            rlStartWins = data.wins;
+            rlStartMatches = data.matches;
+          } else {
+            const sessionWins = Math.max(0, data.wins - rlStartWins);
+            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateRlStatsUI(sessionWins, sessionLosses);
+          }
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
+
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
+  </script>
 </body>
 </html>

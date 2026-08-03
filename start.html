@@ -2,12 +2,457 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weiterleitung …</title>
-  <meta http-equiv="refresh" content="0; url=/scenes/core/start.html">
-  <script>location.replace('/scenes/core/start.html' + location.search + location.hash);</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start-Szene</title>
+  <!-- Eigenstaendige "Starting Soon"-Szene fuer Streamlabs (eigene Browser-
+       Quelle, eigene Szene - liegt NICHT wie goal.html/chat.html transparent
+       ueber dem Gameplay, sondern ersetzt es kurz vor Stream-Start).
+
+       Runde 3 (aktuell): komplette Neufassung nach einem vom Nutzer in
+       Claude Design gebauten Standalone-Export ("Twitch Starting Soon"),
+       der ein neues, mit der parallel neu gebauten in-game.html GETEILTES
+       visuelles System einfuehrt: Anton (Display) + Share Tech Mono (Body)
+       statt der vorherigen Chakra-Petch/JetBrains-Mono-Kombination, Blutrot
+       (#ff2340) + Gold-Chrom-Farbverlauf (mit wandernder "chromeShine"-
+       Lichtreflex-Animation) statt der vorherigen reinen Rot/Chrom-Palette.
+       Baer-Darstellung umgestellt von einem einzelnen Low-Poly-Kopfbild mit
+       CSS-Filter-Glitch auf zwei echte Ganzkoerper-Posen (idle/action) -
+       exakt dieselben Bilder wie in avatar.html/overlay.html
+       (assets/images/avatar_idle.png / avatar_action.png; das Action-Bild
+       im Export ist byte-identisch, das Idle-Bild nahezu identisch - keine
+       neuen Bild-Assets noetig).
+
+       Wie beim vorherigen Import wurde jede feste px-Position/-Groesse aus
+       dem 1920x1080-Design 1:1 nach calc(var(--vu) * N) uebersetzt statt sie
+       woertlich zu uebernehmen (kein transform:scale() - siehe CLAUDE.md
+       fuer die Historie, warum das in der Streamlabs-Mobile-WebView zu
+       Unschaerfe fuehrte). Die Countdown-/Ticker-Logik der Komponente wurde
+       NICHT 1:1 uebernommen: das Original loopt den Countdown per Default
+       endlos (fuer die Live-Vorschau im Design-Tool gedacht) - hier bleibt
+       die bereits bewaehrte Produktions-Logik aus der Vorgaenger-Version
+       bestehen (schaltet bei 00:00 einmalig auf "JETZT LIVE" um, statt
+       endlos neu zu starten). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood: #ff2340;
+      --tan: #d9b872;
+      --cream: #f4f1ea;
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #050505;
+      overflow: hidden;
+    }
+
+    @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+    @keyframes eqBounce { 0%, 100% { transform: scaleY(.18); } 50% { transform: scaleY(1); } }
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes chromeShine { 0% { background-position: -160% 0, 0 0; } 45% { background-position: 160% 0, 0 0; } 100% { background-position: 160% 0, 0 0; } }
+    @keyframes tickerFade { 0% { opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+    @keyframes bearDance {
+      0% { transform: translateY(0) rotate(-2deg) scale(1); }
+      25% { transform: translateY(-10px) rotate(2deg) scale(1.02); }
+      50% { transform: translateY(0) rotate(-1deg) scale(1); }
+      75% { transform: translateY(-7px) rotate(2.5deg) scale(1.015); }
+      100% { transform: translateY(0) rotate(-2deg) scale(1); }
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: radial-gradient(ellipse 1400px 900px at 50% 46%, #201b1f 0%, #130f12 42%, #07060a 100%);
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--cream);
+      isolation: isolate;
+    }
+
+    /* ---------- Scanline- + Korn-Textur (statisch, keine JS-Sweep-Line mehr) ---------- */
+    .grain-scanlines {
+      position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .5;
+      background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+    }
+    .grain-dots {
+      position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .6;
+      background-image: repeating-radial-gradient(circle, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1.2px, transparent 1.2px, transparent 8px);
+      -webkit-mask-image: radial-gradient(ellipse 900px 700px at 50% 46%, transparent 40%, black 92%);
+      mask-image: radial-gradient(ellipse 900px 700px at 50% 46%, transparent 40%, black 92%);
+    }
+    .vignette-bottom {
+      position: absolute; inset: 0; z-index: 1; pointer-events: none;
+      background: linear-gradient(180deg, transparent 68%, rgba(0,0,0,.5) 100%);
+    }
+
+    /* ---------- HUD-Rahmen + Ecken-Klammern ---------- */
+    .hud-frame {
+      position: absolute; inset: calc(var(--vu) * 26); z-index: 5;
+      border: 1px solid rgba(255, 35, 64, .16); pointer-events: none;
+    }
+    .hud-corner {
+      position: absolute; width: calc(var(--vu) * 60); height: calc(var(--vu) * 60); z-index: 5; pointer-events: none;
+    }
+    .hud-corner.tl { top: calc(var(--vu) * 26); left: calc(var(--vu) * 26); border-top: 2px solid var(--blood); border-left: 2px solid var(--blood); box-shadow: -1px -1px 10px rgba(255, 35, 64, .6); }
+    .hud-corner.tr { top: calc(var(--vu) * 26); right: calc(var(--vu) * 26); border-top: 2px solid var(--blood); border-right: 2px solid var(--blood); box-shadow: 1px -1px 10px rgba(255, 35, 64, .6); }
+    .hud-corner.bl { bottom: calc(var(--vu) * 26); left: calc(var(--vu) * 26); border-bottom: 2px solid var(--blood); border-left: 2px solid var(--blood); box-shadow: -1px 1px 10px rgba(255, 35, 64, .6); }
+    .hud-corner.br { bottom: calc(var(--vu) * 26); right: calc(var(--vu) * 26); border-bottom: 2px solid var(--blood); border-right: 2px solid var(--blood); box-shadow: 1px 1px 10px rgba(255, 35, 64, .6); }
+
+    /* ---------- Konzentrische Ringe hinter dem Baeren ---------- */
+    .ring { position: absolute; top: calc(var(--vu) * 355); left: 50%; border-radius: 50%; z-index: 2; pointer-events: none; }
+    .ring.glow { width: calc(var(--vu) * 860); height: calc(var(--vu) * 860); transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(255, 35, 64, .20) 0%, rgba(255, 35, 64, 0) 62%); }
+    .ring.thin { width: calc(var(--vu) * 700); height: calc(var(--vu) * 700); transform: translate(-50%, -50%); border: 1px solid rgba(217, 184, 114, .28); }
+    .ring.dashed { width: calc(var(--vu) * 620); height: calc(var(--vu) * 620); transform: translate(-50%, -50%); border: 2px dashed rgba(255, 35, 64, .35); animation: spinSlow 70s linear infinite; }
+
+    /* ---------- Top-Leiste: Twitch-Handle + Signal-Status ---------- */
+    .top-bar {
+      position: absolute; top: 0; left: 0; right: 0; height: calc(var(--vu) * 68); z-index: 20;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      padding: 0 calc(var(--vu) * 32) calc(var(--vu) * 10);
+      border-bottom: 1px solid rgba(255, 35, 64, .55);
+      box-shadow: 0 1px calc(var(--vu) * 14) rgba(255, 35, 64, .35);
+      background: linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,0));
+    }
+    .handle-group { display: flex; align-items: center; gap: calc(var(--vu) * 12); }
+    .dot-blood { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); background: var(--blood); box-shadow: 0 0 calc(var(--vu) * 8) 2px rgba(255, 35, 64, .8); animation: blinkDot 1.6s ease-in-out infinite; flex: none; }
+    .handle-name { font-size: calc(var(--vu) * 15); letter-spacing: 2px; color: var(--cream); white-space: nowrap; }
+    .signal-group { display: flex; align-items: center; gap: calc(var(--vu) * 10); }
+    .signal-text { font-size: calc(var(--vu) * 18); letter-spacing: 4px; color: var(--tan); white-space: nowrap; }
+    .dot-tan { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); border-radius: 50%; background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 8) 2px rgba(217, 184, 114, .7); flex: none; }
+
+    /* ---------- Kompaktes RL-Live-HUD (Starting-Szene) ---------- */
+    .rl-hud {
+      position: absolute;
+      top: calc(var(--vu) * 78);
+      right: calc(var(--vu) * 44);
+      z-index: 25;
+      width: calc(var(--vu) * 300);
+      padding: calc(var(--vu) * 10) calc(var(--vu) * 12);
+      background: rgba(9, 9, 11, 0.86);
+      border: 1px solid rgba(255, 35, 64, .42);
+      box-shadow: 0 0 calc(var(--vu) * 16) rgba(255, 35, 64, .22);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .rl-head { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 8); }
+    .rl-title { font-size: calc(var(--vu) * 16); letter-spacing: 2px; color: var(--tan); white-space: nowrap; }
+    .rl-status { display: flex; align-items: center; gap: calc(var(--vu) * 5); }
+    .rl-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; }
+    .rl-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-dot.live { background: #4ade80; box-shadow: 0 0 calc(var(--vu) * 6) rgba(74,222,128,.7); }
+    .rl-dot.cached { background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 6) rgba(217,184,114,.7); }
+    .rl-dot.offline { background: var(--blood); box-shadow: 0 0 calc(var(--vu) * 6) rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-status-label { font-size: calc(var(--vu) * 10); letter-spacing: 1px; color: rgba(244,241,234,.75); text-transform: uppercase; }
+    .rl-values { display: flex; gap: calc(var(--vu) * 14); margin-top: calc(var(--vu) * 7); }
+    .rl-value { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-value-num { font-size: calc(var(--vu) * 18); font-weight: 700; color: var(--cream); font-variant-numeric: tabular-nums; }
+    .rl-value-num.win { color: #4ade80; }
+    .rl-value-num.loss { color: var(--blood); }
+    .rl-value-num.rate { color: #f2c94c; }
+    .rl-value-label { font-size: calc(var(--vu) * 8); letter-spacing: 1px; color: rgba(244,241,234,.48); text-transform: uppercase; }
+    .rl-rank { margin-top: calc(var(--vu) * 8); padding-top: calc(var(--vu) * 8); border-top: 1px dashed rgba(217,184,114,.25); font-size: calc(var(--vu) * 10); letter-spacing: .6px; color: var(--tan); }
+    .rl-rank-tier { color: var(--cream); font-size: calc(var(--vu) * 12); font-weight: 700; margin-right: calc(var(--vu) * 6); }
+
+    /* ---------- Zentrale Spalte ---------- */
+    .center-col {
+      position: absolute; top: calc(var(--vu) * 118); bottom: calc(var(--vu) * 132); left: 0; right: 0; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--vu) * 16);
+    }
+    .tagline { font-size: calc(var(--vu) * 21); letter-spacing: 7px; color: var(--tan); opacity: .9; white-space: nowrap; }
+
+    .bear-duo { display: flex; align-items: flex-end; justify-content: center; gap: calc(var(--vu) * 180); width: 100%; }
+    .bear-wrap { position: relative; height: calc(var(--vu) * 360); width: calc(var(--vu) * 202); flex: none; animation: bearDance 1.7s ease-in-out infinite; }
+    .bear-wrap--right { animation-delay: .85s; }
+    .bear-wrap img {
+      width: 100%; height: 100%; object-fit: contain;
+      filter: drop-shadow(0 0 3px rgba(255, 35, 64, .95)) drop-shadow(0 0 16px rgba(255, 35, 64, .6)) drop-shadow(0 0 42px rgba(255, 35, 64, .35));
+    }
+    .bear-wrap--right img { transform: scaleX(-1); }
+
+    .headline {
+      font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 120); line-height: .92; letter-spacing: 5px;
+      background-image: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.95) 47%, transparent 64%),
+        linear-gradient(180deg, #fff6d9 0%, #f2c94c 14%, #b8860b 30%, #fff3c4 45%, #8a6410 58%, #f6df9e 72%, #6b4c0c 86%, #f2c94c 100%);
+      background-size: 280% 100%, 100% 100%; background-position: -160% 0, 0 0;
+      -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+      -webkit-text-stroke: 1.5px rgba(58, 38, 10, .9);
+      text-shadow: 0 -1px 0 rgba(255,255,255,.5), 0 2px 0 #7a5314, 0 4px 0 #5c3f0f, 0 6px 0 #3e2a0a, 0 9px 16px rgba(0,0,0,.6), 0 0 46px rgba(255, 35, 64, .4), 0 0 90px rgba(255, 35, 64, .22);
+      animation: chromeShine 4.5s ease-in-out infinite; white-space: nowrap; margin-bottom: calc(var(--vu) * 14);
+    }
+    .headline.is-live { animation-duration: 2.2s; }
+
+    .countdown-box { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(var(--vu) * 8); padding: calc(var(--vu) * 10) calc(var(--vu) * 56) calc(var(--vu) * 14); }
+    .countdown-box .corner { position: absolute; width: calc(var(--vu) * 14); height: calc(var(--vu) * 14); }
+    .countdown-box .corner.tl { top: calc(var(--vu) * 6); left: calc(var(--vu) * 14); border-top: 1px solid rgba(255, 35, 64, .7); border-left: 1px solid rgba(255, 35, 64, .7); }
+    .countdown-box .corner.tr { top: calc(var(--vu) * 6); right: calc(var(--vu) * 14); border-top: 1px solid rgba(255, 35, 64, .7); border-right: 1px solid rgba(255, 35, 64, .7); }
+    .countdown-box .corner.bl { bottom: calc(var(--vu) * 6); left: calc(var(--vu) * 14); border-bottom: 1px solid rgba(255, 35, 64, .7); border-left: 1px solid rgba(255, 35, 64, .7); }
+    .countdown-box .corner.br { bottom: calc(var(--vu) * 6); right: calc(var(--vu) * 14); border-bottom: 1px solid rgba(255, 35, 64, .7); border-right: 1px solid rgba(255, 35, 64, .7); }
+    .countdown-rule { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 35, 64, .7), transparent); }
+    .countdown-label { font-size: calc(var(--vu) * 19); letter-spacing: 8px; color: var(--tan); white-space: nowrap; }
+    .countdown-digits { display: flex; align-items: baseline; gap: calc(var(--vu) * 10); font-size: calc(var(--vu) * 92); font-variant-numeric: tabular-nums; }
+    .countdown-digits .num {
+      background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 16%, #b8860b 34%, #fff3c4 50%, #8a6410 64%, #f6df9e 80%, #6b4c0c 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+      text-shadow: 0 2px 0 #5c3f0f, 0 4px 10px rgba(0,0,0,.55), 0 0 30px rgba(255, 35, 64, .4);
+    }
+    .countdown-digits .colon { color: #f2c94c; text-shadow: 0 0 10px rgba(255, 35, 64, .8), 0 0 22px rgba(242, 201, 76, .5); animation: blinkDot 1s steps(2, start) infinite; }
+
+    .ticker-line { display: flex; align-items: center; gap: calc(var(--vu) * 14); padding: calc(var(--vu) * 8) calc(var(--vu) * 34); border-top: 1px solid rgba(255, 35, 64, .4); border-bottom: 1px solid rgba(255, 35, 64, .4); min-width: calc(var(--vu) * 600); justify-content: center; }
+    .ticker-line .dot-blood-sm { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); background: var(--blood); box-shadow: 0 0 6px 2px rgba(255, 35, 64, .8); animation: blinkDot 1.2s ease-in-out infinite; flex: none; }
+    .ticker-line span { font-size: calc(var(--vu) * 21); letter-spacing: 5px; color: #f2ede3; white-space: nowrap; }
+    .ticker-line span.fading { animation: tickerFade 3.2s ease; }
+
+    /* ---------- Bottom-Leiste: EQ + Plattenspieler ---------- */
+    .bottom-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--vu) * 132); z-index: 20;
+      display: flex; align-items: center; justify-content: center; padding: 0 calc(var(--vu) * 48);
+      gap: calc(var(--vu) * 34);
+      border-top: 1px solid rgba(255, 35, 64, .5); box-shadow: 0 -1px calc(var(--vu) * 14) rgba(255, 35, 64, .3);
+      background: linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0));
+    }
+    .eq-group { display: flex; align-items: flex-end; gap: calc(var(--vu) * 5); height: calc(var(--vu) * 64); }
+    .eq-bar { width: calc(var(--vu) * 7); height: calc(var(--vu) * 64); border-radius: 2px 2px 0 0; background: linear-gradient(180deg, #e8b25a, var(--blood)); transform-origin: bottom; animation-name: eqBounce; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+    .player-group { display: flex; align-items: center; gap: calc(var(--vu) * 16); }
+    .vinyl { width: calc(var(--vu) * 46); height: calc(var(--vu) * 46); border-radius: 50%; background: repeating-radial-gradient(circle, #1a1a1c 0 2px, #0d0d0e 2px 4px); border: 2px solid rgba(217, 184, 114, .55); display: flex; align-items: center; justify-content: center; animation: spinSlow 4s linear infinite; flex: none; }
+    .vinyl-dot { width: calc(var(--vu) * 13); height: calc(var(--vu) * 13); border-radius: 50%; background: var(--blood); box-shadow: 0 0 6px rgba(255, 35, 64, .8); }
+  </style>
 </head>
 <body>
-  <p>Weiterleitung zu <a href="/scenes/core/start.html">scenes/core/start.html</a> …</p>
+
+  <div id="stage">
+    <div class="grain-scanlines"></div>
+    <div class="grain-dots"></div>
+    <div class="vignette-bottom"></div>
+
+    <div class="hud-frame"></div>
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+
+    <div class="ring glow"></div>
+    <div class="ring thin"></div>
+    <div class="ring dashed"></div>
+
+    <div class="top-bar">
+      <div class="handle-group">
+        <span class="dot-blood"></span>
+        <span class="handle-name">TWITCH.TV/DANGSXR1000</span>
+      </div>
+      <div class="signal-group">
+        <span class="signal-text">SIGNAL: BEREITSCHAFT</span>
+        <span class="dot-tan"></span>
+      </div>
+    </div>
+
+    <div class="rl-hud" id="rlHud">
+      <div class="rl-head">
+        <span class="rl-title">ROCKET LEAGUE LIVE</span>
+        <div class="rl-status">
+          <span class="rl-dot connecting" id="rlStatusDot"></span>
+          <span class="rl-status-label" id="rlStatusLabel">Verbinde</span>
+        </div>
+      </div>
+      <div class="rl-values">
+        <div class="rl-value"><span class="rl-value-num win" id="rlWins">-</span><span class="rl-value-label">Siege</span></div>
+        <div class="rl-value"><span class="rl-value-num loss" id="rlLosses">-</span><span class="rl-value-label">Niederlagen</span></div>
+        <div class="rl-value"><span class="rl-value-num rate" id="rlWinrate">-</span><span class="rl-value-label">Winrate</span></div>
+      </div>
+      <div class="rl-rank"><span class="rl-rank-tier" id="rlRankTier">Rang verborgen</span><span id="rlRankMmr"></span></div>
+    </div>
+
+    <div class="center-col">
+      <div class="tagline">&#9670; ALTE SCHULE HIP-HOP RADIO &#9670;</div>
+
+      <div class="bear-duo">
+        <div class="bear-wrap bear-wrap--left">
+          <img src="assets/images/avatar_action.png" alt="DaN Maskottchen links">
+        </div>
+        <div class="bear-wrap bear-wrap--right">
+          <img src="assets/images/avatar_action.png" alt="DaN Maskottchen rechts">
+        </div>
+      </div>
+
+      <div class="headline" id="headline">GLEICH LIVE</div>
+
+      <div class="countdown-box">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="countdown-rule"></div>
+        <span class="countdown-label" id="countdownLabel">STREAM STARTET IN</span>
+        <div class="countdown-digits" id="countdown">
+          <span class="num" id="cdMin">05</span><span class="colon">:</span><span class="num" id="cdSec">00</span>
+        </div>
+        <div class="countdown-rule"></div>
+      </div>
+
+      <div class="ticker-line">
+        <span class="dot-blood-sm"></span>
+        <span id="statusTicker"></span>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="eq-group" id="eqGroup"></div>
+      <div class="player-group">
+        <div class="vinyl"><div class="vinyl-dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    // Konfigurierbar per URL-Parameter, gleiches Prinzip wie ?channel=/
+    // ?track= in chat.html/goal.html.
+    const params = new URLSearchParams(location.search);
+    const durationMinutes = parseFloat(params.get('minutes')) || 5;
+    const RL_MODE = (params.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (params.get('rlPlaylist') || '').trim();
+
+    let rlStartWins = null;
+    let rlStartMatches = null;
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const labels = { connecting: 'Verbinde', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      dot.className = 'rl-dot ' + status;
+      label.textContent = labels[status] || 'Verbinde';
+    }
+
+    function updateRlStatsUI(sessionWins, sessionLosses) {
+      document.getElementById('rlWins').textContent = sessionWins;
+      document.getElementById('rlLosses').textContent = sessionLosses;
+      const total = sessionWins + sessionLosses;
+      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+
+    function updateRlRankUI(rank) {
+      const tierEl = document.getElementById('rlRankTier');
+      const mmrEl = document.getElementById('rlRankMmr');
+      if (!rank) {
+        tierEl.textContent = 'Rang verborgen';
+        mmrEl.textContent = '';
+        return;
+      }
+      tierEl.textContent = rank.tierName || (rank.playlist || 'Ranked');
+      mmrEl.textContent = rank.mmr != null ? `${rank.mmr} MMR` : '';
+    }
+
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, '');
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+          updateRlRankUI(data.rank);
+          if (rlStartWins === null) {
+            rlStartWins = data.wins;
+            rlStartMatches = data.matches;
+          } else {
+            const sessionWins = Math.max(0, data.wins - rlStartWins);
+            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateRlStatsUI(sessionWins, sessionLosses);
+          }
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
+
+    const totalMs = durationMinutes * 60 * 1000;
+    const endAt = performance.now() + totalMs;
+
+    function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+    // Rotierende Status-Meldungen, gleiches Prinzip wie zuvor - Defaults 1:1
+    // aus dem Claude-Design-Export uebernommen.
+    const STATUS_MESSAGES = [
+      'SYSTEM WIRD GESTARTET',
+      'BEATS WERDEN GELADEN...',
+      'MIKROFONTEST 1-2',
+      'VERBINDUNG WIRD HERGESTELLT',
+      'CREW VERSAMMELT SICH',
+    ];
+
+    const headlineEl = document.getElementById('headline');
+    const countdownLabelEl = document.getElementById('countdownLabel');
+    const statusTickerEl = document.getElementById('statusTicker');
+    const cdMin = document.getElementById('cdMin');
+    const cdSec = document.getElementById('cdSec');
+    const eqGroup = document.getElementById('eqGroup');
+
+    // 20 EQ-Balken mit individueller Dauer/Delay, exakt aus dem Design uebernommen.
+    const EQ_SPECS = [
+      ['.9s','0s'],['1.2s','.15s'],['.7s','.05s'],['1.4s','.3s'],['.85s','.2s'],
+      ['1.1s','0s'],['.65s','.4s'],['1.3s','.1s'],['.95s','.25s'],['1.05s','.05s'],
+      ['.75s','.35s'],['1.25s','.15s'],['.6s','.2s'],['1.15s','0s'],['.8s','.3s'],
+      ['1.35s','.1s'],['.7s','.25s'],['1s','.05s'],['.9s','.4s'],['1.2s','.2s'],
+    ];
+    EQ_SPECS.forEach(([dur, delay]) => {
+      const bar = document.createElement('div');
+      bar.className = 'eq-bar';
+      bar.style.animationDuration = dur;
+      bar.style.animationDelay = delay;
+      eqGroup.appendChild(bar);
+    });
+
+    let lastRenderedSecond = -1;
+    let lastTickerIdx = -1;
+    let wentLive = false;
+
+    function animFrame(nowMs) {
+      const localTime = nowMs / 1000;
+
+      // ---- Status-Ticker: rotierende Meldungen mit Fade ----
+      const bucket = 10;
+      const tIdx = Math.floor(localTime / bucket) % STATUS_MESSAGES.length;
+      if (tIdx !== lastTickerIdx) {
+        lastTickerIdx = tIdx;
+        statusTickerEl.textContent = STATUS_MESSAGES[tIdx];
+        statusTickerEl.classList.remove('fading');
+        void statusTickerEl.offsetWidth;
+        statusTickerEl.classList.add('fading');
+      }
+
+      // ---- Countdown: tatsaechliche verbleibende Zeit ----
+      const remainingMs = Math.max(0, endAt - nowMs);
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      if (remainingSeconds !== lastRenderedSecond) {
+        lastRenderedSecond = remainingSeconds;
+        cdMin.textContent = pad2(remainingSeconds / 60);
+        cdSec.textContent = pad2(remainingSeconds % 60);
+      }
+      if (remainingMs <= 0 && !wentLive) {
+        wentLive = true;
+        // Bleibt bewusst NICHT im Design-Tool-Endlos-Loop haengen (Original
+        // hat loopCountdown:true fuer die Vorschau) - schaltet stattdessen
+        // einmalig auf "JETZT LIVE" um, wie in der Vorgaenger-Version.
+        headlineEl.textContent = 'JETZT LIVE';
+        headlineEl.classList.add('is-live');
+        countdownLabelEl.textContent = 'GEHT LIVE';
+      }
+
+      requestAnimationFrame(animFrame);
+    }
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
+    requestAnimationFrame(animFrame);
+  </script>
+
 </body>
 </html>
