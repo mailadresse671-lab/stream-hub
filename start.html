@@ -126,39 +126,6 @@
     .signal-text { font-size: calc(var(--vu) * 18); letter-spacing: 4px; color: var(--tan); white-space: nowrap; }
     .dot-tan { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); border-radius: 50%; background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 8) 2px rgba(217, 184, 114, .7); flex: none; }
 
-    /* ---------- Kompaktes RL-Live-HUD (Starting-Szene) ---------- */
-    .rl-hud {
-      position: absolute;
-      top: calc(var(--vu) * 78);
-      right: calc(var(--vu) * 44);
-      z-index: 25;
-      width: calc(var(--vu) * 300);
-      padding: calc(var(--vu) * 10) calc(var(--vu) * 12);
-      background: rgba(9, 9, 11, 0.86);
-      border: 1px solid rgba(255, 35, 64, .42);
-      box-shadow: 0 0 calc(var(--vu) * 16) rgba(255, 35, 64, .22);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-    }
-    .rl-head { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 8); }
-    .rl-title { font-size: calc(var(--vu) * 16); letter-spacing: 2px; color: var(--tan); white-space: nowrap; }
-    .rl-status { display: flex; align-items: center; gap: calc(var(--vu) * 5); }
-    .rl-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; }
-    .rl-dot.connecting { background: rgba(244,241,234,.35); }
-    .rl-dot.live { background: #4ade80; box-shadow: 0 0 calc(var(--vu) * 6) rgba(74,222,128,.7); }
-    .rl-dot.cached { background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 6) rgba(217,184,114,.7); }
-    .rl-dot.offline { background: var(--blood); box-shadow: 0 0 calc(var(--vu) * 6) rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
-    .rl-status-label { font-size: calc(var(--vu) * 10); letter-spacing: 1px; color: rgba(244,241,234,.75); text-transform: uppercase; }
-    .rl-values { display: flex; gap: calc(var(--vu) * 14); margin-top: calc(var(--vu) * 7); }
-    .rl-value { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
-    .rl-value-num { font-size: calc(var(--vu) * 18); font-weight: 700; color: var(--cream); font-variant-numeric: tabular-nums; }
-    .rl-value-num.win { color: #4ade80; }
-    .rl-value-num.loss { color: var(--blood); }
-    .rl-value-num.rate { color: #f2c94c; }
-    .rl-value-label { font-size: calc(var(--vu) * 8); letter-spacing: 1px; color: rgba(244,241,234,.48); text-transform: uppercase; }
-    .rl-rank { margin-top: calc(var(--vu) * 8); padding-top: calc(var(--vu) * 8); border-top: 1px dashed rgba(217,184,114,.25); font-size: calc(var(--vu) * 10); letter-spacing: .6px; color: var(--tan); }
-    .rl-rank-tier { color: var(--cream); font-size: calc(var(--vu) * 12); font-weight: 700; margin-right: calc(var(--vu) * 6); }
-
     /* ---------- Zentrale Spalte ---------- */
     .center-col {
       position: absolute; top: calc(var(--vu) * 118); bottom: calc(var(--vu) * 132); left: 0; right: 0; z-index: 10;
@@ -251,21 +218,6 @@
       </div>
     </div>
 
-    <div class="rl-hud" id="rlHud">
-      <div class="rl-head">
-        <span class="rl-title">ROCKET LEAGUE LIVE</span>
-        <div class="rl-status">
-          <span class="rl-dot connecting" id="rlStatusDot"></span>
-          <span class="rl-status-label" id="rlStatusLabel">Verbinde</span>
-        </div>
-      </div>
-      <div class="rl-values">
-        <div class="rl-value"><span class="rl-value-num win" id="rlWins">-</span><span class="rl-value-label">Siege</span></div>
-        <div class="rl-value"><span class="rl-value-num loss" id="rlLosses">-</span><span class="rl-value-label">Niederlagen</span></div>
-        <div class="rl-value"><span class="rl-value-num rate" id="rlWinrate">-</span><span class="rl-value-label">Winrate</span></div>
-      </div>
-      <div class="rl-rank"><span class="rl-rank-tier" id="rlRankTier">Rang verborgen</span><span id="rlRankMmr"></span></div>
-    </div>
 
     <div class="center-col">
       <div class="tagline">&#9670; ALTE SCHULE HIP-HOP RADIO &#9670;</div>
@@ -311,68 +263,6 @@
     // ?track= in chat.html/goal.html.
     const params = new URLSearchParams(location.search);
     const durationMinutes = parseFloat(params.get('minutes')) || 5;
-    const RL_MODE = (params.get('rlMode') || 'auto').trim().toLowerCase();
-    const RL_PLAYLIST = (params.get('rlPlaylist') || '').trim();
-
-    let rlStartWins = null;
-    let rlStartMatches = null;
-
-    function setRlStatus(status) {
-      const dot = document.getElementById('rlStatusDot');
-      const label = document.getElementById('rlStatusLabel');
-      const labels = { connecting: 'Verbinde', live: 'Live', cached: 'Cached', offline: 'Offline' };
-      dot.className = 'rl-dot ' + status;
-      label.textContent = labels[status] || 'Verbinde';
-    }
-
-    function updateRlStatsUI(sessionWins, sessionLosses) {
-      document.getElementById('rlWins').textContent = sessionWins;
-      document.getElementById('rlLosses').textContent = sessionLosses;
-      const total = sessionWins + sessionLosses;
-      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
-      document.getElementById('rlWinrate').textContent = rate + '%';
-    }
-
-    function updateRlRankUI(rank) {
-      const tierEl = document.getElementById('rlRankTier');
-      const mmrEl = document.getElementById('rlRankMmr');
-      if (!rank) {
-        tierEl.textContent = 'Rang verborgen';
-        mmrEl.textContent = '';
-        return;
-      }
-      tierEl.textContent = rank.tierName || (rank.playlist || 'Ranked');
-      mmrEl.textContent = rank.mmr != null ? `${rank.mmr} MMR` : '';
-    }
-
-    async function fetchRlStats() {
-      try {
-        const cleanUrl = VERCEL_URL.replace(/\/$/, '');
-        const apiParams = new URLSearchParams();
-        if (RL_MODE) apiParams.set('mode', RL_MODE);
-        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
-        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
-        const res = await fetch(apiUrl);
-        const data = await res.json();
-        if (data && data.success) {
-          setRlStatus(data.stale ? 'cached' : 'live');
-          updateRlRankUI(data.rank);
-          if (rlStartWins === null) {
-            rlStartWins = data.wins;
-            rlStartMatches = data.matches;
-          } else {
-            const sessionWins = Math.max(0, data.wins - rlStartWins);
-            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
-            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
-            updateRlStatsUI(sessionWins, sessionLosses);
-          }
-        } else {
-          setRlStatus('offline');
-        }
-      } catch (e) {
-        setRlStatus('offline');
-      }
-    }
 
     const totalMs = durationMinutes * 60 * 1000;
     const endAt = performance.now() + totalMs;
@@ -449,8 +339,6 @@
 
       requestAnimationFrame(animFrame);
     }
-    fetchRlStats();
-    setInterval(fetchRlStats, 20000);
     requestAnimationFrame(animFrame);
   </script>
 
