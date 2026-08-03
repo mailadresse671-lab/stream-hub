@@ -132,14 +132,69 @@
       mix-blend-mode: overlay;
       opacity: 0.5;
     }
+
+    /* Kompaktes RL-Live-HUD fuer die Chatting-Szene */
+    .rl-hud {
+      position: fixed;
+      top: 18px;
+      right: 20px;
+      z-index: 250;
+      width: 280px;
+      padding: 9px 12px;
+      background: rgba(9, 9, 11, 0.9);
+      border: 1px solid rgba(255, 26, 26, 0.45);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.62);
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 10px, 100% 100%, 0 100%);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+    .rl-hud-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .rl-hud-title { font-family: 'Bebas Neue', 'Arial Narrow', 'Arial Black', sans-serif; font-size: 19px; letter-spacing: 1px; color: var(--gold); }
+    .rl-hud-status { display: flex; align-items: center; gap: 5px; }
+    .rl-hud-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .rl-hud-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-hud-dot.live { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,.7); }
+    .rl-hud-dot.cached { background: var(--gold); box-shadow: 0 0 6px rgba(255,215,0,.7); }
+    .rl-hud-dot.offline { background: var(--blood); box-shadow: 0 0 6px rgba(255,26,26,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-hud-status-label { font-size: 10px; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; }
+    .rl-hud-values { display: flex; gap: 14px; margin-top: 7px; }
+    .rl-hud-val { display: flex; flex-direction: column; gap: 2px; }
+    .rl-hud-num { font-size: 18px; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .rl-hud-num.win { color: #4ade80; }
+    .rl-hud-num.loss { color: var(--blood); }
+    .rl-hud-num.rate { color: var(--gold); }
+    .rl-hud-lbl { font-size: 9px; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; }
+    .rl-hud-rank { margin-top: 8px; padding-top: 7px; border-top: 1px dashed rgba(255,215,0,.22); font-size: 11px; color: var(--chrome-2); }
+    .rl-hud-rank-tier { color: var(--text-primary); font-weight: 700; margin-right: 5px; }
   </style>
 </head>
 <body>
 
   <div id="chat-stage"></div>
+  <div class="rl-hud" id="rlHud">
+    <div class="rl-hud-head">
+      <span class="rl-hud-title">RL LIVE</span>
+      <div class="rl-hud-status">
+        <span class="rl-hud-dot connecting" id="rlStatusDot"></span>
+        <span class="rl-hud-status-label" id="rlStatusLabel">Verbinde</span>
+      </div>
+    </div>
+    <div class="rl-hud-values">
+      <div class="rl-hud-val"><span class="rl-hud-num win" id="rlWins">-</span><span class="rl-hud-lbl">Siege</span></div>
+      <div class="rl-hud-val"><span class="rl-hud-num loss" id="rlLosses">-</span><span class="rl-hud-lbl">Niederlagen</span></div>
+      <div class="rl-hud-val"><span class="rl-hud-num rate" id="rlWinrate">-</span><span class="rl-hud-lbl">Winrate</span></div>
+    </div>
+    <div class="rl-hud-rank"><span class="rl-hud-rank-tier" id="rlRankTier">Rang verborgen</span><span id="rlRankMmr"></span></div>
+  </div>
   <div id="scanline-overlay"></div>
 
   <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const STATS_URL_PARAMS = new URLSearchParams(location.search);
+    const RL_MODE = (STATS_URL_PARAMS.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (STATS_URL_PARAMS.get('rlPlaylist') || '').trim();
+
     // ==========================================
     // Kanal kommt ausschliesslich aus dem ?channel=-URL-Parameter, z.B.
     // in OBS als Browser-Quellen-URL: chat.html?channel=dangsxr1000
@@ -150,6 +205,66 @@
     // ==========================================
     const CHANNEL_PARAM = (new URLSearchParams(location.search).get('channel') || '').toLowerCase().trim();
     const DEMO_MODE = !CHANNEL_PARAM;
+
+    let rlStartWins = null;
+    let rlStartMatches = null;
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const labels = { connecting: 'Verbinde', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      dot.className = 'rl-hud-dot ' + status;
+      label.textContent = labels[status] || 'Verbinde';
+    }
+
+    function updateRlStatsUI(sessionWins, sessionLosses) {
+      document.getElementById('rlWins').textContent = sessionWins;
+      document.getElementById('rlLosses').textContent = sessionLosses;
+      const total = sessionWins + sessionLosses;
+      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+
+    function updateRlRankUI(rank) {
+      const tierEl = document.getElementById('rlRankTier');
+      const mmrEl = document.getElementById('rlRankMmr');
+      if (!rank) {
+        tierEl.textContent = 'Rang verborgen';
+        mmrEl.textContent = '';
+        return;
+      }
+      tierEl.textContent = rank.tierName || (rank.playlist || 'Ranked');
+      mmrEl.textContent = rank.mmr != null ? `${rank.mmr} MMR` : '';
+    }
+
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, '');
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+          updateRlRankUI(data.rank);
+          if (rlStartWins === null) {
+            rlStartWins = data.wins;
+            rlStartMatches = data.matches;
+          } else {
+            const sessionWins = Math.max(0, data.wins - rlStartWins);
+            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateRlStatsUI(sessionWins, sessionLosses);
+          }
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
 
     const AUTO_HIDE_MS = 15000;
     const SYSTEM_HIDE_MS = 6000;
@@ -408,6 +523,9 @@
         addMessage("FEHLER", "Chat-Bibliothek konnte von keinem CDN geladen werden!", "#ff1a1a", true);
       });
     }
+
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
   </script>
 
 </body>

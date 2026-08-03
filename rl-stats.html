@@ -105,6 +105,9 @@
 
   <script>
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const STATS_URL_PARAMS = new URLSearchParams(location.search);
+    const RL_MODE = (STATS_URL_PARAMS.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (STATS_URL_PARAMS.get('rlPlaylist') || '').trim();
 
     let rlStartWins = null;
     let rlStartMatches = null;
@@ -138,7 +141,11 @@
     async function fetchRlStats() {
       try {
         const cleanUrl = VERCEL_URL.replace(/\/$/, "");
-        const res = await fetch(`${cleanUrl}/api/stats`);
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
         const data = await res.json();
         if (data && data.success) {
           setRlStatus(data.stale ? 'cached' : 'live');

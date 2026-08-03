@@ -54,10 +54,16 @@
 
     @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
     @keyframes eqBounce { 0%, 100% { transform: scaleY(.18); } 50% { transform: scaleY(1); } }
-    @keyframes marqueeScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
     @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes chromeShine { 0% { background-position: -160% 0, 0 0; } 45% { background-position: 160% 0, 0 0; } 100% { background-position: 160% 0, 0 0; } }
     @keyframes tickerFade { 0% { opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+    @keyframes bearDance {
+      0% { transform: translateY(0) rotate(-2deg) scale(1); }
+      25% { transform: translateY(-10px) rotate(2deg) scale(1.02); }
+      50% { transform: translateY(0) rotate(-1deg) scale(1); }
+      75% { transform: translateY(-7px) rotate(2.5deg) scale(1.015); }
+      100% { transform: translateY(0) rotate(-2deg) scale(1); }
+    }
 
     #stage {
       position: fixed;
@@ -106,43 +112,68 @@
 
     /* ---------- Top-Leiste: Twitch-Handle + Signal-Status ---------- */
     .top-bar {
-      position: absolute; top: 0; left: 0; right: 0; height: calc(var(--vu) * 88); z-index: 20;
+      position: absolute; top: 0; left: 0; right: 0; height: calc(var(--vu) * 68); z-index: 20;
       display: flex; align-items: flex-end; justify-content: space-between;
-      padding: 0 calc(var(--vu) * 44) calc(var(--vu) * 18);
+      padding: 0 calc(var(--vu) * 32) calc(var(--vu) * 10);
       border-bottom: 1px solid rgba(255, 35, 64, .55);
       box-shadow: 0 1px calc(var(--vu) * 14) rgba(255, 35, 64, .35);
       background: linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,0));
     }
     .handle-group { display: flex; align-items: center; gap: calc(var(--vu) * 12); }
     .dot-blood { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); background: var(--blood); box-shadow: 0 0 calc(var(--vu) * 8) 2px rgba(255, 35, 64, .8); animation: blinkDot 1.6s ease-in-out infinite; flex: none; }
-    .handle-name { font-size: calc(var(--vu) * 22); letter-spacing: 3px; color: var(--cream); white-space: nowrap; }
+    .handle-name { font-size: calc(var(--vu) * 15); letter-spacing: 2px; color: var(--cream); white-space: nowrap; }
     .signal-group { display: flex; align-items: center; gap: calc(var(--vu) * 10); }
     .signal-text { font-size: calc(var(--vu) * 18); letter-spacing: 4px; color: var(--tan); white-space: nowrap; }
     .dot-tan { width: calc(var(--vu) * 8); height: calc(var(--vu) * 8); border-radius: 50%; background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 8) 2px rgba(217, 184, 114, .7); flex: none; }
 
+    /* ---------- Kompaktes RL-Live-HUD (Starting-Szene) ---------- */
+    .rl-hud {
+      position: absolute;
+      top: calc(var(--vu) * 78);
+      right: calc(var(--vu) * 44);
+      z-index: 25;
+      width: calc(var(--vu) * 300);
+      padding: calc(var(--vu) * 10) calc(var(--vu) * 12);
+      background: rgba(9, 9, 11, 0.86);
+      border: 1px solid rgba(255, 35, 64, .42);
+      box-shadow: 0 0 calc(var(--vu) * 16) rgba(255, 35, 64, .22);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .rl-head { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 8); }
+    .rl-title { font-size: calc(var(--vu) * 16); letter-spacing: 2px; color: var(--tan); white-space: nowrap; }
+    .rl-status { display: flex; align-items: center; gap: calc(var(--vu) * 5); }
+    .rl-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; }
+    .rl-dot.connecting { background: rgba(244,241,234,.35); }
+    .rl-dot.live { background: #4ade80; box-shadow: 0 0 calc(var(--vu) * 6) rgba(74,222,128,.7); }
+    .rl-dot.cached { background: var(--tan); box-shadow: 0 0 calc(var(--vu) * 6) rgba(217,184,114,.7); }
+    .rl-dot.offline { background: var(--blood); box-shadow: 0 0 calc(var(--vu) * 6) rgba(255,35,64,.8); animation: blinkDot 1.2s ease-in-out infinite; }
+    .rl-status-label { font-size: calc(var(--vu) * 10); letter-spacing: 1px; color: rgba(244,241,234,.75); text-transform: uppercase; }
+    .rl-values { display: flex; gap: calc(var(--vu) * 14); margin-top: calc(var(--vu) * 7); }
+    .rl-value { display: flex; flex-direction: column; gap: calc(var(--vu) * 2); }
+    .rl-value-num { font-size: calc(var(--vu) * 18); font-weight: 700; color: var(--cream); font-variant-numeric: tabular-nums; }
+    .rl-value-num.win { color: #4ade80; }
+    .rl-value-num.loss { color: var(--blood); }
+    .rl-value-num.rate { color: #f2c94c; }
+    .rl-value-label { font-size: calc(var(--vu) * 8); letter-spacing: 1px; color: rgba(244,241,234,.48); text-transform: uppercase; }
+    .rl-rank { margin-top: calc(var(--vu) * 8); padding-top: calc(var(--vu) * 8); border-top: 1px dashed rgba(217,184,114,.25); font-size: calc(var(--vu) * 10); letter-spacing: .6px; color: var(--tan); }
+    .rl-rank-tier { color: var(--cream); font-size: calc(var(--vu) * 12); font-weight: 700; margin-right: calc(var(--vu) * 6); }
+
     /* ---------- Zentrale Spalte ---------- */
     .center-col {
-      position: absolute; top: calc(var(--vu) * 88); bottom: calc(var(--vu) * 132); left: 0; right: 0; z-index: 10;
+      position: absolute; top: calc(var(--vu) * 118); bottom: calc(var(--vu) * 132); left: 0; right: 0; z-index: 10;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--vu) * 16);
     }
     .tagline { font-size: calc(var(--vu) * 21); letter-spacing: 7px; color: var(--tan); opacity: .9; white-space: nowrap; }
 
-    .bear-wrap { position: relative; height: calc(var(--vu) * 460); width: calc(var(--vu) * 259); flex: none; }
+    .bear-duo { display: flex; align-items: flex-end; justify-content: center; gap: calc(var(--vu) * 180); width: 100%; }
+    .bear-wrap { position: relative; height: calc(var(--vu) * 360); width: calc(var(--vu) * 202); flex: none; animation: bearDance 1.7s ease-in-out infinite; }
+    .bear-wrap--right { animation-delay: .85s; }
     .bear-wrap img {
       width: 100%; height: 100%; object-fit: contain;
       filter: drop-shadow(0 0 3px rgba(255, 35, 64, .95)) drop-shadow(0 0 16px rgba(255, 35, 64, .6)) drop-shadow(0 0 42px rgba(255, 35, 64, .35));
     }
-    .bear-floor-glow {
-      position: absolute; left: 20%; top: 17%; width: 70%; height: 11%; border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(255, 50, 60, .95) 0%, rgba(255, 35, 64, 0) 72%);
-      filter: blur(9px); mix-blend-mode: screen; opacity: .9; pointer-events: none;
-    }
-    .bear-placeholder {
-      display: none; position: absolute; inset: 6%; border-radius: 12px; border: 1px dashed rgba(255, 35, 64, .5);
-      align-items: center; justify-content: center; text-align: center; padding: calc(var(--vu) * 16);
-    }
-    .bear-placeholder span { font-family: 'Share Tech Mono', monospace; font-weight: 700; font-size: clamp(9px, 0.9vw, 13px); letter-spacing: .5px; color: var(--tan); text-transform: uppercase; line-height: 1.6; }
-    .bear-placeholder code { display: block; color: var(--blood); font-size: clamp(8px, 0.8vw, 11px); margin-top: calc(var(--vu) * 4); }
+    .bear-wrap--right img { transform: scaleX(-1); }
 
     .headline {
       font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 120); line-height: .92; letter-spacing: 5px;
@@ -177,10 +208,11 @@
     .ticker-line span { font-size: calc(var(--vu) * 21); letter-spacing: 5px; color: #f2ede3; white-space: nowrap; }
     .ticker-line span.fading { animation: tickerFade 3.2s ease; }
 
-    /* ---------- Bottom-Leiste: EQ + Plattenspieler + Track-Marquee ---------- */
+    /* ---------- Bottom-Leiste: EQ + Plattenspieler ---------- */
     .bottom-bar {
       position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--vu) * 132); z-index: 20;
-      display: flex; align-items: center; justify-content: space-between; padding: 0 calc(var(--vu) * 48);
+      display: flex; align-items: center; justify-content: center; padding: 0 calc(var(--vu) * 48);
+      gap: calc(var(--vu) * 34);
       border-top: 1px solid rgba(255, 35, 64, .5); box-shadow: 0 -1px calc(var(--vu) * 14) rgba(255, 35, 64, .3);
       background: linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0));
     }
@@ -189,11 +221,6 @@
     .player-group { display: flex; align-items: center; gap: calc(var(--vu) * 16); }
     .vinyl { width: calc(var(--vu) * 46); height: calc(var(--vu) * 46); border-radius: 50%; background: repeating-radial-gradient(circle, #1a1a1c 0 2px, #0d0d0e 2px 4px); border: 2px solid rgba(217, 184, 114, .55); display: flex; align-items: center; justify-content: center; animation: spinSlow 4s linear infinite; flex: none; }
     .vinyl-dot { width: calc(var(--vu) * 13); height: calc(var(--vu) * 13); border-radius: 50%; background: var(--blood); box-shadow: 0 0 6px rgba(255, 35, 64, .8); }
-    .track-info { display: flex; flex-direction: column; gap: calc(var(--vu) * 4); }
-    .track-label { font-size: calc(var(--vu) * 16); letter-spacing: 4px; color: var(--tan); white-space: nowrap; }
-    .track-marquee-mask { width: calc(var(--vu) * 380); overflow: hidden; }
-    .track-marquee { display: flex; gap: calc(var(--vu) * 60); width: max-content; animation: marqueeScroll 13s linear infinite; }
-    .track-marquee span { font-size: calc(var(--vu) * 21); letter-spacing: 2px; color: var(--cream); white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -224,15 +251,31 @@
       </div>
     </div>
 
+    <div class="rl-hud" id="rlHud">
+      <div class="rl-head">
+        <span class="rl-title">ROCKET LEAGUE LIVE</span>
+        <div class="rl-status">
+          <span class="rl-dot connecting" id="rlStatusDot"></span>
+          <span class="rl-status-label" id="rlStatusLabel">Verbinde</span>
+        </div>
+      </div>
+      <div class="rl-values">
+        <div class="rl-value"><span class="rl-value-num win" id="rlWins">-</span><span class="rl-value-label">Siege</span></div>
+        <div class="rl-value"><span class="rl-value-num loss" id="rlLosses">-</span><span class="rl-value-label">Niederlagen</span></div>
+        <div class="rl-value"><span class="rl-value-num rate" id="rlWinrate">-</span><span class="rl-value-label">Winrate</span></div>
+      </div>
+      <div class="rl-rank"><span class="rl-rank-tier" id="rlRankTier">Rang verborgen</span><span id="rlRankMmr"></span></div>
+    </div>
+
     <div class="center-col">
       <div class="tagline">&#9670; ALTE SCHULE HIP-HOP RADIO &#9670;</div>
 
-      <div class="bear-wrap" id="bearWrap">
-        <img id="bearImg" src="assets/images/avatar_action.png" alt="DaN Maskottchen"
-          onerror="this.style.display='none'; document.getElementById('bearPlaceholder').style.display='flex';">
-        <div class="bear-floor-glow"></div>
-        <div class="bear-placeholder" id="bearPlaceholder">
-          <span>BÄR-BILD FEHLT<code>assets/images/avatar_action.png</code></span>
+      <div class="bear-duo">
+        <div class="bear-wrap bear-wrap--left">
+          <img src="assets/images/avatar_action.png" alt="DaN Maskottchen links">
+        </div>
+        <div class="bear-wrap bear-wrap--right">
+          <img src="assets/images/avatar_action.png" alt="DaN Maskottchen rechts">
         </div>
       </div>
 
@@ -258,30 +301,78 @@
       <div class="eq-group" id="eqGroup"></div>
       <div class="player-group">
         <div class="vinyl"><div class="vinyl-dot"></div></div>
-        <div class="track-info">
-          <span class="track-label">LÄUFT GERADE</span>
-          <div class="track-marquee-mask">
-            <div class="track-marquee">
-              <span id="trackTitle1">BOOM BAP INSTRUMENTAL — LO-FI CREW</span>
-              <span id="trackTitle2">BOOM BAP INSTRUMENTAL — LO-FI CREW</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 
   <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
     // Konfigurierbar per URL-Parameter, gleiches Prinzip wie ?channel=/
     // ?track= in chat.html/goal.html.
     const params = new URLSearchParams(location.search);
     const durationMinutes = parseFloat(params.get('minutes')) || 5;
+    const RL_MODE = (params.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (params.get('rlPlaylist') || '').trim();
 
-    const trackParam = params.get('track');
-    const artistParam = params.get('artist');
-    const trackText = (trackParam || 'BOOM BAP INSTRUMENTAL') + (artistParam ? ' — ' + artistParam : ' — LO-FI CREW');
-    document.getElementById('trackTitle1').textContent = trackText;
-    document.getElementById('trackTitle2').textContent = trackText;
+    let rlStartWins = null;
+    let rlStartMatches = null;
+
+    function setRlStatus(status) {
+      const dot = document.getElementById('rlStatusDot');
+      const label = document.getElementById('rlStatusLabel');
+      const labels = { connecting: 'Verbinde', live: 'Live', cached: 'Cached', offline: 'Offline' };
+      dot.className = 'rl-dot ' + status;
+      label.textContent = labels[status] || 'Verbinde';
+    }
+
+    function updateRlStatsUI(sessionWins, sessionLosses) {
+      document.getElementById('rlWins').textContent = sessionWins;
+      document.getElementById('rlLosses').textContent = sessionLosses;
+      const total = sessionWins + sessionLosses;
+      const rate = total > 0 ? Math.round((sessionWins / total) * 100) : 0;
+      document.getElementById('rlWinrate').textContent = rate + '%';
+    }
+
+    function updateRlRankUI(rank) {
+      const tierEl = document.getElementById('rlRankTier');
+      const mmrEl = document.getElementById('rlRankMmr');
+      if (!rank) {
+        tierEl.textContent = 'Rang verborgen';
+        mmrEl.textContent = '';
+        return;
+      }
+      tierEl.textContent = rank.tierName || (rank.playlist || 'Ranked');
+      mmrEl.textContent = rank.mmr != null ? `${rank.mmr} MMR` : '';
+    }
+
+    async function fetchRlStats() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, '');
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data && data.success) {
+          setRlStatus(data.stale ? 'cached' : 'live');
+          updateRlRankUI(data.rank);
+          if (rlStartWins === null) {
+            rlStartWins = data.wins;
+            rlStartMatches = data.matches;
+          } else {
+            const sessionWins = Math.max(0, data.wins - rlStartWins);
+            const totalSessionMatches = Math.max(0, data.matches - rlStartMatches);
+            const sessionLosses = Math.max(0, totalSessionMatches - sessionWins);
+            updateRlStatsUI(sessionWins, sessionLosses);
+          }
+        } else {
+          setRlStatus('offline');
+        }
+      } catch (e) {
+        setRlStatus('offline');
+      }
+    }
 
     const totalMs = durationMinutes * 60 * 1000;
     const endAt = performance.now() + totalMs;
@@ -358,6 +449,8 @@
 
       requestAnimationFrame(animFrame);
     }
+    fetchRlStats();
+    setInterval(fetchRlStats, 20000);
     requestAnimationFrame(animFrame);
   </script>
 

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>90s Old School — Stream Ending</title>
+  <!-- F5 aus der "DaNgsxr1000 Stream Overlay Suite" (siehe oldschool-starting.html
+       fuer die volle Herkunfts-/Format-/Styleguide-Dokumentation).
+
+       Eigenstaendige "Stream Ending"-Ersatz-Szene, gleiche Rolle wie
+       oldschool-starting.html/-brb.html (ersetzt das Gameplay am Streamende
+       als eigene Streamlabs-Szene) - echter atmosphaerischer CSS-Hintergrund
+       statt eines transparenten Lochs.
+
+       "TONIGHT'S MVPS" liest den bereits vorhandenen localStorage-Key
+       dangsxr_leaderboard (aus leaderboard.html, {weekStart, entries:{name:
+       punkte}}) - zeigt also technisch die Top-Supporter der WOCHE, nicht
+       nur "heute Abend", da das die einzige bereits vorhandene echte
+       Datenquelle im Projekt ist (kein neuer Server-Code noetig). Punkte
+       statt der im Design-Export erfundenen Aktions-Beschreibungen ("Cheered
+       500" etc.) - unsere echten Daten kennen nur Name+Punkte, keine
+       Einzelaktionen, deshalb keine fabrizierten Beschreibungen. Ohne
+       Supporter diese Woche: statischer Platzhaltertext statt einer leeren
+       Endlos-Laufschrift. Alert-Popup = echte EventSub-Verbindung. Spray-
+       Titel/Vinyl-Deko sind reine Ornamentik.
+
+       Nutzer-Feedback nach Live-Screenshot von oldschool-starting.html
+       (aktuell, hier gleich mit angewendet): Social-Chips auf nur noch
+       TWITCH reduziert (Twitter/X, Discord entfernt) - echte Handles fuer
+       die anderen Plattformen stehen laut CLAUDE.md/PANEL_CONCEPT.md
+       ohnehin noch aus. -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #000000;
+      --paper: #FFFFFF;
+      --cream: #E5E5E5;
+      --crimson: #C8102E;
+      --crimson-dark: #8C0A1F;
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Barlow Condensed', sans-serif; color: var(--cream); background: #050505; }
+
+    @keyframes flicker { 0%, 100% { opacity: .04; } 50% { opacity: .09; } }
+    @keyframes alertPop { 0% { transform: translateY(calc(var(--vu) * -30)) scale(.9); opacity: 0; } 60% { transform: translateY(calc(var(--vu) * 4)) scale(1.03); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+    @keyframes marqueeY { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+
+    #stage {
+      position: fixed; inset: 0; overflow: hidden;
+      background: radial-gradient(ellipse 1400px 900px at 50% 46%, #1c0a0d 0%, #100709 45%, #050405 100%);
+    }
+
+    .scanline-overlay { position: absolute; inset: 0; z-index: 90; pointer-events: none; background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0px, rgba(0,0,0,.16) 1px, transparent 2px, transparent 4px); mix-blend-mode: multiply; }
+    .flicker-overlay { position: absolute; inset: 0; z-index: 91; pointer-events: none; background: #fff; animation: flicker 5s ease-in-out infinite; mix-blend-mode: overlay; }
+
+    .splatter {
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.55) 0 calc(var(--vu) * 3), transparent calc(var(--vu) * 4)),
+        radial-gradient(circle, rgba(200,16,46,.5) 0 calc(var(--vu) * 5), transparent calc(var(--vu) * 6)),
+        radial-gradient(circle, rgba(255,255,255,.4) 0 calc(var(--vu) * 2), transparent calc(var(--vu) * 3)),
+        radial-gradient(circle, rgba(255,255,255,.3) 0 calc(var(--vu) * 4), transparent calc(var(--vu) * 5)),
+        radial-gradient(circle, rgba(200,16,46,.4) 0 calc(var(--vu) * 2), transparent calc(var(--vu) * 3)),
+        radial-gradient(circle, rgba(255,255,255,.5) 0 calc(var(--vu) * 6), transparent calc(var(--vu) * 7)),
+        radial-gradient(circle, rgba(255,255,255,.25) 0 calc(var(--vu) * 3), transparent calc(var(--vu) * 4)),
+        radial-gradient(ellipse calc(var(--vu) * 90) calc(var(--vu) * 60) at center, rgba(0,0,0,.4) 0 55%, transparent 75%),
+        radial-gradient(ellipse calc(var(--vu) * 70) calc(var(--vu) * 50) at center, rgba(255,255,255,.3) 0 55%, transparent 75%),
+        radial-gradient(ellipse calc(var(--vu) * 60) calc(var(--vu) * 40) at center, rgba(0,0,0,.35) 0 55%, transparent 75%);
+      background-repeat: no-repeat;
+      background-position: 6% 20%, 18% 65%, 32% 8%, 48% 80%, 70% 25%, 86% 55%, 94% 15%, 12% 45%, 60% 10%, 82% 70%;
+      background-size: 100% 100%;
+    }
+
+    .headline-col { position: absolute; top: calc(var(--vu) * 70); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--vu) * 14); z-index: 6; }
+    .headline-splatter { position: absolute; top: calc(var(--vu) * -30); left: 50%; transform: translateX(-50%); width: calc(var(--vu) * 900); height: calc(var(--vu) * 200); pointer-events: none; }
+    .headline-wrap { position: relative; }
+    .headline-stroke { position: absolute; inset: 0; font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 76); color: var(--ink); -webkit-text-stroke: calc(var(--vu) * 12) var(--ink); white-space: nowrap; }
+    .headline-fill { position: relative; font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 76); color: var(--paper); text-shadow: calc(var(--vu) * 6) calc(var(--vu) * 6) 0 var(--crimson-dark); -webkit-text-stroke: calc(var(--vu) * 5) var(--ink); white-space: nowrap; }
+    .drip { position: absolute; border-radius: 0 0 calc(var(--vu) * 6) calc(var(--vu) * 6); }
+    .drip.d1 { left: 22%; bottom: calc(var(--vu) * -18); width: calc(var(--vu) * 8); height: calc(var(--vu) * 26); background: var(--paper); }
+    .drip.d2 { left: 66%; bottom: calc(var(--vu) * -22); width: calc(var(--vu) * 7); height: calc(var(--vu) * 30); background: var(--crimson); }
+    .outro-tagline { font-weight: 600; font-size: calc(var(--vu) * 26); letter-spacing: 4px; color: var(--cream); white-space: nowrap; }
+
+    .mvp-card { position: absolute; top: calc(var(--vu) * 290); left: calc(var(--vu) * 660); width: calc(var(--vu) * 600); height: calc(var(--vu) * 520); border-radius: calc(var(--vu) * 16); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); box-shadow: 0 calc(var(--vu) * 24) calc(var(--vu) * 60) rgba(0,0,0,.5); z-index: 6; }
+    .mvp-header { background: var(--crimson); color: var(--cream); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 19); padding: calc(var(--vu) * 14) calc(var(--vu) * 22); text-align: center; }
+    .mvp-body { position: relative; height: calc(100% - calc(var(--vu) * 54)); background: rgba(0,0,0,.9); overflow: hidden; }
+    .mvp-track { position: absolute; width: 100%; }
+    .mvp-track.scrolling { animation: marqueeY 16s linear infinite; }
+    .mvp-row { padding: calc(var(--vu) * 14) calc(var(--vu) * 26); font-size: calc(var(--vu) * 24); border-bottom: 1px solid rgba(255,255,255,.25); display: flex; justify-content: space-between; gap: calc(var(--vu) * 12); }
+    .mvp-row .mvp-name { font-weight: 700; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mvp-row .mvp-points { color: var(--cream); opacity: .85; white-space: nowrap; }
+    .mvp-empty { padding: calc(var(--vu) * 28) calc(var(--vu) * 26); font-size: calc(var(--vu) * 20); color: rgba(229,229,229,.6); text-align: center; }
+
+    .social-row { position: absolute; bottom: calc(var(--vu) * 70); left: 0; right: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: calc(var(--vu) * 22); z-index: 6; }
+    .social-chip { font-weight: 700; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 12) calc(var(--vu) * 26); border-radius: calc(var(--vu) * 6); box-shadow: calc(var(--vu) * 4) calc(var(--vu) * 4) 0 rgba(0,0,0,.4); white-space: nowrap; }
+    .social-chip.primary { color: var(--ink); background: var(--paper); transform: rotate(-2deg); }
+
+    .alert-card { position: absolute; top: calc(var(--vu) * 70); right: calc(var(--vu) * 70); width: calc(var(--vu) * 520); background: #000000; border-radius: calc(var(--vu) * 16); padding: calc(var(--vu) * 26) calc(var(--vu) * 30); display: none; align-items: center; gap: calc(var(--vu) * 20); border: calc(var(--vu) * 3) solid var(--alert-accent, #FFFFFF); box-shadow: 0 0 0 calc(var(--vu) * 6) rgba(0,0,0,.35), 0 calc(var(--vu) * 18) calc(var(--vu) * 40) rgba(0,0,0,.5), 0 0 calc(var(--vu) * 46) var(--alert-accent, #FFFFFF); z-index: 80; }
+    .alert-card.visible { display: flex; animation: alertPop .5s cubic-bezier(.2,1.4,.4,1); }
+    .alert-card.alert-follow { --alert-accent: #FFFFFF; }
+    .alert-card.alert-sub { --alert-accent: #C8102E; }
+    .alert-card.alert-donation { --alert-accent: #AFAFAF; }
+    .alert-icon { font-size: calc(var(--vu) * 52); }
+    .alert-title { font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 22); color: #E5E5E5; }
+    .alert-subtext { font-weight: 600; font-size: calc(var(--vu) * 22); color: #FFFFFF; margin-top: calc(var(--vu) * 4); }
+  </style>
+</head>
+<body>
+
+  <div id="stage">
+    <div class="headline-col">
+      <div class="splatter headline-splatter"></div>
+      <div class="headline-wrap">
+        <div class="headline-stroke">THANKS FOR WATCHING</div>
+        <div class="headline-fill">THANKS FOR WATCHING</div>
+        <div class="drip d1"></div><div class="drip d2"></div>
+      </div>
+      <div class="outro-tagline">DaNgsxr1000 — CATCH THE NEXT SESSION SOON</div>
+    </div>
+
+    <div class="mvp-card">
+      <div class="mvp-header">🏆 TONIGHT'S MVPS</div>
+      <div class="mvp-body" id="mvpBody"></div>
+    </div>
+
+    <div class="social-row">
+      <div class="social-chip primary">TWITCH · DANGSXR1000</div>
+    </div>
+
+    <div class="scanline-overlay"></div>
+    <div class="flicker-overlay"></div>
+
+    <div class="alert-card" id="alertCard">
+      <div class="alert-icon" id="alertIcon"></div>
+      <div>
+        <div class="alert-title" id="alertTitle"></div>
+        <div class="alert-subtext" id="alertSubtext"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+
+    // ---------- TONIGHT'S MVPS (echt, liest dangsxr_leaderboard aus leaderboard.html) ----------
+    const LEADERBOARD_KEY = 'dangsxr_leaderboard';
+    const MAX_MVP_ROWS = 8;
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function loadMvpEntries() {
+      try {
+        const raw = localStorage.getItem(LEADERBOARD_KEY);
+        if (!raw) return [];
+        const board = JSON.parse(raw);
+        if (!board || !board.entries) return [];
+        return Object.entries(board.entries)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, MAX_MVP_ROWS);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function renderMvpList() {
+      const entries = loadMvpEntries();
+      const mvpBody = document.getElementById('mvpBody');
+      mvpBody.innerHTML = '';
+
+      if (entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'mvp-empty';
+        empty.textContent = 'NOCH KEINE SUPPORTER DIESE WOCHE';
+        mvpBody.appendChild(empty);
+        return;
+      }
+
+      const rowsHtml = entries.map(([name, points]) =>
+        `<div class="mvp-row"><span class="mvp-name">${escapeHtml(name)}</span><span class="mvp-points">${points} Pkt.</span></div>`
+      ).join('');
+
+      const track = document.createElement('div');
+      track.className = 'mvp-track';
+      // Liste wird einmal dupliziert, damit die marqueeY-Animation (0 -> -50%)
+      // nahtlos loopt - nur wenn genug Zeilen fuer einen sinnvollen Scroll da sind.
+      if (entries.length > 4) {
+        track.classList.add('scrolling');
+        track.innerHTML = rowsHtml + rowsHtml;
+      } else {
+        track.innerHTML = rowsHtml;
+      }
+      mvpBody.appendChild(track);
+    }
+    renderMvpList();
+
+    // ---------- Alert-Popup (Follow/Sub/Donation, identisches Muster in allen 5 Szenen) ----------
+    const alertCard = document.getElementById('alertCard');
+    const alertIconEl = document.getElementById('alertIcon');
+    const alertTitleEl = document.getElementById('alertTitle');
+    const alertSubtextEl = document.getElementById('alertSubtext');
+    let alertHideTimer = null;
+    function showAlert(kind, icon, title, sub) {
+      clearTimeout(alertHideTimer);
+      alertCard.className = 'alert-card visible alert-' + kind;
+      alertIconEl.textContent = icon;
+      alertTitleEl.textContent = title;
+      alertSubtextEl.textContent = sub;
+      alertHideTimer = setTimeout(() => { alertCard.classList.remove('visible'); }, 5000);
+    }
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      if (type === 'channel.follow') {
+        showAlert('follow', '🎤', 'NEW FOLLOWER', (event.user_name || 'Zuschauer') + ' joined the crew');
+      } else if (type === 'channel.subscribe') {
+        showAlert('sub', '💿', 'NEW SUBSCRIBER', 'Tier 1 — welcome to the block party');
+      } else if (type === 'channel.subscription.message') {
+        showAlert('sub', '💿', 'RESUB', (event.user_name || 'Zuschauer') + ' — ' + (event.cumulative_months || event.streak_months || '?') + ' Monate dabei');
+      } else if (type === 'channel.cheer') {
+        showAlert('donation', '💰', (event.bits || 0) + ' BITS', (event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer')) + ' — thanks for the love 🙏');
+      } else if (type === 'channel.raid') {
+        showAlert('sub', '🚨', 'RAID', (event.from_broadcaster_user_name || 'Ein Raid') + ' bringt ' + (event.viewers || '?') + ' Zuschauer mit');
+      }
+    }
+
+    // ---------- Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik aus goal.html/event-cards.html) ----------
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+    connectTwitchEventSub();
+
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid) ----------
+    const TEST_ACTIONS = {
+      follow: () => showAlert('follow', '🎤', 'NEW FOLLOWER', 'TapeDeckTravis joined the crew'),
+      sub: () => showAlert('sub', '💿', 'NEW SUBSCRIBER', 'Tier 1 — welcome to the block party'),
+      resub: () => showAlert('sub', '💿', 'RESUB', 'BoomBapBetty — 6 Monate dabei'),
+      bits: () => showAlert('donation', '💰', '200 BITS', 'VinylVandal99 — thanks for the love 🙏'),
+      cheer: () => showAlert('donation', '💰', '200 BITS', 'VinylVandal99 — thanks for the love 🙏'),
+      raid: () => showAlert('sub', '🚨', 'RAID', 'Cassette_King bringt 12 Zuschauer mit'),
+    };
+    const testParam = params.get('test');
+    if (testParam && TEST_ACTIONS[testParam]) {
+      setTimeout(TEST_ACTIONS[testParam], 600);
+    }
+  </script>
+</body>
+</html>

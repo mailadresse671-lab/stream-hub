@@ -477,6 +477,8 @@
     const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
     const OVERLAY_CHANNEL = 'dangsxr1000';
     const params = new URLSearchParams(location.search);
+    const RL_MODE = (params.get('rlMode') || 'auto').trim().toLowerCase();
+    const RL_PLAYLIST = (params.get('rlPlaylist') || '').trim();
 
     // =====================================================================
     // Rocket-League-Session-Stats: wiederverwendet dieselbe fetchStats()/
@@ -515,7 +517,11 @@
     async function fetchRlStats() {
       try {
         const cleanUrl = VERCEL_URL.replace(/\/$/, "");
-        const res = await fetch(`${cleanUrl}/api/stats`);
+        const apiParams = new URLSearchParams();
+        if (RL_MODE) apiParams.set('mode', RL_MODE);
+        if (RL_PLAYLIST) apiParams.set('playlist', RL_PLAYLIST);
+        const apiUrl = `${cleanUrl}/api/stats${apiParams.toString() ? `?${apiParams.toString()}` : ''}`;
+        const res = await fetch(apiUrl);
         const data = await res.json();
         if (data && data.success) {
           setRlStatus(data.stale ? 'cached' : 'live');

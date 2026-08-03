@@ -2,7 +2,15 @@
 
 Kompakter Überblick über alle Streamlabs-Browser-Quellen ("Szenen") im Repo. Ausführliche Details, Historie und Begründungen stehen in [`CLAUDE.md`](./CLAUDE.md), Einrichtungs-Checkliste für neue Quellen in [`STREAMLABS_SETUP.md`](./STREAMLABS_SETUP.md) — diese Tabelle ist die Kurzfassung zum schnellen Scannen.
 
+Ordnungsregel:
+- Root-Dateien bleiben die stabilen Browser-Quellen-Einstiege.
+- Kanonische Core-Szenen liegen unter `scenes/core/`.
+- Kanonische Suite-Quellen liegen, wenn bereits migriert, unter `scenes/`.
+- Die komplette 90s-Old-School-Suite liegt kanonisch unter `scenes/oldschool/`; die gleichnamigen Root-Dateien sind nur noch Kompatibilitaets-Einstiege.
+
 ## Vollflächige Master-/Einzel-Szenen
+
+Kanonische Quellseiten dieser Gruppe liegen unter `scenes/core/`; die gleichnamigen Root-Dateien bleiben als stabile Browser-Quellen-Einstiege erhalten.
 
 Randlos ausgelegt (`--vu`-Fluid-Unit-System), für die gesamte Streamlabs-Canvas gedacht.
 
@@ -16,7 +24,33 @@ Randlos ausgelegt (`--vu`-Fluid-Unit-System), für die gesamte Streamlabs-Canvas
 | `index.html` | Session-Stats-Widget für Wins, Losses, Winrate und Rocket-League-Rang/MMR | Glassmorphism (alt) | 🟢 | API-Polling (`/api/stats`), Rang-HUD, Status |
 | `branding.html` | Statisches Branding-Widget für die untere rechte Ecke des Streams | Glassmorphism (alt) | 🟢 | Statischer Schriftzug ("DaN \| LIVE STREAM") |
 
+## "90s Old School Edition"-Szenen (drittes eigenständiges visuelles System)
+
+Randlos ausgelegt (`--vu`-Fluid-Unit-System), eigenständige Szenen-Sammlung — ergänzt die obigen Szenen, ersetzt nichts. Aus dem Claude-Design-Export "DaNgsxr1000 Stream Overlay Suite" übersetzt (Rubik Spray Paint/Permanent Marker/Barlow Condensed, Schwarz/Weiß + Blutrot). Details siehe `CLAUDE.md`.
+
+| Dateiname | Zweck | Status | Eigene Live-Verbindung |
+| :--- | :--- | :---: | :--- |
+| `oldschool-starting.html` | "Starting Soon"-Ersatz-Szene mit echtem Countdown (`?minutes=`) + Track-Ticker | 🟢 | EventSub (Alert-Popup) |
+| `oldschool-chatting.html` | "Just Chatting"-Overlay: Latest-Follower-Badge, Sub-Ziel-Balken (`?subgoal=`), Chat-Box | 🟢 | tmi.js, EventSub, Polling `/api/twitch-followers` + `/api/twitch-subs` |
+| `oldschool-gameplay.html` | Transparentes Vollbild-Overlay über dem Gameplay, Safe-Zone-Guides per `?safezones=1` | 🟢 | EventSub (Alert-Popup) |
+| `oldschool-brb.html` | "BRB"-Ersatz-Szene mit Mic-Status-Badge (`?mic=`) + Chat-Box | 🟢 | tmi.js, EventSub |
+| `oldschool-outro.html` | "Stream Ending"-Ersatz-Szene mit echter "Tonight's MVPs"-Liste aus `dangsxr_leaderboard` | 🟢 | EventSub (Alert-Popup) |
+
+**Live-Validierung läuft bereits** — `oldschool-starting.html` und `oldschool-chatting.html`/`oldschool-brb.html` wurden je mind. einmal live in Streamlabs Mobile getestet und nachgebessert (Social-Chips reduziert, Countdown-Clipping behoben, tanzender Bär, Bär statt leerem Facecam-Slot, sichtbarer Chat-Status, Chat-Box-Positionierung robuster gegen schmale Browser-Quellen). `oldschool-gameplay.html`/`oldschool-outro.html` noch ungetestet. Details + volle Live-Test-Historie siehe `CLAUDE.md`, Offene Punkte #18.
+
+## Regie-Tools (Browser-Steuerung)
+
+Diese Seiten sind Regie-/Control-UIs und keine Streamlabs-Overlay-Szenen:
+
+| Dateiname | Zweck | Status |
+| :--- | :--- | :---: |
+| `oldschool-regie.html` | Hub-Startseite mit klarer Auswahl zwischen Live Deck und Studio Console | 🟢 |
+| `oldschool-live.html` | Minimales Handy-Live-Deck (1-Tap Szenenwechsel auf `oldschool-master`) | 🟢 |
+| `oldschool-studio.html` | Vollständige Studio-Console mit erweiterten Settings (Track, Ordner, Audio, API/Key) | 🟢 |
+
 ## Frei positionierbare Einzel-Widget-Quellen
+
+Kanonische Quellseiten dieser Gruppe liegen unter `widgets/`; die gleichnamigen Root-Dateien bleiben als stabile Browser-Quellen-Einstiege erhalten.
 
 Füllen ihre eigene Seite randlos aus (`inset:0` + `object-fit:contain` bzw. `width/height:100%`), OHNE eigene feste Positions-Offsets im Code — Größe/Platzierung auf dem Canvas wird ausschließlich über Streamlabs' eigenes Transform-Panel gesteuert (siehe `STREAMLABS_SETUP.md`). Entstanden, weil ein einzelnes fest im Code positioniertes `in-game.html`-Bündel wiederholt mit unterschiedlichen Rocket-League-Bildschirmen (Lobby-Menü, Ingame-HUD, Nachspiel-Ergebnisliste) kollidierte — jedes Widget lässt sich jetzt unabhängig dorthin ziehen, wo auf dem jeweiligen Gerät/Bildschirm tatsächlich Platz ist. Inhaltlich/funktional identisch zu den entsprechenden Widgets in `in-game.html` (welches als Bündel-Option weiterhin unverändert bestehen bleibt).
 

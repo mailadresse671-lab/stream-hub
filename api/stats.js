@@ -5,18 +5,69 @@ const TRACKER_API_KEY = process.env.TRACKER_API_KEY;
 
 // Modul-weiter In-Memory-Cache: bleibt zwischen Aufrufen erhalten, solange
 // Vercel dieselbe (warme) Function-Instanz wiederverwendet.
-let cache = { data: null, timestamp: 0 };
+// Wichtig: pro angefragter Playlist/Modus cachen, damit sich 1v1/2v2/3v3
+// Antworten nicht gegenseitig ueberschreiben.
+const cacheBySelection = new Map();
 
 // Bevorzugte Ranked-Playlists in Praeferenz-Reihenfolge (2v2 zuerst, passt
 // zu den "2v2"/"3v3"-Tags im Kanal-Profil), Fallback auf die erste Playlist
 // mit gueltigen Tier-Daten, falls keine der beiden vorhanden ist.
 const PREFERRED_PLAYLIST_KEYS = ['ranked-doubles', 'ranked-standard'];
+const VALID_MODES = new Set(['auto', '1v1', '2v2', '3v3', 'hoops', 'rumble', 'dropshot', 'snowday']);
+
+const MODE_TOKENS = {
+  '1v1': ['duel', '1v1', 'soloduel', 'rankedduel'],
+  '2v2': ['doubles', '2v2', 'double', 'rankeddoubles'],
+  '3v3': ['standard', '3v3', 'rankedstandard'],
+  hoops: ['hoops'],
+  rumble: ['rumble'],
+  dropshot: ['dropshot', 'drop shot'],
+  snowday: ['snowday', 'snow day']
+};
+
+function asSingleString(value) {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : '';
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeText(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function parseSelection(req) {
+  const rawMode = asSingleString(req?.query?.mode).toLowerCase().trim();
+  const mode = VALID_MODES.has(rawMode) ? rawMode : 'auto';
+
+  const rawPlaylist = asSingleString(req?.query?.playlist).trim();
+  const playlist = rawPlaylist ? rawPlaylist : null;
+
+  return { mode, playlist };
+}
+
+function makeCacheKey(selection) {
+  const playlistPart = selection.playlist ? selection.playlist.toLowerCase() : '-';
+  return `${PLATFORM}:${PLAYER_NAME}:${selection.mode}:${playlistPart}`;
+}
+
+function listPlaylists(segments) {
+  if (!Array.isArray(segments)) return [];
+  return segments
+    .filter((segment) => segment?.type === 'playlist')
+    .map((segment) => ({
+      key: segment?.attributes?.key || null,
+      name: segment?.metadata?.name || null,
+      tierName: segment?.stats?.tier?.metadata?.name || null,
+      mmr: segment?.stats?.rating?.value ?? null,
+      hasRank: Boolean(segment?.stats?.tier?.metadata?.name)
+    }));
+}
 
 function extractRank(segment) {
   const tier = segment?.stats?.tier;
   const rating = segment?.stats?.rating;
   if (!tier?.metadata?.name) return null;
   return {
+    playlistKey: segment?.attributes?.key || null,
     playlist: segment.metadata?.name || segment.attributes?.key || 'Ranked',
     tierName: tier.metadata.name,
     tierIconUrl: tier.metadata.iconUrl || null,
@@ -24,13 +75,62 @@ function extractRank(segment) {
   };
 }
 
+function pickByMode(playlists, mode) {
+  const tokens = MODE_TOKENS[mode] || [];
+  if (tokens.length === 0) return null;
+
+  for (const segment of playlists) {
+    const rank = extractRank(segment);
+    if (!rank) continue;
+    const haystack = normalizeText(`${segment?.attributes?.key || ''} ${segment?.metadata?.name || ''}`);
+    const matches = tokens.some((token) => haystack.includes(normalizeText(token)));
+    if (matches) return rank;
+  }
+
+  return null;
+}
+
+function pickByExplicitPlaylist(playlists, playlist) {
+  if (!playlist) return null;
+  const wanted = normalizeText(playlist);
+
+  for (const segment of playlists) {
+    const rank = extractRank(segment);
+    if (!rank) continue;
+    const key = normalizeText(segment?.attributes?.key || '');
+    const name = normalizeText(segment?.metadata?.name || '');
+    if (key === wanted || name === wanted) {
+      return rank;
+    }
+  }
+
+  for (const segment of playlists) {
+    const rank = extractRank(segment);
+    if (!rank) continue;
+    const haystack = normalizeText(`${segment?.attributes?.key || ''} ${segment?.metadata?.name || ''}`);
+    if (haystack.includes(wanted)) {
+      return rank;
+    }
+  }
+
+  return null;
+}
+
 // Sucht in den Tracker.gg-Segmenten nach Rang-/MMR-Daten fuer eine
 // bevorzugte Playlist. Liefert null, wenn nichts Verwertbares gefunden
 // wird (z.B. Season noch unranked) - das Overlay blendet den Rang-HUD dann
 // einfach aus, statt kaputte Werte anzuzeigen.
-function findRank(segments) {
+function findRank(segments, selection) {
   if (!Array.isArray(segments)) return null;
   const playlists = segments.filter(s => s.type === 'playlist');
+
+  const explicitMatch = pickByExplicitPlaylist(playlists, selection?.playlist);
+  if (explicitMatch) return explicitMatch;
+
+  if (selection?.mode && selection.mode !== 'auto') {
+    const modeMatch = pickByMode(playlists, selection.mode);
+    if (modeMatch) return modeMatch;
+  }
 
   for (const key of PREFERRED_PLAYLIST_KEYS) {
     const match = playlists.find(s => s.attributes?.key === key);
@@ -56,16 +156,19 @@ export default async function handler(req, res) {
     return;
   }
 
+  const selection = parseSelection(req);
+  const cacheKey = makeCacheKey(selection);
+  const cacheEntry = cacheBySelection.get(cacheKey);
   const now = Date.now();
 
   // Frischer Cache-Treffer: kein neuer Request an tracker.gg nötig
-  if (cache.data && (now - cache.timestamp) < CACHE_TTL_MS) {
-    return res.status(200).json({ ...cache.data, cached: true, stale: false });
+  if (cacheEntry && (now - cacheEntry.timestamp) < CACHE_TTL_MS) {
+    return res.status(200).json({ ...cacheEntry.data, cached: true, stale: false });
   }
 
   if (!TRACKER_API_KEY) {
-    if (cache.data) {
-      return res.status(200).json({ ...cache.data, cached: true, stale: true });
+    if (cacheEntry?.data) {
+      return res.status(200).json({ ...cacheEntry.data, cached: true, stale: true });
     }
     return res.status(200).json({
       success: false,
@@ -93,8 +196,8 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      if (cache.data) {
-        return res.status(200).json({ ...cache.data, cached: true, stale: true });
+      if (cacheEntry?.data) {
+        return res.status(200).json({ ...cacheEntry.data, cached: true, stale: true });
       }
       // Detaillierte Diagnose statt einer generischen Meldung - 401/403 =
       // API-Key fehlt/ungueltig, 404 = Spieler/Plattform nicht gefunden,
@@ -110,6 +213,7 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
+    const playlists = listPlaylists(data?.data?.segments);
     const overview = data?.data?.segments?.find(s => s.type === 'overview');
 
     if (overview && overview.stats) {
@@ -121,16 +225,19 @@ export default async function handler(req, res) {
         player: PLAYER_NAME,
         wins: wins,
         matches: matches,
-        rank: findRank(data?.data?.segments)
+        selectedMode: selection.mode,
+        selectedPlaylist: selection.playlist,
+        availablePlaylists: playlists,
+        rank: findRank(data?.data?.segments, selection)
       };
 
-      cache = { data: payload, timestamp: now };
+      cacheBySelection.set(cacheKey, { data: payload, timestamp: now });
 
       return res.status(200).json({ ...payload, cached: false, stale: false });
     }
 
-    if (cache.data) {
-      return res.status(200).json({ ...cache.data, cached: true, stale: true });
+    if (cacheEntry?.data) {
+      return res.status(200).json({ ...cacheEntry.data, cached: true, stale: true });
     }
     const foundSegmentTypes = Array.isArray(data?.data?.segments) ? data.data.segments.map(s => s.type) : [];
     return res.status(200).json({
@@ -139,8 +246,8 @@ export default async function handler(req, res) {
       foundSegmentTypes
     });
   } catch (err) {
-    if (cache.data) {
-      return res.status(200).json({ ...cache.data, cached: true, stale: true });
+    if (cacheEntry?.data) {
+      return res.status(200).json({ ...cacheEntry.data, cached: true, stale: true });
     }
     return res.status(500).json({ error: err.message });
   }
