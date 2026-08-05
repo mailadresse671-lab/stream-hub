@@ -122,6 +122,8 @@
 
     .bear-dance-anchor { position: absolute; left: calc(var(--vu) * 70); top: 50%; transform: translateY(-50%); width: calc(var(--vu) * 230); height: calc(var(--vu) * 410); z-index: 5; }
     .bear-dance-anchor img { width: 100%; height: 100%; object-fit: contain; transform-origin: bottom center; animation: bearDance 1.4s ease-in-out infinite; filter: drop-shadow(0 0 calc(var(--vu) * 3) rgba(200,16,46,.9)) drop-shadow(0 0 calc(var(--vu) * 16) rgba(200,16,46,.55)) drop-shadow(0 0 calc(var(--vu) * 40) rgba(200,16,46,.3)); }
+    .bear-dance-anchor-right { position: absolute; right: calc(var(--vu) * 70); top: 50%; transform: translateY(-50%); width: calc(var(--vu) * 230); height: calc(var(--vu) * 410); z-index: 5; }
+    .bear-dance-anchor-right img { width: 100%; height: 100%; object-fit: contain; transform-origin: bottom center; animation: bearDance 1.4s ease-in-out infinite; filter: drop-shadow(0 0 calc(var(--vu) * 3) rgba(200,16,46,.9)) drop-shadow(0 0 calc(var(--vu) * 16) rgba(200,16,46,.55)) drop-shadow(0 0 calc(var(--vu) * 40) rgba(200,16,46,.3)); }
     @keyframes bearDance {
       0%, 100% { transform: translateY(0) rotate(-4deg) scale(1); }
       25% { transform: translateY(calc(var(--vu) * -16)) rotate(3deg) scale(1.03); }
@@ -149,6 +151,9 @@
 
     <div class="bear-dance-anchor">
       <img src="/assets/images/avatar_idle.png" alt="DaN Maskottchen" onerror="this.style.display='none';">
+    </div>
+    <div class="bear-dance-anchor-right">
+      <img src="/assets/images/avatar_action.png" alt="DaN Maskottchen" onerror="this.style.display='none';">
     </div>
 
     <div class="headline-col">
