@@ -69,7 +69,6 @@
     html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Barlow Condensed', sans-serif; color: var(--cream); background: #050505; }
 
     @keyframes spinRecord { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    @keyframes marqueeX { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
     @keyframes flicker { 0%, 100% { opacity: .04; } 50% { opacity: .09; } }
     @keyframes alertPop { 0% { transform: translateY(calc(var(--vu) * -30)) scale(.9); opacity: 0; } 60% { transform: translateY(calc(var(--vu) * 4)) scale(1.03); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
@@ -130,10 +129,6 @@
       75% { transform: translateY(calc(var(--vu) * -10)) rotate(4deg) scale(1.02); }
     }
 
-    .ticker-bar { position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--vu) * 78); background: #111111; border-top: calc(var(--vu) * 4) solid var(--paper); overflow: hidden; display: flex; align-items: center; z-index: 6; }
-    .ticker-track { white-space: nowrap; display: flex; gap: calc(var(--vu) * 80); animation: marqueeX 18s linear infinite; padding-left: calc(var(--vu) * 40); width: max-content; }
-    .ticker-track span { font-weight: 700; font-size: calc(var(--vu) * 28); color: var(--paper); white-space: nowrap; }
-
     .alert-card { position: absolute; top: calc(var(--vu) * 70); right: calc(var(--vu) * 70); width: calc(var(--vu) * 520); background: #000000; border-radius: calc(var(--vu) * 16); padding: calc(var(--vu) * 26) calc(var(--vu) * 30); display: none; align-items: center; gap: calc(var(--vu) * 20); border: calc(var(--vu) * 3) solid var(--alert-accent, #FFFFFF); box-shadow: 0 0 0 calc(var(--vu) * 6) rgba(0,0,0,.35), 0 calc(var(--vu) * 18) calc(var(--vu) * 40) rgba(0,0,0,.5), 0 0 calc(var(--vu) * 46) var(--alert-accent, #FFFFFF); z-index: 80; }
     .alert-card.visible { display: flex; animation: alertPop .5s cubic-bezier(.2,1.4,.4,1); }
     .alert-card.alert-follow { --alert-accent: #FFFFFF; }
@@ -175,12 +170,6 @@
       <div class="social-chip primary">TWITCH · DANGSXR1000</div>
     </div>
 
-    <div class="ticker-bar">
-      <div class="ticker-track">
-        <span id="tickerText1"></span>
-        <span id="tickerText2"></span>
-      </div>
-    </div>
 
     <div class="scanline-overlay"></div>
     <div class="flicker-overlay"></div>
@@ -243,13 +232,6 @@
       requestAnimationFrame(tickCountdown);
     }
     requestAnimationFrame(tickCountdown);
-
-    // ---------- Marquee-Ticker-Text (?track=/?artist=, gleiches Prinzip wie start.html) ----------
-    const trackParam = params.get('track');
-    const artistParam = params.get('artist');
-    const tickerText = '🎵 NOW SPINNING: ' + (trackParam || 'OLD-SCHOOL BOOM BAP & SLOW JAMS MIX') + (artistParam ? ' — ' + artistParam : ' — DROP YOUR REQUEST IN CHAT');
-    document.getElementById('tickerText1').textContent = tickerText;
-    document.getElementById('tickerText2').textContent = tickerText;
 
     // ---------- Alert-Popup (Follow/Sub/Donation, identisches Muster in allen 5 Szenen) ----------
     const alertCard = document.getElementById('alertCard');
