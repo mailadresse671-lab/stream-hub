@@ -102,15 +102,15 @@
        inline-size - dadurch koennen die Widgets DARIN mit cqw arbeiten und
        sich relativ zur tatsaechlichen Container-Breite skalieren, egal wie
        gross/klein der Container selbst gerade gerendert wird. */
-    .widget-container { position: absolute; container-type: inline-size; }
-    .wc-stats   { top: calc(var(--vu) * 40);   left: calc(var(--vu) * 40);   width: calc(var(--vu) * 460); height: calc(var(--vu) * 150); }
-    .wc-hype    { top: calc(var(--vu) * 40);   left: 50%; transform: translateX(-50%); width: calc(var(--vu) * 380); height: calc(var(--vu) * 150); }
-    .wc-events  { top: calc(var(--vu) * 40);   right: calc(var(--vu) * 40);  width: calc(var(--vu) * 420); height: calc(var(--vu) * 340); }
-    .wc-avatar  { bottom: calc(var(--vu) * 300); left: calc(var(--vu) * 40); width: calc(var(--vu) * 230); height: calc(var(--vu) * 300); z-index: 6; }
+    .widget-container { position: absolute; overflow: visible; }
+    .wc-stats   { top: calc(var(--vu) * 40);  left: calc(var(--vu) * 40);  width: 460px; height: 150px; }
+    .wc-hype    { top: calc(var(--vu) * 200); left: calc(var(--vu) * 40);  width: 380px; height: 150px; }
+    .wc-events  { top: calc(var(--vu) * 40);  right: calc(var(--vu) * 40); width: 420px; height: 340px; }
+    .wc-avatar  { bottom: calc(var(--vu) * 40); left: calc(var(--vu) * 400); width: 230px; height: 300px; z-index: 6; }
     /* ===== Rocket-League-Stats (aus rl-stats.html) ===== */
-    .wc-stats { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.263cqw, 3px); font-family: 'Share Tech Mono', monospace; }
+    .wc-stats { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: 1px; font-family: 'Share Tech Mono', monospace; }
     @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
-    .stats-fill { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+    .stats-fill { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden; }
     .rl-stats-card { position: relative; width: 100%; padding: calc(var(--vu) * 12) calc(var(--vu) * 16); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); color: var(--cream); }
     .rl-stats-header { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 10); }
     .rl-stats-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 15); letter-spacing: 1px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; white-space: nowrap; }
@@ -141,9 +141,9 @@
     .rl-offline-sub { font-size: calc(var(--vu) * 10); letter-spacing: 1.5px; color: var(--tan); }
 
     /* ===== Hype-Level (aus widgets/hype-level.html) ===== */
-    .wc-hype { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.263cqw, 3px); font-family: 'Share Tech Mono', monospace; }
+    .wc-hype { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: 1px; font-family: 'Share Tech Mono', monospace; }
     @keyframes hypePulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(255,35,64,.5), 0 0 22px rgba(255,35,64,.35); } 50% { box-shadow: 0 0 0 1px rgba(255,35,64,.95), 0 0 46px rgba(255,35,64,.8); } }
-    .hype-fill { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+    .hype-fill { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden; }
     .hype-card { position: relative; width: 100%; padding: calc(var(--vu) * 16) calc(var(--vu) * 18); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); border: 1px solid rgba(255,35,64,.4); box-shadow: 0 4px 16px rgba(0,0,0,.5); color: var(--cream); }
     .hype-corner { position: absolute; width: calc(var(--vu) * 16); height: calc(var(--vu) * 16); pointer-events: none; }
     .hype-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
@@ -164,7 +164,7 @@
     .hype-max-border.show { display: block; animation: hypePulse 1s ease-in-out infinite; }
 
     /* ===== Event-Cards (aus widgets/event-cards.html) ===== */
-    .wc-events { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.25cqw, 3px); font-family: 'Share Tech Mono', monospace; }
+    .wc-events { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: 1px; font-family: 'Share Tech Mono', monospace; }
     @keyframes chromeShine { 0% { background-position: -160% 0, 0 0; } 45% { background-position: 160% 0, 0 0; } 100% { background-position: 160% 0, 0 0; } }
     .chrome-frame {
       padding: 1.5px;
@@ -174,7 +174,7 @@
       animation: chromeShine 6s ease-in-out infinite;
       box-shadow: 0 4px 14px rgba(0,0,0,.5);
     }
-    .events-fill { position: relative; width: 100%; height: 100%; padding: calc(var(--vu) * 6); display: flex; flex-direction: column; justify-content: center; }
+    .events-fill { position: relative; width: 100%; height: 100%; padding: 6px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
     .event-stack { width: 100%; display: flex; flex-direction: column; gap: calc(var(--vu) * 16); }
     .event-card { height: calc(var(--vu) * 84); }
     .event-card-inner { position: relative; width: 100%; height: 100%; background: linear-gradient(160deg, #1c1a17 0%, #100e0c 100%); display: flex; align-items: center; gap: calc(var(--vu) * 14); padding: 0 calc(var(--vu) * 16); overflow: hidden; color: var(--cream); }
@@ -239,7 +239,7 @@
       position: absolute; left: 50%; bottom: 2%; transform: translate(-50%, 14px);
       padding: 0.35em 0.9em; background: rgba(10, 9, 8, 0.85); border: 2px solid var(--blood); border-radius: 10px;
       color: #f4f1ea; font-family: Arial, Helvetica, sans-serif; font-weight: 800; letter-spacing: 1px;
-      font-size: clamp(9px, 2cqw, 16px); white-space: nowrap; text-shadow: 0 0 8px var(--blood);
+      font-size: 14px; white-space: nowrap; text-shadow: 0 0 8px var(--blood);
       opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; z-index: 5;
     }
     .avatar-callout.visible { opacity: 1; transform: translate(-50%, 0); }
