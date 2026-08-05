@@ -69,6 +69,354 @@
     html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Barlow Condensed', sans-serif; color: var(--cream); background: #050505; }
 
     @keyframes spinRecord { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes flicker { 0%, 100% { opacity: .04; } 50% { opacity: .09; } }
+    @keyframes alertPop { 0% { transform: translateY(calc(var(--vu) * -30)) scale(.9); opacity: 0; } 60% { transform: translateY(calc(var(--vu) * 4)) scale(1.03); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
+    #stage {
+      position: fixed; inset: 0; overflow: hidden;
+      background: radial-gradient(ellipse 1400px 900px at 50% 46%, #1c0a0d 0%, #100709 45%, #050405 100%);
+    }
+
+    .scanline-overlay { position: absolute; inset: 0; z-index: 90; pointer-events: none; background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0px, rgba(0,0,0,.16) 1px, transparent 2px, transparent 4px); mix-blend-mode: multiply; }
+    .flicker-overlay { position: absolute; inset: 0; z-index: 91; pointer-events: none; background: #fff; animation: flicker 5s ease-in-out infinite; mix-blend-mode: overlay; }
+
+    .splatter {
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.55) 0 calc(var(--vu) * 3), transparent calc(var(--vu) * 4)),
+        radial-gradient(circle, rgba(200,16,46,.5) 0 calc(var(--vu) * 5), transparent calc(var(--vu) * 6)),
+        radial-gradient(circle, rgba(255,255,255,.4) 0 calc(var(--vu) * 2), transparent calc(var(--vu) * 3)),
+        radial-gradient(circle, rgba(255,255,255,.3) 0 calc(var(--vu) * 4), transparent calc(var(--vu) * 5)),
+        radial-gradient(circle, rgba(200,16,46,.4) 0 calc(var(--vu) * 2), transparent calc(var(--vu) * 3)),
+        radial-gradient(circle, rgba(255,255,255,.5) 0 calc(var(--vu) * 6), transparent calc(var(--vu) * 7)),
+        radial-gradient(circle, rgba(255,255,255,.25) 0 calc(var(--vu) * 3), transparent calc(var(--vu) * 4)),
+        radial-gradient(ellipse calc(var(--vu) * 90) calc(var(--vu) * 60) at center, rgba(0,0,0,.4) 0 55%, transparent 75%),
+        radial-gradient(ellipse calc(var(--vu) * 70) calc(var(--vu) * 50) at center, rgba(255,255,255,.3) 0 55%, transparent 75%),
+        radial-gradient(ellipse calc(var(--vu) * 60) calc(var(--vu) * 40) at center, rgba(0,0,0,.35) 0 55%, transparent 75%);
+      background-repeat: no-repeat;
+      background-position: 6% 20%, 18% 65%, 32% 8%, 48% 80%, 70% 25%, 86% 55%, 94% 15%, 12% 45%, 60% 10%, 82% 70%;
+      background-size: 100% 100%;
+    }
+
+    .vinyl { position: absolute; top: calc(var(--vu) * 70); right: calc(var(--vu) * 100); width: calc(var(--vu) * 170); height: calc(var(--vu) * 170); border-radius: 50%; background: repeating-radial-gradient(circle at center, #000000 0px, #000000 3px, #161616 4px, #161616 7px); box-shadow: 0 calc(var(--vu) * 20) calc(var(--vu) * 50) rgba(0,0,0,.5); animation: spinRecord 7s linear infinite; z-index: 5; }
+    .vinyl-label { position: absolute; top: 50%; left: 50%; width: calc(var(--vu) * 56); height: calc(var(--vu) * 56); transform: translate(-50%, -50%); border-radius: 50%; background: var(--paper); display: flex; align-items: center; justify-content: center; font-family: 'Permanent Marker', cursive; font-size: calc(var(--vu) * 11); color: var(--ink); }
+    .vinyl-hole { position: absolute; top: 50%; left: 50%; width: calc(var(--vu) * 10); height: calc(var(--vu) * 10); transform: translate(-50%, -50%); border-radius: 50%; background: var(--ink); }
+
+    .headline-col { position: absolute; top: calc(var(--vu) * 90); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--vu) * 18); z-index: 6; }
+    .headline-splatter { position: absolute; top: calc(var(--vu) * -40); left: 50%; transform: translateX(-50%); width: calc(var(--vu) * 820); height: calc(var(--vu) * 260); pointer-events: none; }
+    .headline-wrap { position: relative; }
+    .headline-stroke { position: absolute; inset: 0; font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 104); letter-spacing: 2px; transform: rotate(-3deg); color: var(--ink); -webkit-text-stroke: calc(var(--vu) * 16) var(--ink); white-space: nowrap; }
+    .headline-fill { position: relative; font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 104); color: var(--paper); letter-spacing: 2px; transform: rotate(-3deg); text-shadow: calc(var(--vu) * 6) calc(var(--vu) * 6) 0 var(--crimson-dark), calc(var(--vu) * 12) calc(var(--vu) * 12) 0 rgba(0,0,0,.4); -webkit-text-stroke: calc(var(--vu) * 6) var(--ink); white-space: nowrap; }
+    .drip { position: absolute; border-radius: 0 0 calc(var(--vu) * 6) calc(var(--vu) * 6); }
+    .drip.d1 { left: 16%; bottom: calc(var(--vu) * -24); width: calc(var(--vu) * 9); height: calc(var(--vu) * 32); background: var(--paper); transform: rotate(-4deg); }
+    .drip.d2 { left: 50%; bottom: calc(var(--vu) * -18); width: calc(var(--vu) * 7); height: calc(var(--vu) * 22); background: var(--crimson); transform: rotate(-2deg); }
+    .drip.d3 { left: 76%; bottom: calc(var(--vu) * -28); width: calc(var(--vu) * 8); height: calc(var(--vu) * 30); background: var(--paper); transform: rotate(-5deg); }
+    .suite-badge { font-weight: 700; font-size: calc(var(--vu) * 26); letter-spacing: 10px; color: var(--cream); background: var(--crimson); padding: calc(var(--vu) * 8) calc(var(--vu) * 28); border-radius: calc(var(--vu) * 6); transform: rotate(-1.5deg); box-shadow: calc(var(--vu) * 5) calc(var(--vu) * 5) 0 rgba(0,0,0,.4); white-space: nowrap; }
+
+    .countdown-col { position: absolute; top: calc(var(--vu) * 400); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--vu) * 6); z-index: 6; }
+    .countdown-label { font-weight: 600; font-size: calc(var(--vu) * 28); letter-spacing: 14px; color: var(--paper); white-space: nowrap; }
+    .countdown-figure { font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 220); line-height: 1; color: var(--cream); text-shadow: 0 0 calc(var(--vu) * 60) rgba(255,255,255,.5), calc(var(--vu) * 8) calc(var(--vu) * 8) 0 var(--crimson); -webkit-text-stroke: calc(var(--vu) * 2) var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .social-row { position: absolute; bottom: calc(var(--vu) * 210); left: 0; right: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: calc(var(--vu) * 22); z-index: 6; }
+    .social-chip { font-weight: 700; font-size: calc(var(--vu) * 22); padding: calc(var(--vu) * 12) calc(var(--vu) * 26); border-radius: calc(var(--vu) * 6); box-shadow: calc(var(--vu) * 4) calc(var(--vu) * 4) 0 rgba(0,0,0,.4); white-space: nowrap; }
+    .social-chip.primary { color: var(--ink); background: var(--paper); transform: rotate(-2deg); }
+
+    .bear-dance-anchor { position: absolute; left: calc(var(--vu) * 70); top: 50%; transform: translateY(-50%); width: calc(var(--vu) * 230); height: calc(var(--vu) * 410); z-index: 5; }
+    .bear-dance-anchor img { width: 100%; height: 100%; object-fit: contain; transform-origin: bottom center; animation: bearDance 1.4s ease-in-out infinite; filter: drop-shadow(0 0 calc(var(--vu) * 3) rgba(200,16,46,.9)) drop-shadow(0 0 calc(var(--vu) * 16) rgba(200,16,46,.55)) drop-shadow(0 0 calc(var(--vu) * 40) rgba(200,16,46,.3)); }
+    @keyframes bearDance {
+      0%, 100% { transform: translateY(0) rotate(-4deg) scale(1); }
+      25% { transform: translateY(calc(var(--vu) * -16)) rotate(3deg) scale(1.03); }
+      50% { transform: translateY(0) rotate(-3deg) scale(1); }
+      75% { transform: translateY(calc(var(--vu) * -10)) rotate(4deg) scale(1.02); }
+    }
+
+    .alert-card { position: absolute; top: calc(var(--vu) * 70); right: calc(var(--vu) * 70); width: calc(var(--vu) * 520); background: #000000; border-radius: calc(var(--vu) * 16); padding: calc(var(--vu) * 26) calc(var(--vu) * 30); display: none; align-items: center; gap: calc(var(--vu) * 20); border: calc(var(--vu) * 3) solid var(--alert-accent, #FFFFFF); box-shadow: 0 0 0 calc(var(--vu) * 6) rgba(0,0,0,.35), 0 calc(var(--vu) * 18) calc(var(--vu) * 40) rgba(0,0,0,.5), 0 0 calc(var(--vu) * 46) var(--alert-accent, #FFFFFF); z-index: 80; }
+    .alert-card.visible { display: flex; animation: alertPop .5s cubic-bezier(.2,1.4,.4,1); }
+    .alert-card.alert-follow { --alert-accent: #FFFFFF; }
+    .alert-card.alert-sub { --alert-accent: #C8102E; }
+    .alert-card.alert-donation { --alert-accent: #AFAFAF; }
+    .alert-icon { font-size: calc(var(--vu) * 52); }
+    .alert-title { font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 22); color: #E5E5E5; }
+    .alert-subtext { font-weight: 600; font-size: calc(var(--vu) * 22); color: #FFFFFF; margin-top: calc(var(--vu) * 4); }
+  </style>
+</head>
+<body>
+
+  <div id="stage">
+    <div class="vinyl">
+      <div class="vinyl-label">DNG</div>
+      <div class="vinyl-hole"></div>
+    </div>
+
+    <div class="bear-dance-anchor">
+      <img src="/assets/images/avatar_idle.png" alt="DaN Maskottchen" onerror="this.style.display='none';">
+    </div>
+
+    <div class="headline-col">
+      <div class="splatter headline-splatter"></div>
+      <div class="headline-wrap">
+        <div class="headline-stroke">DaNgsxr1000</div>
+        <div class="headline-fill">DaNgsxr1000</div>
+        <div class="drip d1"></div><div class="drip d2"></div><div class="drip d3"></div>
+      </div>
+      <div class="suite-badge">OLD SCHOOL STREAM SUITE</div>
+    </div>
+
+    <div class="countdown-col">
+      <div class="countdown-label" id="countdownLabel">STREAM STARTS IN</div>
+      <div class="countdown-figure" id="countdownFigure">10:00</div>
+    </div>
+
+    <div class="social-row">
+      <div class="social-chip primary">TWITCH · DANGSXR1000</div>
+    </div>
+
+
+    <div class="scanline-overlay"></div>
+    <div class="flicker-overlay"></div>
+
+    <div class="alert-card" id="alertCard">
+      <div class="alert-icon" id="alertIcon"></div>
+      <div>
+        <div class="alert-title" id="alertTitle"></div>
+        <div class="alert-subtext" id="alertSubtext"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+
+    // ---------- Countdown (?minutes=, gleiche Produktionslogik wie start.html:
+    // schaltet bei 0:00 einmalig auf "JETZT LIVE" um statt zu loopen) ----------
+    const minutesParam = parseFloat(params.get('minutes'));
+    const durationMinutes = (isFinite(minutesParam) && minutesParam > 0) ? minutesParam : 10;
+    const totalMs = durationMinutes * 60 * 1000;
+    const endAt = performance.now() + totalMs;
+    const countdownLabelEl = document.getElementById('countdownLabel');
+    const countdownFigureEl = document.getElementById('countdownFigure');
+    function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+    // Misst die tatsaechlich gerenderte Breite der Countdown-Ziffern gegen
+    // die Viewport-Breite und schrumpft die Schriftgroesse bei Bedarf nach -
+    // garantiert vollstaendige Sichtbarkeit unabhaengig davon, wie breit die
+    // Streamlabs-Quelle tatsaechlich rendert (gleiches Prinzip wie
+    // setupSoundtrackMarquee() in goal.html/overlay.html).
+    function fitCountdownText() {
+      countdownFigureEl.style.fontSize = '';
+      const maxWidth = countdownFigureEl.parentElement.clientWidth * 0.92;
+      const naturalWidth = countdownFigureEl.scrollWidth;
+      if (naturalWidth > maxWidth && naturalWidth > 0) {
+        const baseSize = parseFloat(getComputedStyle(countdownFigureEl).fontSize);
+        countdownFigureEl.style.fontSize = (baseSize * (maxWidth / naturalWidth)) + 'px';
+      }
+    }
+    window.addEventListener('resize', fitCountdownText);
+
+    let wentLive = false;
+    let lastSec = -1;
+    function tickCountdown() {
+      const remainingMs = Math.max(0, endAt - performance.now());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      if (remainingSeconds !== lastSec) {
+        lastSec = remainingSeconds;
+        countdownFigureEl.textContent = pad2(remainingSeconds / 60) + ':' + pad2(remainingSeconds % 60);
+        fitCountdownText();
+      }
+      if (remainingMs <= 0 && !wentLive) {
+        wentLive = true;
+        countdownLabelEl.textContent = 'GEHT LIVE';
+        countdownFigureEl.textContent = 'JETZT LIVE';
+        fitCountdownText();
+      }
+      requestAnimationFrame(tickCountdown);
+    }
+    requestAnimationFrame(tickCountdown);
+
+    // ---------- Alert-Popup (Follow/Sub/Donation, identisches Muster in allen 5 Szenen) ----------
+    const alertCard = document.getElementById('alertCard');
+    const alertIconEl = document.getElementById('alertIcon');
+    const alertTitleEl = document.getElementById('alertTitle');
+    const alertSubtextEl = document.getElementById('alertSubtext');
+    let alertHideTimer = null;
+    function showAlert(kind, icon, title, sub) {
+      clearTimeout(alertHideTimer);
+      alertCard.className = 'alert-card visible alert-' + kind;
+      alertIconEl.textContent = icon;
+      alertTitleEl.textContent = title;
+      alertSubtextEl.textContent = sub;
+      alertHideTimer = setTimeout(() => { alertCard.classList.remove('visible'); }, 5000);
+    }
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      if (type === 'channel.follow') {
+        showAlert('follow', '🎤', 'NEW FOLLOWER', (event.user_name || 'Zuschauer') + ' joined the crew');
+      } else if (type === 'channel.subscribe') {
+        showAlert('sub', '💿', 'NEW SUBSCRIBER', 'Tier 1 — welcome to the block party');
+      } else if (type === 'channel.subscription.message') {
+        showAlert('sub', '💿', 'RESUB', (event.user_name || 'Zuschauer') + ' — ' + (event.cumulative_months || event.streak_months || '?') + ' Monate dabei');
+      } else if (type === 'channel.cheer') {
+        showAlert('donation', '💰', (event.bits || 0) + ' BITS', (event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer')) + ' — thanks for the love 🙏');
+      } else if (type === 'channel.raid') {
+        showAlert('sub', '🚨', 'RAID', (event.from_broadcaster_user_name || 'Ein Raid') + ' bringt ' + (event.viewers || '?') + ' Zuschauer mit');
+      }
+    }
+
+    // ---------- Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik aus goal.html/event-cards.html) ----------
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+    connectTwitchEventSub();
+
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid) ----------
+    const TEST_ACTIONS = {
+      follow: () => showAlert('follow', '🎤', 'NEW FOLLOWER', 'TapeDeckTravis joined the crew'),
+      sub: () => showAlert('sub', '💿', 'NEW SUBSCRIBER', 'Tier 1 — welcome to the block party'),
+      resub: () => showAlert('sub', '💿', 'RESUB', 'BoomBapBetty — 6 Monate dabei'),
+      bits: () => showAlert('donation', '💰', '200 BITS', 'VinylVandal99 — thanks for the love 🙏'),
+      cheer: () => showAlert('donation', '💰', '200 BITS', 'VinylVandal99 — thanks for the love 🙏'),
+      raid: () => showAlert('sub', '🚨', 'RAID', 'Cassette_King bringt 12 Zuschauer mit'),
+    };
+    const testParam = params.get('test');
+    if (testParam && TEST_ACTIONS[testParam]) {
+      setTimeout(TEST_ACTIONS[testParam], 600);
+    }
+  </script>
+  <script src="/assets/js/oldschool-music-player.js"></script>
+  <script src="/assets/js/oldschool-regie-sync.js"></script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>90s Old School — Starting Soon</title>
+  <!-- F1 aus der "DaNgsxr1000 Stream Overlay Suite" (Claude-Design-Export,
+       stream-overlay-handbuch/project/DaNgsxr1000 Stream Overlay Suite.dc.html,
+       drittes eigenstaendiges Export-Format bisher: <x-dc>-Wrapper mit
+       {{ }}-Bindings/<sc-if>/<sc-for>/<image-slot> - NICHT der Produktions-
+       code, siehe README im Bundle). Eigenstaendiges drittes visuelles System
+       "90s Old School Edition" (Rubik Spray Paint/Permanent Marker/Barlow
+       Condensed, Schwarz/Weiss + Blutrot #C8102E/#8C0A1F), komplett getrennt
+       von "Urban Blackout" (goal.html/chat.html) und "Chrome/Gold-Bling"
+       (start.html/in-game.html) - nichts wird vermischt.
+
+       Eigenstaendige "Starting Soon"-Ersatz-Szene, gleiche Rolle wie
+       start.html (ersetzt das Gameplay kurz vor Stream-Start als eigene
+       Streamlabs-Szene, kein transparentes Overlay). Deshalb - anders als
+       das transparente <image-slot id="bg-starting"> im Export - ein echter
+       atmosphaerischer CSS-Hintergrund statt eines transparenten Lochs, damit
+       die Szene auch ohne zusaetzliche Medienquelle sofort komplett aussieht.
+
+       --vu-Fluid-Unit-System (clamp(0.5px, 0.0521vw, 1px), exakt wie
+       start.html/in-game.html/overlay.html) - jeder feste px-Wert aus dem
+       1920x1080-Design wurde nach calc(var(--vu) * N) uebersetzt, kein
+       transform:scale() (siehe CLAUDE.md-Hotfix-Historie: verursacht
+       Unschaerfe in der Streamlabs-Mobile-WebView).
+
+       Was echt ist: Countdown (?minutes=-Parameter, schaltet bei 0:00 auf
+       "JETZT LIVE" um statt zu loopen, gleiche Produktionslogik wie
+       start.html), Marquee-Ticker-Text (?track=/?artist=), Alert-Popup
+       (echte Twitch-EventSub-Verbindung, eigene WebSocket-Session wie in
+       jeder anderen Datei dieses Projekts). Vinyl-Spinner/Spray-Titel sind
+       reine Deko.
+
+       Nutzer-Feedback nach Live-Screenshot (aktuell): (a) Social-Chips auf
+       nur noch TWITCH reduziert (Twitter/X, Instagram, Discord entfernt) -
+       echte Handles fuer die anderen Plattformen stehen laut CLAUDE.md/
+       PANEL_CONCEPT.md ohnehin noch aus, bis dahin lieber nur die eine
+       echte Verbindung zeigen. (b) Countdown-Ziffern wurden im Screenshot
+       am Rand abgeschnitten - neue fitCountdownText() misst die tatsaechlich
+       gerenderte Breite gegen die Viewport-Breite und schrumpft die
+       Schriftgroesse bei Bedarf nach, gleiches Prinzip wie
+       setupSoundtrackMarquee() in goal.html/overlay.html, garantiert
+       vollstaendige Sichtbarkeit unabhaengig von der tatsaechlichen
+       Streamlabs-Quellen-Breite. (c) Baer ergaenzt (linker Rand, vertikal
+       zentriert) - war nicht Teil des Original-Design-Exports fuer diese
+       Szene, auf Nutzerwunsch neu hinzugefuegt, wiederverwendet dieselben
+       Bilder wie ueberall sonst im Projekt (assets/images/avatar_idle.png).
+       "Tanzt zur Musik" ist technisch nicht als echte Audio-Reaktivitaet
+       moeglich (Browser-Quelle hat keinen Zugriff auf die von Streamlabs
+       gemischte Musik, siehe avatar.html/in-game.html-Historie) - stattdessen
+       ein permanenter CSS-Keyframe-Dance-Loop (bearDance), ehrliche
+       Alternative statt vorgetaeuschter Musik-Synchronisation. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #000000;
+      --paper: #FFFFFF;
+      --cream: #E5E5E5;
+      --crimson: #C8102E;
+      --crimson-dark: #8C0A1F;
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Barlow Condensed', sans-serif; color: var(--cream); background: #050505; }
+
+    @keyframes spinRecord { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     @keyframes marqueeX { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
     @keyframes flicker { 0%, 100% { opacity: .04; } 50% { opacity: .09; } }
     @keyframes alertPop { 0% { transform: translateY(calc(var(--vu) * -30)) scale(.9); opacity: 0; } 60% { transform: translateY(calc(var(--vu) * 4)) scale(1.03); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
@@ -175,12 +523,6 @@
       <div class="social-chip primary">TWITCH · DANGSXR1000</div>
     </div>
 
-    <div class="ticker-bar">
-      <div class="ticker-track">
-        <span id="tickerText1"></span>
-        <span id="tickerText2"></span>
-      </div>
-    </div>
 
     <div class="scanline-overlay"></div>
     <div class="flicker-overlay"></div>
