@@ -35,6 +35,7 @@ Randlos ausgelegt (`--vu`-Fluid-Unit-System), eigenständige Szenen-Sammlung —
 | `oldschool-gameplay.html` | Transparentes Vollbild-Overlay über dem Gameplay, Safe-Zone-Guides per `?safezones=1` | 🟢 | EventSub (Alert-Popup) |
 | `oldschool-brb.html` | "BRB"-Ersatz-Szene mit Mic-Status-Badge (`?mic=`) + Chat-Box | 🟢 | tmi.js, EventSub |
 | `oldschool-outro.html` | "Stream Ending"-Ersatz-Szene mit echter "Tonight's MVPs"-Liste aus `dangsxr_leaderboard` | 🟢 | EventSub (Alert-Popup) |
+| `oldschool-technical-issue.html` | "Technische Störung"-Ersatz-Szene für GeForce-NOW-Verbindungsabbrüche, Reconnect-Radar + Chat-Box | 🟢 | tmi.js, EventSub (Alert-Popup) |
 
 **Live-Validierung läuft bereits** — `oldschool-starting.html` und `oldschool-chatting.html`/`oldschool-brb.html` wurden je mind. einmal live in Streamlabs Mobile getestet und nachgebessert (Social-Chips reduziert, Countdown-Clipping behoben, tanzender Bär, Bär statt leerem Facecam-Slot, sichtbarer Chat-Status, Chat-Box-Positionierung robuster gegen schmale Browser-Quellen). `oldschool-gameplay.html`/`oldschool-outro.html` noch ungetestet. Details + volle Live-Test-Historie siehe `CLAUDE.md`, Offene Punkte #18.
 
@@ -47,6 +48,8 @@ Diese Seiten sind Regie-/Control-UIs und keine Streamlabs-Overlay-Szenen:
 | `oldschool-regie.html` | Hub-Startseite mit klarer Auswahl zwischen Live Deck und Studio Console | 🟢 |
 | `oldschool-live.html` | Minimales Handy-Live-Deck (1-Tap Szenenwechsel auf `oldschool-master`) | 🟢 |
 | `oldschool-studio.html` | Vollständige Studio-Console mit erweiterten Settings (Track, Ordner, Audio, API/Key) | 🟢 |
+
+Alle drei Regie-Tools kennen inzwischen alle sechs Szenen der Suite (inkl. `oldschool-technical-issue.html`, per Fernsteuerungs-Key `technical` — von Szene-Sam als fehlende Integration identifiziert und nachgezogen).
 
 ## Frei positionierbare Einzel-Widget-Quellen
 
