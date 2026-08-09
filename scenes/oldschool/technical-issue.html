@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>90s Old School — Technische Störung</title>
+  <!-- Neue Szene aus dem "90s Old School Edition"-System (siehe scenes/oldschool/starting.html
+       fuer die volle Herkunfts-/Format-/Styleguide-Dokumentation der Suite). Entstanden aus
+       Start-Steffens Audit-Befund: es gab bisher KEINE eigene Szene fuer den Fall, dass die
+       GeForce-NOW-Cloud-Gaming-Verbindung waehrend des Rocket-League-Streams abreisst - der
+       Streamer haette sonst nur ein eingefrorenes/schwarzes Gameplay-Bild zu bieten.
+
+       Eigenstaendige Ersatz-Szene, gleiche Rolle wie oldschool-starting.html/oldschool-brb.html
+       (ersetzt das Gameplay kurzzeitig als eigene Streamlabs-Szene, auf die manuell umgeschaltet
+       wird - kein transparentes Overlay, deshalb echter atmosphaerischer CSS-Hintergrund).
+
+       --vu-Fluid-Unit-System (clamp(0.5px, 0.0521vw, 1px), identisch zur restlichen Suite) -
+       jeder Groessen-Wert laeuft ueber calc(var(--vu) * N). Bewusst KEIN transform:scale()
+       (siehe CLAUDE.md-Hotfix-Historie: verursacht nachweislich Unschaerfe in der
+       Streamlabs-Mobile-Android-WebView).
+
+       Was echt ist: Chat-Box (eigene tmi.js-Verbindung ueber assets/js/tmi-loader.js, gleiches
+       XSS-sicheres Escaping/Emote-Rendering wie in jeder anderen Chat-Datei der Suite - der
+       Chat soll waehrend der Stoerung einfach weiterlaufen, 1:1 aus oldschool-brb.html
+       uebernommen), sichtbarer Chat-Verbindungsstatus ("Verbinde…"/"Verbunden"/"CDN-Fehler"/
+       "Verbindungsfehler", 1:1 aus chat-vibes.html/oldschool-chatting.html/oldschool-brb.html
+       uebernommenes Diagnose-Muster), Alert-Popup (echte Twitch-EventSub-Verbindung) - bewusst
+       BEIBEHALTEN trotz Aufgabenstellung ("bewusst kein Alert-System hier noetig"): ein Follow/
+       Sub/Cheer waehrend einer Cloud-Gaming-Unterbrechung soll trotzdem gefeiert werden statt
+       ins Leere zu laufen, gleiches Konsistenzprinzip wie bei jeder anderen Ersatz-Szene der
+       Suite (alle fuenf bisherigen haben es), kostet nichts Neues (identischer, bereits
+       getesteter Code). Tagline per ?message= (Default: Hinweis auf GeForce-NOW-Verbindungs-
+       aufbau), Headline/Subline/Reconnect-Indikator sind reine Ornamentik.
+
+       Bewusst NEU fuer diese Szene: der Reconnect-Indikator (".reconnect-radar", CSS-Radar-
+       Sweep per conic-gradient + rotierender Blip, kein Bild noetig) signalisiert "Verbindung
+       wird neu aufgebaut" ohne Panik-Optik - passend zur Botschaft "kurze Unterbrechung, bin
+       gleich zurueck" statt eines Fehler-/Warn-Looks. Zusaetzlich neue fitHeadlineText()-
+       Funktion (gleiches Prinzip wie fitCountdownText() in oldschool-starting.html): misst die
+       tatsaechlich gerenderte Breite der laengeren Headline "TECHNISCHE STOERUNG" (deutlich
+       laenger als z.B. "BRB") gegen die verfuegbare Breite und schrumpft die Schriftgroesse bei
+       Bedarf nach - Lehre aus der bereits einmal live aufgetretenen Countdown-Abschneide-
+       Situation, hier vorsorglich gleich mit eingebaut statt erst nach einem Live-Bugreport. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Spray+Paint&family=Permanent+Marker&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="/assets/js/tmi-loader.js"></script>
+  <style>
+    :root {
+      --ink: #000000;
+      --paper: #FFFFFF;
+      --cream: #E5E5E5;
+      --crimson: #C8102E;
+      --crimson-dark: #8C0A1F;
+      --vu: clamp(0.5px, 0.0521vw, 1px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Barlow Condensed', sans-serif; color: var(--cream); background: #050505; }
+
+    @keyframes flicker { 0%, 100% { opacity: .04; } 50% { opacity: .09; } }
+    @keyframes alertPop { 0% { transform: translateY(calc(var(--vu) * -30)) scale(.9); opacity: 0; } 60% { transform: translateY(calc(var(--vu) * 4)) scale(1.03); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+    @keyframes chatSlideIn { 0% { transform: translateY(calc(var(--vu) * 16)); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    @keyframes issuePulse {
+      0%, 100% { text-shadow: 0 0 calc(var(--vu) * 24) rgba(255,255,255,.55), calc(var(--vu) * 6) calc(var(--vu) * 6) 0 var(--crimson-dark); }
+      50% { text-shadow: 0 0 calc(var(--vu) * 46) rgba(255,255,255,.95), calc(var(--vu) * 6) calc(var(--vu) * 6) 0 var(--crimson-dark); }
+    }
+    @keyframes radarSweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes radarBlipPulse { 0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .4; transform: translate(-50%, -50%) scale(1.6); } }
+    @keyframes stickerWobble { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+    #stage {
+      position: fixed; inset: 0; overflow: hidden;
+      background: radial-gradient(ellipse 1400px 900px at 50% 46%, #1c0a0d 0%, #100709 45%, #050405 100%);
+    }
+
+    .scanline-overlay { position: absolute; inset: 0; z-index: 90; pointer-events: none; background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0px, rgba(0,0,0,.16) 1px, transparent 2px, transparent 4px); mix-blend-mode: multiply; }
+    .flicker-overlay { position: absolute; inset: 0; z-index: 91; pointer-events: none; background: #fff; animation: flicker 5s ease-in-out infinite; mix-blend-mode: overlay; }
+
+    .splatter {
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.55) 0 calc(var(--vu) * 3), transparent calc(var(--vu) * 4)),
+        radial-gradient(circle, rgba(200,16,46,.5) 0 calc(var(--vu) * 5), transparent calc(var(--vu) * 6)),
+        radial-gradient(circle, rgba(255,255,255,.4) 0 calc(var(--vu) * 2), transparent calc(var(--vu) * 3)),
+        radial-gradient(circle, rgba(255,255,255,.3) 0 calc(var(--vu) * 4), transparent calc(var(--vu) * 5)),
+        radial-gradient(circle, rgba(200,16,46,.4) 0 calc(var(--vu) * 2), transparent calc(var(--vu) * 3)),
+        radial-gradient(circle, rgba(255,255,255,.5) 0 calc(var(--vu) * 6), transparent calc(var(--vu) * 7)),
+        radial-gradient(circle, rgba(255,255,255,.25) 0 calc(var(--vu) * 3), transparent calc(var(--vu) * 4)),
+        radial-gradient(ellipse calc(var(--vu) * 90) calc(var(--vu) * 60) at center, rgba(0,0,0,.4) 0 55%, transparent 75%),
+        radial-gradient(ellipse calc(var(--vu) * 70) calc(var(--vu) * 50) at center, rgba(255,255,255,.3) 0 55%, transparent 75%),
+        radial-gradient(ellipse calc(var(--vu) * 60) calc(var(--vu) * 40) at center, rgba(0,0,0,.35) 0 55%, transparent 75%);
+      background-repeat: no-repeat;
+      background-position: 6% 20%, 18% 65%, 32% 8%, 48% 80%, 70% 25%, 86% 55%, 94% 15%, 12% 45%, 60% 10%, 82% 70%;
+      background-size: 100% 100%;
+    }
+
+    .issue-col { position: absolute; top: calc(var(--vu) * 100); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--vu) * 22); z-index: 6; }
+    .issue-splatter { position: absolute; top: calc(var(--vu) * -36); left: 50%; transform: translateX(-50%); width: calc(var(--vu) * 900); height: calc(var(--vu) * 260); pointer-events: none; }
+    .issue-wrap { position: relative; text-align: center; }
+    .issue-stroke { position: absolute; inset: 0; font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 88); line-height: 1.05; letter-spacing: 2px; transform: rotate(-2deg); color: var(--ink); -webkit-text-stroke: calc(var(--vu) * 14) var(--ink); white-space: nowrap; }
+    .issue-fill { position: relative; font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 88); line-height: 1.05; letter-spacing: 2px; color: var(--paper); transform: rotate(-2deg); animation: issuePulse 2.4s ease-in-out infinite; -webkit-text-stroke: calc(var(--vu) * 6) var(--ink); white-space: nowrap; }
+    .drip { position: absolute; border-radius: 0 0 calc(var(--vu) * 6) calc(var(--vu) * 6); }
+    .drip.d1 { left: 18%; bottom: calc(var(--vu) * -22); width: calc(var(--vu) * 9); height: calc(var(--vu) * 30); background: var(--paper); transform: rotate(-3deg); }
+    .drip.d2 { left: 50%; bottom: calc(var(--vu) * -16); width: calc(var(--vu) * 7); height: calc(var(--vu) * 22); background: var(--crimson); transform: rotate(-1deg); }
+    .drip.d3 { left: 78%; bottom: calc(var(--vu) * -26); width: calc(var(--vu) * 8); height: calc(var(--vu) * 30); background: var(--paper); transform: rotate(-4deg); }
+
+    .sticker-badge { font-family: 'Permanent Marker', cursive; font-size: calc(var(--vu) * 34); color: var(--paper); background: var(--crimson); padding: calc(var(--vu) * 10) calc(var(--vu) * 34); border-radius: calc(var(--vu) * 8); border: calc(var(--vu) * 3) solid var(--paper); box-shadow: calc(var(--vu) * 5) calc(var(--vu) * 5) 0 rgba(0,0,0,.45); white-space: nowrap; animation: stickerWobble 4s ease-in-out infinite; }
+
+    .issue-tagline { font-weight: 600; font-size: calc(var(--vu) * 26); color: var(--cream); background: #111111; padding: calc(var(--vu) * 10) calc(var(--vu) * 30); border-radius: calc(var(--vu) * 6); transform: rotate(-1deg); box-shadow: calc(var(--vu) * 5) calc(var(--vu) * 5) 0 rgba(0,0,0,.4); text-align: center; max-width: calc(var(--vu) * 1100); }
+
+    .reconnect-wrap { display: flex; flex-direction: column; align-items: center; gap: calc(var(--vu) * 12); }
+    .reconnect-radar {
+      position: relative; width: calc(var(--vu) * 120); height: calc(var(--vu) * 120); border-radius: 50%;
+      background:
+        radial-gradient(circle, transparent 0 31%, rgba(255,255,255,.14) 32% 33%, transparent 34%),
+        radial-gradient(circle, transparent 0 63%, rgba(255,255,255,.14) 64% 65%, transparent 66%),
+        rgba(0,0,0,.35);
+      border: calc(var(--vu) * 3) solid var(--paper);
+      box-shadow: 0 0 calc(var(--vu) * 30) rgba(255,255,255,.25), 0 calc(var(--vu) * 10) calc(var(--vu) * 30) rgba(0,0,0,.5);
+      overflow: hidden;
+    }
+    .reconnect-radar::before {
+      content: ''; position: absolute; inset: 0;
+      background: conic-gradient(from 0deg, rgba(200,16,46,0) 0deg, rgba(200,16,46,.9) 42deg, rgba(200,16,46,0) 95deg);
+      animation: radarSweep 2.1s linear infinite;
+    }
+    .reconnect-blip { position: absolute; top: 28%; left: 62%; width: calc(var(--vu) * 9); height: calc(var(--vu) * 9); background: var(--paper); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 calc(var(--vu) * 12) rgba(255,255,255,.9); animation: radarBlipPulse 1.6s ease-in-out infinite; }
+    .reconnect-center { position: absolute; top: 50%; left: 50%; width: calc(var(--vu) * 6); height: calc(var(--vu) * 6); background: var(--crimson); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 calc(var(--vu) * 10) rgba(200,16,46,.9); }
+    .reconnect-label { display: flex; font-weight: 700; font-size: calc(var(--vu) * 20); letter-spacing: 3px; color: var(--cream); text-transform: uppercase; white-space: nowrap; }
+    .reconnect-dots { display: inline-block; width: calc(var(--vu) * 30); text-align: left; }
+
+    .chat-box { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--vu) * 60); width: calc(var(--vu) * 800); height: calc(var(--vu) * 230); display: flex; flex-direction: column; border-radius: calc(var(--vu) * 16); overflow: hidden; border: calc(var(--vu) * 3) solid var(--paper); box-shadow: 0 calc(var(--vu) * 20) calc(var(--vu) * 50) rgba(0,0,0,.5); z-index: 6; }
+    .chat-header { background: var(--paper); color: var(--ink); font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 17); padding: calc(var(--vu) * 10) calc(var(--vu) * 20); white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: calc(var(--vu) * 12); }
+    .chat-status { display: flex; align-items: center; gap: calc(var(--vu) * 6); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: calc(var(--vu) * 12); letter-spacing: 1px; opacity: .8; white-space: nowrap; }
+    .chat-status-dot { width: calc(var(--vu) * 7); height: calc(var(--vu) * 7); border-radius: 50%; background: rgba(0,0,0,.3); flex: none; }
+    .chat-status-dot.connected { background: #3F7D5C; box-shadow: 0 0 calc(var(--vu) * 6) rgba(63,125,92,.7); }
+    .chat-status-dot.error { background: var(--crimson); box-shadow: 0 0 calc(var(--vu) * 6) rgba(200,16,46,.7); animation: chatStatusBlink 1.2s ease-in-out infinite; }
+    @keyframes chatStatusBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+    .chat-body { flex: 1; background: rgba(0,0,0,.88); padding: calc(var(--vu) * 16) calc(var(--vu) * 20); display: flex; flex-direction: column; gap: calc(var(--vu) * 10); overflow: hidden; }
+    .chat-empty { margin: auto 0; text-align: center; font-size: calc(var(--vu) * 16); letter-spacing: 1px; color: rgba(229,229,229,.5); }
+    .chat-msg { display: flex; gap: calc(var(--vu) * 8); font-size: calc(var(--vu) * 22); animation: chatSlideIn .35s ease-out; }
+    .chat-msg .user { font-weight: 700; white-space: nowrap; }
+    .chat-msg .text { color: var(--cream); word-break: break-word; }
+    .chat-emote { height: calc(var(--vu) * 22); vertical-align: middle; }
+    .u-gold { color: #FFFFFF; }
+    .u-crimson { color: #E24444; }
+    .u-cream { color: #E5E5E5; }
+    .u-teal { color: #AFAFAF; }
+
+    .alert-card { position: absolute; top: calc(var(--vu) * 70); right: calc(var(--vu) * 70); width: calc(var(--vu) * 520); background: #000000; border-radius: calc(var(--vu) * 16); padding: calc(var(--vu) * 26) calc(var(--vu) * 30); display: none; align-items: center; gap: calc(var(--vu) * 20); border: calc(var(--vu) * 3) solid var(--alert-accent, #FFFFFF); box-shadow: 0 0 0 calc(var(--vu) * 6) rgba(0,0,0,.35), 0 calc(var(--vu) * 18) calc(var(--vu) * 40) rgba(0,0,0,.5), 0 0 calc(var(--vu) * 46) var(--alert-accent, #FFFFFF); z-index: 80; }
+    .alert-card.visible { display: flex; animation: alertPop .5s cubic-bezier(.2,1.4,.4,1); }
+    .alert-card.alert-follow { --alert-accent: #FFFFFF; }
+    .alert-card.alert-sub { --alert-accent: #C8102E; }
+    .alert-card.alert-donation { --alert-accent: #AFAFAF; }
+    .alert-icon { font-size: calc(var(--vu) * 52); }
+    .alert-title { font-family: 'Rubik Spray Paint', cursive; font-size: calc(var(--vu) * 22); color: #E5E5E5; }
+    .alert-subtext { font-weight: 600; font-size: calc(var(--vu) * 22); color: #FFFFFF; margin-top: calc(var(--vu) * 4); }
+  </style>
+</head>
+<body>
+
+  <div id="stage">
+    <div class="issue-col">
+      <div class="splatter issue-splatter"></div>
+      <div class="issue-wrap">
+        <div class="issue-stroke" id="issueStroke">TECHNISCHE STÖRUNG</div>
+        <div class="issue-fill" id="issueFill">TECHNISCHE STÖRUNG</div>
+        <div class="drip d1"></div><div class="drip d2"></div><div class="drip d3"></div>
+      </div>
+      <div class="sticker-badge">GLEICH GEHT'S WEITER</div>
+      <div class="issue-tagline" id="issueTagline"></div>
+      <div class="reconnect-wrap">
+        <div class="reconnect-radar">
+          <div class="reconnect-blip"></div>
+          <div class="reconnect-center"></div>
+        </div>
+        <div class="reconnect-label">
+          <span>SIGNAL WIRD GESUCHT</span><span class="reconnect-dots" id="reconnectDots"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-box">
+      <div class="chat-header">
+        <span>💬 CHAT LÄUFT WEITER</span>
+        <span class="chat-status"><span class="chat-status-dot" id="chatStatusDot"></span><span id="chatStatusText">Verbinde…</span></span>
+      </div>
+      <div class="chat-body" id="chatBody">
+        <div class="chat-empty" id="chatEmpty">WARTE AUF NACHRICHTEN</div>
+      </div>
+    </div>
+
+    <div class="scanline-overlay"></div>
+    <div class="flicker-overlay"></div>
+
+    <div class="alert-card" id="alertCard">
+      <div class="alert-icon" id="alertIcon"></div>
+      <div>
+        <div class="alert-title" id="alertTitle"></div>
+        <div class="alert-subtext" id="alertSubtext"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const CHANNEL_LOGIN = 'dangsxr1000';
+
+    // ---------- Tagline (?message=) ----------
+    document.getElementById('issueTagline').textContent = params.get('message') || 'Die GeForce-NOW-Verbindung wird gerade neu aufgebaut — kurze Geduld, der Chat läuft einfach weiter 🎮';
+
+    // ---------- Headline-Auto-Fit (gleiches Prinzip wie fitCountdownText() in
+    // oldschool-starting.html: "TECHNISCHE STÖRUNG" ist deutlich laenger als
+    // z.B. "BRB" - misst die tatsaechlich gerenderte Breite gegen die
+    // verfuegbare Breite und schrumpft die Schriftgroesse bei Bedarf nach,
+    // statt erst nach einem Live-Abschneide-Bugreport nachzubessern). ----------
+    const issueStrokeEl = document.getElementById('issueStroke');
+    const issueFillEl = document.getElementById('issueFill');
+    function fitHeadlineText() {
+      issueFillEl.style.fontSize = '';
+      issueStrokeEl.style.fontSize = '';
+      const maxWidth = issueFillEl.parentElement.parentElement.clientWidth * 0.92;
+      const naturalWidth = issueFillEl.scrollWidth;
+      if (naturalWidth > maxWidth && naturalWidth > 0) {
+        const baseSize = parseFloat(getComputedStyle(issueFillEl).fontSize);
+        const scaled = baseSize * (maxWidth / naturalWidth);
+        issueFillEl.style.fontSize = scaled + 'px';
+        issueStrokeEl.style.fontSize = scaled + 'px';
+      }
+    }
+    window.addEventListener('resize', fitHeadlineText);
+    fitHeadlineText();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(fitHeadlineText).catch(() => {});
+    }
+
+    // ---------- Reconnect-Indikator: animierte Punkte hinter "SIGNAL WIRD GESUCHT" ----------
+    const reconnectDotsEl = document.getElementById('reconnectDots');
+    let dotCount = 0;
+    setInterval(() => {
+      dotCount = (dotCount + 1) % 4;
+      reconnectDotsEl.textContent = '.'.repeat(dotCount);
+    }, 500);
+
+    // ---------- Chat (echt, eigene tmi.js-Verbindung, unabhaengige Instanz) ----------
+    const chatBody = document.getElementById('chatBody');
+    const chatEmpty = document.getElementById('chatEmpty');
+    const MAX_CHAT_MESSAGES = 4;
+    const CHAT_MSG_LIFETIME_MS = 15000;
+    const CHAT_USER_COLORS = ['u-gold', 'u-crimson', 'u-cream', 'u-teal'];
+    let chatColorIdx = 0;
+
+    // Sichtbarer Verbindungsstatus statt stillem console.warn - 1:1 aus
+    // chat-vibes.html/oldschool-chatting.html/oldschool-brb.html uebernommenes Diagnose-Muster.
+    function setChatStatus(status) {
+      const dot = document.getElementById('chatStatusDot');
+      const text = document.getElementById('chatStatusText');
+      const labels = { connecting: 'Verbinde…', connected: 'Verbunden', 'error-cdn': 'CDN-Fehler', 'error-connect': 'Verbindungsfehler' };
+      dot.className = 'chat-status-dot ' + (status.indexOf('error') === 0 ? 'error' : status);
+      text.textContent = labels[status] || status;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderMessageHtml(message, emotesTag) {
+      if (!emotesTag || Object.keys(emotesTag).length === 0) {
+        return escapeHtml(message);
+      }
+      const ranges = [];
+      for (const id in emotesTag) {
+        emotesTag[id].forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          ranges.push({ id, start, end });
+        });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+      let html = '';
+      let cursor = 0;
+      ranges.forEach(({ id, start, end }) => {
+        if (start < cursor) return;
+        if (start > cursor) html += escapeHtml(message.slice(cursor, start));
+        const code = message.slice(start, end + 1);
+        const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        html += `<img class="chat-emote" src="${src}" alt="${escapeHtml(code)}" title="${escapeHtml(code)}" draggable="false">`;
+        cursor = end + 1;
+      });
+      if (cursor < message.length) html += escapeHtml(message.slice(cursor));
+      return html;
+    }
+
+    function addChatMessage(username, text, colorClass, emotesTag) {
+      if (chatEmpty && chatEmpty.parentNode) chatEmpty.remove();
+      const row = document.createElement('div');
+      row.className = 'chat-msg';
+      row.innerHTML = `<span class="user ${colorClass}">${escapeHtml(username)}:</span><span class="text">${renderMessageHtml(text, emotesTag)}</span>`;
+      chatBody.appendChild(row);
+      while (chatBody.children.length > MAX_CHAT_MESSAGES) {
+        chatBody.removeChild(chatBody.firstChild);
+      }
+      setTimeout(() => { if (row.parentNode === chatBody) chatBody.removeChild(row); }, CHAT_MSG_LIFETIME_MS);
+    }
+
+    loadTmiWithFallback(function () {
+      try {
+        const client = new tmi.Client({
+          options: { debug: false },
+          connection: { secure: true, reconnect: true },
+          channels: [CHANNEL_LOGIN]
+        });
+        client.on('connected', () => setChatStatus('connected'));
+        client.on('disconnected', (reason) => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindung getrennt:', reason);
+        });
+        client.connect().catch(err => {
+          setChatStatus('error-connect');
+          console.warn('[Chat] Verbindungsfehler:', err);
+        });
+        client.on('message', (channel, tags, message, self) => {
+          const colorClass = CHAT_USER_COLORS[chatColorIdx % CHAT_USER_COLORS.length];
+          chatColorIdx++;
+          addChatMessage(tags['display-name'] || tags.username, message, colorClass, tags.emotes);
+        });
+      } catch (e) {
+        setChatStatus('error-connect');
+        console.warn('[Chat] tmi.js nicht verfuegbar:', e.message);
+      }
+    }, function () {
+      setChatStatus('error-cdn');
+      console.warn('[Chat] tmi.js konnte von keiner Quelle geladen werden.');
+    });
+
+    // ---------- Alert-Popup (Follow/Sub/Donation, identisches Muster in allen Szenen der
+    // Suite - bewusst auch hier beibehalten, ein Follow/Sub waehrend der Stoerung soll
+    // trotzdem gefeiert werden) ----------
+    const alertCard = document.getElementById('alertCard');
+    const alertIconEl = document.getElementById('alertIcon');
+    const alertTitleEl = document.getElementById('alertTitle');
+    const alertSubtextEl = document.getElementById('alertSubtext');
+    let alertHideTimer = null;
+    function showAlert(kind, icon, title, sub) {
+      clearTimeout(alertHideTimer);
+      alertCard.className = 'alert-card visible alert-' + kind;
+      alertIconEl.textContent = icon;
+      alertTitleEl.textContent = title;
+      alertSubtextEl.textContent = sub;
+      alertHideTimer = setTimeout(() => { alertCard.classList.remove('visible'); }, 5000);
+    }
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      if (type === 'channel.follow') {
+        showAlert('follow', '🎤', 'NEW FOLLOWER', (event.user_name || 'Zuschauer') + ' joined the crew');
+      } else if (type === 'channel.subscribe') {
+        showAlert('sub', '💿', 'NEW SUBSCRIBER', 'Tier 1 — welcome to the block party');
+      } else if (type === 'channel.subscription.message') {
+        showAlert('sub', '💿', 'RESUB', (event.user_name || 'Zuschauer') + ' — ' + (event.cumulative_months || event.streak_months || '?') + ' Monate dabei');
+      } else if (type === 'channel.cheer') {
+        showAlert('donation', '💰', (event.bits || 0) + ' BITS', (event.is_anonymous ? 'Anonym' : (event.user_name || 'Zuschauer')) + ' — thanks for the love 🙏');
+      } else if (type === 'channel.raid') {
+        showAlert('sub', '🚨', 'RAID', (event.from_broadcaster_user_name || 'Ein Raid') + ' bringt ' + (event.viewers || '?') + ' Zuschauer mit');
+      }
+    }
+
+    // ---------- Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik aus goal.html/event-cards.html) ----------
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+    connectTwitchEventSub();
+
+    // ---------- Test-Modus (?test=follow|sub|resub|bits|raid|chat) ----------
+    const TEST_ACTIONS = {
+      follow: () => showAlert('follow', '🎤', 'NEW FOLLOWER', 'TapeDeckTravis joined the crew'),
+      sub: () => showAlert('sub', '💿', 'NEW SUBSCRIBER', 'Tier 1 — welcome to the block party'),
+      resub: () => showAlert('sub', '💿', 'RESUB', 'BoomBapBetty — 6 Monate dabei'),
+      bits: () => showAlert('donation', '💰', '200 BITS', 'VinylVandal99 — thanks for the love 🙏'),
+      cheer: () => showAlert('donation', '💰', '200 BITS', 'VinylVandal99 — thanks for the love 🙏'),
+      raid: () => showAlert('sub', '🚨', 'RAID', 'Cassette_King bringt 12 Zuschauer mit'),
+    };
+    const testParam = params.get('test');
+    if (testParam && TEST_ACTIONS[testParam]) {
+      setTimeout(TEST_ACTIONS[testParam], 600);
+    }
+    if (testParam === 'chat') {
+      setTimeout(() => addChatMessage('VinylVandal99', 'kein Stress DaN, wir warten hier ✌️', 'u-gold', null), 400);
+    }
+  </script>
+</body>
+</html>

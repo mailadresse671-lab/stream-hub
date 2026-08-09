@@ -15,7 +15,7 @@ Diese Datei ist die knappe, menschlich lesbare Ordnungsregel fuer das Repo.
 ## Wichtig fuer die Oldschool-Suite
 
 - Inhaltliche Arbeit immer in `scenes/oldschool/`.
-- Die Root-Dateien `oldschool-starting.html`, `oldschool-chatting.html`, `oldschool-gameplay.html`, `oldschool-brb.html`, `oldschool-outro.html` sind nur noch Kompatibilitaets-Einstiege.
+- Die Root-Dateien `oldschool-starting.html`, `oldschool-chatting.html`, `oldschool-gameplay.html`, `oldschool-brb.html`, `oldschool-outro.html`, `oldschool-technical-issue.html` sind nur noch Kompatibilitaets-Einstiege.
 - `oldschoolchatting.html` bleibt eine Legacy-URL fuer die Tippfehler-Variante ohne Bindestrich.
 
 ## Nicht mehr produktiv gebraucht
