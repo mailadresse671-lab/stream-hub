@@ -69,21 +69,101 @@ https://.../scenes/oldschool/technical-issue.html?message=Custom%20Tagline
 - [ ] **Custom Message:** `?message=Meine%20Custom%20Nachricht` sollte die Tagline unten ersetzen
 - [ ] **Headline-Länge:** Die Headline "TECHNISCHE STÖRUNG" sollte nicht am rechten Rand abgeschnitten sein (Auto-Fit prüft das)
 
-## E. Regie-Live-Deck-Test (Szenenwechsel-Button)
+## E. Regie-Live-Deck-Test (Szenenwechsel-Button & Daumen-Erreichbarkeits-Kalibrierung)
 
-**Auf dem S26 Ultra:**
-1. Öffne `https://.../oldschool-live.html` in Chrome
+### E1. Grundtest: Button-Funktionalität (auf dem S26 Ultra)
+
+1. Öffne `https://stream-hub-three-gold.vercel.app/oldschool-live.html` in Chrome
 2. Gib deine Regie-API-URL ein (falls konfiguriert) und speichern
-3. Teste JEDEN Button einzeln — der neue **"Technical"** ist die dritte Button-Reihe:
+3. Teste JEDEN Button einzeln:
    - [ ] **"Starting"** — wechselt auf Starting-Szene in `oldschool-master`
+   - [ ] **"Gameplay"** — wechselt auf Gameplay-Szene
    - [ ] **"Technical"** (NEU) — wechselt auf Technical-Issue-Szene
    - [ ] **"Chatting"** — wechselt auf Chatting-Szene
-   - [ ] Alle übrigen Buttons getestet
+   - [ ] **"BRB"** — wechselt auf BRB-Szene
+   - [ ] **"Outro"** — wechselt auf Outro-Szene
+   - [ ] **"Master neu laden"** — lädt die `oldschool-master`-Quelle neu
 
-**Wichtiger Live-Test für die Button-Erreichbarkeit (siehe offene Punkte unten):**
-- Die dritte Button-Reihe (Technical/Chatting) ist jetzt eine asymmetrische Reihe mit nur zwei Buttons statt drei
-- Teste auf dem echten S26-Bildschirm: Kannst du den "Technical"-Button mit dem Daumen blind erreichbar? (Im Stress während eines echten Abbruchs wirst du keine Zeit haben, genau hinzuschauen)
-- Falls dieser Button schwer zu erreichen ist oder zu nah an den Displayrand rutscht → Notiz für Overlay-Oliver, um das Grid responsiver zu machen
+### E2. Daumen-Erreichbarkeits-Kalibrierung (auf dem echten Tab S11 Ultra, das Gerät, mit dem du streamst)
+
+**Hintergrund:** Der neue "Technical"-Button ist notwendig für Notfälle (GeForce-NOW-Abbruch), muss aber blind und unter Zeitdruck erreichbar sein. Diese Kalibrierung simuliert exakt diese Situation.
+
+#### Schritt 1: Setup
+- [ ] Öffne `https://stream-hub-three-gold.vercel.app/oldschool-live.html` direkt im **Tab S11 Ultra** (nicht auf dem S26)
+- [ ] Halte das Tablet in deiner **typischen Streaming-Haltung**: Langseitig auf dem Tisch, du sitzt davor, ungefähr 40–50cm Abstand
+- [ ] Die Seite sollte vollständig laden (alle 6 farbigen Szenen-Buttons + der grauere "Master neu laden"-Button sichtbar)
+
+#### Schritt 2: Der Button-Grid (was du sehen solltest)
+Das Button-Grid hat folgende Struktur (2 Spalten, 7 Buttons total):
+```
+Reihe 1: [ Starting      ] [ Gameplay    ]
+Reihe 2: [ Technical     ] [ Chatting    ]  ← "Technical" ist hier (LINKS, oben in dieser Reihe)
+Reihe 3: [ BRB           ] [ Outro       ]
+Reihe 4: [ Master n. l.  ] [ (leer)      ]  ← asymmetrisch
+```
+
+#### Schritt 3: Blind-Test (ohne Hinschauen)
+1. **Startposition:** Lege deine rechte Hand entspannt neben das Tablet (Daumen nach innen, wie beim normalen Halten)
+2. **Zeit-Stress simulieren:** Zähle mental "3... 2... 1..." wie bei einem echten Notfall (GeForce-NOW ist gerade weg, du musst JETZT wechseln)
+3. **Blind antippen:** Ohne auf den Bildschirm zu schauen, versuche den "Technical"-Button mit dem rechten Daumen zu treffen. Der sollte sich ungefähr **in der Mitte-oben des Tablets, leicht rechts von der Mittellinie** befinden (Reihe 2, linke Spalte)
+4. **Wiederhole 5-mal:** Versuche dies 5 Mal hintereinander
+5. **Erfolgsquote:** Wie oft hast du den Button erwischt? (Ziel: 4/5 oder besser)
+
+#### Schritt 4: Stress-Test (optionale Steigerung)
+Wenn der Blind-Test gut funktioniert:
+- Halte das Tablet diesmal mit **beiden Händen** (wie beim echten Gaming)
+- Versuche den "Technical"-Button mit dem rechten Daumen zu treffen, ohne die linke Hand zu bewegen
+- Das ist realistischer, wenn du gerade Rocket League spielst und den Controller neu greifen musst
+
+#### Schritt 5: Ergebnis-Bewertung
+
+**✅ Erreichbarkeit ist GUT, wenn:**
+- Du den Button **4 von 5 Mal blind triffst** (oder besser)
+- Der Daumen kommt problemlos hin, **ohne das Tablet umzugreifen**
+- Du ihn auch mit **beiden Händen** noch sicher treffen kannst (Stress-Test)
+
+**⚠️ Erreichbarkeit ist GRENZWERTIG, wenn:**
+- Du nur **2–3 von 5 Mal** triffst
+- Du den Daumen **sehr weit strecken** musst
+- Der Button sehr nah am **Display-Rand** liegt (Risiko, versehentlich daneben zu tippen)
+
+**❌ Erreichbarkeit ist SCHLECHT, wenn:**
+- Du **weniger als 2 von 5 Mal** triffst
+- Du das Tablet **umgreifen** musst, um den Button zu erreichen
+- Der Button **gar nicht sichtbar** ist auf dem Tab-Bildschirm (responsives Design-Problem)
+
+#### Schritt 6: Notiz für dein Tagebuch/die nächste Runde
+Falls der Test schlecht ausfällt, notiere:
+- Wie oft hast du getroffen?
+- Wo ist der Button tatsächlich (welcher Bildschirm-Bereich)?
+- Was würde die Situation verbessern? (z.B. Button größer, woanders platziert, etc.)
+
+→ Diese Notiz dann an **Overlay-Oliver** weitergeben mit dem Hinweis: "Blind-Test unter Stress hat X/5 Treffer gebracht, möglicherweise braucht das Grid eine Anpassung"
+
+### E3. Verbesserungsoptionen (falls der Blind-Test negativ ausfällt)
+
+**Falls du regelmäßig den "Technical"-Button verfehlst, hat Overlay-Oliver folgende Optionen zur Auswahl:**
+
+1. **Button-Größe erhöhen:**
+   - Der "Technical"-Button könnte auf 50% mehr Höhe/Breite skaliert werden
+   - Macht ihn leichter zu treffen, braucht aber Platz
+   - Einfachste, schnellste Lösung
+
+2. **Grid-Layout umorganisieren:**
+   - Variante A: Nur eine Spalte für die 6 Szenen-Buttons machen (Start, Gameplay, Technical, Chatting, BRB, Outro untereinander)
+   - Variante B: "Master neu laden" ganz unten in voller Breite, darüber 2 Spalten für die 6 Szenen-Buttons
+   - Variante C: "Technical" in die obere Reihe neben "Gameplay" verschieben (häufiger benötigte Buttons oben + prominent)
+
+3. **Neue Tasten-Anordnung:**
+   - "Technical" und "Chatting" sind häufiger notwendig als "BRB" und "Outro"
+   - → Diese oben, weniger häufig benötigte unten
+   - Macht den Notfall-Button (Technical) präsenter
+
+4. **Responsive Anpassung für Tablets:**
+   - Größere Buttons bei breiterem Bildschirm (>800px)
+   - Derzeitig CSS: `@media (max-width: 560px)` stellt auf 1 Spalte um — könnte für größere Tablets anders optimiert werden
+
+**Du brauchst KEINE dieser Optionen selbst umzusetzen** — notiere nur das Ergebnis deines Blind-Tests und leite es an Oliver weiter.
 
 ## F. Notfall-Szene: Wenn GeForce NOW während des Streams abbricht
 
@@ -131,7 +211,7 @@ Ausführliche Setup-Dokumentation:
 
 ## Offene Punkte & Bekannte Grenzen
 
-1. **"Technical"-Button-Erreichbarkeit:** Der neue "Technical"-Button ist die dritte asymmetrische Reihe im Live-Deck-Grid (nur zwei Buttons statt drei). Im realen Einsatz unter Stress sollte geprüft werden, ob dieser Button mit dem Daumen blind gut zu erreichen ist — falls nicht, kann Overlay-Oliver das Grid responsiver machen.
+1. **"Technical"-Button-Erreichbarkeit (Abschnitt E2 — "Daumen-Erreichbarkeits-Kalibrierung"):** Der neue "Technical"-Button ist in Reihe 2, linke Spalte des Live-Deck-Grids. Die konkrete Blind-Test-Anleitung oben (E2) sollte VOR jedem Stream durchgeführt werden, um sicherzustellen, dass du ihn unter Zeitdruck zuverlässig treffen kannst. Falls der Blind-Test weniger als 3/5 Treffer bringt, notiere das und leite es an Overlay-Oliver weiter — siehe E3 für die möglichen Verbesserungen.
 
 2. **Alle six Szenen der "90s Old School Edition"-Suite:** `oldschool-gameplay.html` und `oldschool-outro.html` wurden noch nicht live in Streamlabs Mobile getestet (nur Sandbox-Playwright-Tests). `oldschool-technical-issue.html` ist brandneu und sollte zeitnah im echten Einsatz validiert werden.
 
