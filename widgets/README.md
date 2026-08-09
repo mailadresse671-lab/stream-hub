@@ -12,6 +12,7 @@ Kanonische Widget-Quellen liegen jetzt hier:
 - `chat-vibes.html`
 - `hype-level.html`
 - `status-bar.html`
+- `follower-goal.html`
 
 Die gleichnamigen Root-Dateien bleiben als stabile Browser-Quellen-Einstiege erhalten und leiten hierher weiter.
 
