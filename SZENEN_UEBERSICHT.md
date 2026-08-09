@@ -67,6 +67,7 @@ Füllen ihre eigene Seite randlos aus (`inset:0` + `object-fit:contain` bzw. `wi
 | `chat-vibes.html` | Chat-Panel im Chrome/Gold-Bling-Look (TV/Boombox-Rahmen) | 🟢 | tmi.js |
 | `hype-level.html` | 5-Sterne-Hype-Meter (`dangsxr_hypeLevel`) | 🟢 | EventSub (Auto-Increment) + Klick |
 | `status-bar.html` | EQ-Visualizer, Plattenspieler, Track-Marquee, MIC/CAM/NET-Status, Uptime | 🟢 | EventSub (nur NET-Status) |
+| `follower-goal.html` | Follower-Ziel-Fortschrittsbalken mit wiederkehrendem Meilenstein (`?step=`) | 🟢 | EventSub (Follow) + Polling `/api/twitch-followers` |
 
 **Legende:**
 🟢 Live auf `main` · 🟡 In Prüfung/Planung · 🔴 Verworfen (mit Begründung)

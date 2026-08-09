@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Follower-Ziel</title>
+  <!-- Eigenstaendige Follower-Ziel-Fortschrittsbalken-Quelle, aus
+       scenes/core/goal.html herausgeloest (gleicher Anlass wie
+       widgets/hype-level.html/widgets/event-cards.html: der Nutzer wollte
+       "wer zuletzt gefolgt ist" (-> event-cards.html), "der Baer"
+       (-> avatar.html) UND "das Follower-Ziel" als drei unabhaengige,
+       frei per Streamlabs-Transform-Panel positionierbare Quellen auf
+       seiner Live-Szene - siehe rl-stats.html fuer den vollen Kontext
+       dieser Modularisierungs-Runde). Uebernommen aus goal.html wird NUR
+       die Fortschrittsbalken-*Logik* (currentFollowers/calculateTarget/
+       targetFollowers/updateUI/syncRealFollowerCount, die komplette
+       LiquidBar-Canvas-Klasse, der channel.follow-Zweig von
+       handleTwitchNotification) - NICHT die "Urban Blackout"-Optik.
+       Optik ist bewusst neu im Chrome/Gold-Bling-Look der Geschwister-
+       Widgets (Anton + Share Tech Mono, Rot/Gold-Chrom-Palette) gehalten,
+       damit alle drei Widgets nebeneinander auf dem Stream optisch
+       zusammenpassen. Bewusst NICHT uebernommen: SimplexNoise2D,
+       AudioAnalysisRig, das Web-Audio-Soundsystem, SpraySystem +
+       Idle-Ambient-Funken, #party-popup-System, #cop-siren/#muzzle-flash/
+       #impact-flash/#scanline-overlay, tmi.js-Chat-Commands-Block - dieses
+       Widget zeigt ausschliesslich den Fortschrittsbalken, keine Alerts
+       (Alerts/Popups laufen bereits ueber event-cards.html bzw. die
+       vollflaechigen Szenen). Kein sichtbares Debug-Element (kein
+       #debugLine wie in goal.html) - nur console.log/console.warn.
+       Meilenstein-Schrittgroesse per ?step=-Parameter einstellbar
+       (Default 10, wie bisher in goal.html hart einprogrammiert). Fuellt
+       die eigene Seite randlos aus - Streamlabs' Transform-Panel
+       entscheidet ueber Endgroesse/Position. --vu als vw-basierte
+       clamp()-Formel, kalibriert auf die natuerliche Design-Breite
+       ~380px dieser Karte (identisches Prinzip/Formel wie
+       widgets/hype-level.html - siehe rl-stats.html fuer die volle
+       Begruendung, warum das noetig ist: Streamlabs' Transform-Panel
+       skaliert Inhalt NICHT proportional mit, sondern schneidet bei zu
+       kleinem W/H schlicht ab). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root { --blood: #ff2340; --tan: #d9b872; --cream: #f4f1ea; --vu: clamp(0.3px, 0.263vw, 3px); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; font-family: 'Share Tech Mono', monospace; color: var(--cream); overflow: hidden; width: 100%; height: 100%; }
+
+    @keyframes chromeShine { 0% { background-position: -160% 0, 0 0; } 45% { background-position: 160% 0, 0 0; } 100% { background-position: 160% 0, 0 0; } }
+
+    .chrome-frame {
+      padding: 1.5px;
+      background-image: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.9) 50%, transparent 65%),
+        linear-gradient(180deg, #f2c94c, #8a6410 50%, #f6df9e 100%);
+      background-size: 260% 100%, 100% 100%; background-position: -160% 0, 0 0;
+      animation: chromeShine 6s ease-in-out infinite;
+      box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    }
+
+    .widget-position { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(var(--vu) * 6); }
+
+    .goal-card { position: relative; width: 100%; padding: calc(var(--vu) * 16) calc(var(--vu) * 18); background: linear-gradient(160deg, #1c1a17 0%, #0a0908 100%); overflow: hidden; }
+    .goal-card::before { content: ''; position: absolute; inset: 5px; border: 1px dashed rgba(217,184,114,.22); pointer-events: none; }
+
+    .goal-corner { position: absolute; width: calc(var(--vu) * 16); height: calc(var(--vu) * 16); pointer-events: none; }
+    .goal-corner.tl { top: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .goal-corner.tr { top: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-top: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+    .goal-corner.bl { bottom: calc(var(--vu) * 10); left: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-left: 1px solid rgba(255,35,64,.7); }
+    .goal-corner.br { bottom: calc(var(--vu) * 10); right: calc(var(--vu) * 10); border-bottom: 1px solid rgba(255,35,64,.7); border-right: 1px solid rgba(255,35,64,.7); }
+
+    .goal-header { position: relative; display: flex; align-items: baseline; justify-content: space-between; }
+    .goal-header-title { font-family: 'Anton', sans-serif; font-size: calc(var(--vu) * 22); letter-spacing: 1.5px; background-image: linear-gradient(180deg, #fff6d9 0%, #f2c94c 20%, #b8860b 42%, #fff3c4 58%, #8a6410 75%, #f2c94c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .goal-header-subtitle { font-size: calc(var(--vu) * 10); letter-spacing: 2px; color: rgba(244,241,234,.4); white-space: nowrap; }
+
+    .goal-target-line { position: relative; margin-top: calc(var(--vu) * 10); font-size: calc(var(--vu) * 11); letter-spacing: 1.5px; color: var(--tan); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .goal-value { position: relative; margin-top: calc(var(--vu) * 4); font-family: 'Share Tech Mono', monospace; font-weight: 700; font-size: calc(var(--vu) * 26); color: var(--cream); font-variant-numeric: tabular-nums; letter-spacing: 1px; text-shadow: 0 0 12px rgba(255,35,64,.35); }
+
+    .bar-bg { position: relative; margin-top: calc(var(--vu) * 12); width: 100%; height: calc(var(--vu) * 15); background: rgba(0,0,0,.4); border: 1px solid rgba(217,184,114,.3); overflow: hidden; }
+    .liquid-bar-canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+
+  <div class="widget-position">
+    <div class="goal-card chrome-frame">
+      <div class="goal-header">
+        <span class="goal-header-title">FOLLOWER-ZIEL</span>
+        <span class="goal-header-subtitle">TWITCH EVENTSUB</span>
+      </div>
+      <div class="goal-target-line" id="goalTitle">Ziel: 210 Follower</div>
+      <div class="goal-value" id="goalText">209 / 210</div>
+      <div class="bar-bg">
+        <canvas id="liquidBarCanvas" class="liquid-bar-canvas"></canvas>
+      </div>
+      <div class="goal-corner tl"></div><div class="goal-corner tr"></div><div class="goal-corner bl"></div><div class="goal-corner br"></div>
+    </div>
+  </div>
+
+  <script>
+    const VERCEL_URL = "https://stream-hub-three-gold.vercel.app";
+    const params = new URLSearchParams(location.search);
+
+    // Meilenstein-Schrittgroesse: Default 10 (wie bisher hart in goal.html
+    // einprogrammiert), per ?step= individuell einstellbar - jeder nicht
+    // positive/ungueltige Wert faellt auf den Default zurueck.
+    const STEP_SIZE = (() => {
+      const raw = parseInt(params.get('step'), 10);
+      return (Number.isFinite(raw) && raw > 0) ? raw : 10;
+    })();
+
+    // Platzhalter, bis syncRealFollowerCount() (siehe unten) die echte Zahl
+    // von Twitch geladen hat - 1:1 aus goal.html uebernommen. Bleibt nur als
+    // kurzzeitiger Fallback bestehen, falls der API-Call fehlschlaegt.
+    let currentFollowers = 209;
+
+    function calculateTarget(followers) {
+      return Math.ceil((followers + 1) / STEP_SIZE) * STEP_SIZE;
+    }
+
+    let targetFollowers = calculateTarget(currentFollowers);
+
+    function updateUI() {
+      const previousTarget = targetFollowers - STEP_SIZE;
+      const progressInStep = currentFollowers - previousTarget;
+      const pct = Math.min(100, Math.max(0, Math.round((progressInStep / STEP_SIZE) * 100)));
+
+      document.getElementById('goalTitle').innerText = `Ziel: ${targetFollowers} Follower`;
+      document.getElementById('goalText').innerText = `${currentFollowers} / ${targetFollowers}`;
+      liquidBar.setFill(pct / 100);
+    }
+
+    // Holt die echte, aktuelle Gesamt-Follower-Zahl von Twitch (api/twitch-
+    // followers.js, Helix "channels/followers"-Endpoint) und ersetzt damit
+    // den obigen Platzhalter, bevor die UI zum ersten Mal gerendert wird.
+    // Schlaegt der Call fehl (Netzwerk/Scopes), bleibt einfach der
+    // Platzhalter stehen statt die Seite kaputt zu zeigen. 1:1 aus
+    // goal.html uebernommen.
+    async function syncRealFollowerCount() {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-followers`);
+        const data = await res.json();
+        if (data && data.success && typeof data.total === 'number') {
+          currentFollowers = data.total;
+          targetFollowers = calculateTarget(currentFollowers);
+        } else {
+          console.warn('[Follower-Ziel] api/twitch-followers lieferte keinen gueltigen Wert, bleibe bei Platzhalter:', data && data.message);
+        }
+      } catch (e) {
+        console.warn('[Follower-Ziel] Konnte echte Follower-Zahl nicht laden, bleibe bei Platzhalterwert:', e.message);
+      }
+      updateUI();
+    }
+
+    // =====================================================================
+    // Liquid Gold/Chrome Fortschrittsbalken: klassische spaltenbasierte
+    // 2D-Wassersimulation (Feder pro Spalte + Wellenausbreitung zu
+    // Nachbarn). 1:1 aus goal.html uebernommen - keine externen
+    // Abhaengigkeiten, laeuft mit eigenem, sehr guenstigem rAF-Loop.
+    // =====================================================================
+    class LiquidBar {
+      constructor(canvas, columns = 40) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.columns = columns;
+        this.heights = new Array(columns).fill(0);
+        this.velocities = new Array(columns).fill(0);
+        this.spread = 0.18;
+        this.tension = 0.02;
+        this.dampingLoss = 0.045;
+        this.fillPct = 0;
+        this._raf = null;
+        this._resize();
+        window.addEventListener('resize', () => this._resize());
+      }
+      _resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.w = rect.width;
+        this.h = rect.height;
+      }
+      setFill(pct) { this.fillPct = Math.max(0, Math.min(1, pct)); }
+      impulse(strength = 1) {
+        const col = Math.floor(Math.random() * this.columns);
+        this.velocities[col] += strength * 5;
+      }
+      start() {
+        if (this._raf) return;
+        const step = () => {
+          this._update();
+          this._draw();
+          this._raf = requestAnimationFrame(step);
+        };
+        this._raf = requestAnimationFrame(step);
+      }
+      stop() {
+        if (this._raf) cancelAnimationFrame(this._raf);
+        this._raf = null;
+      }
+      _update() {
+        const n = this.columns;
+        for (let i = 0; i < n; i++) {
+          const accel = this.tension * (0 - this.heights[i]) - this.velocities[i] * this.dampingLoss;
+          this.velocities[i] += accel;
+          this.heights[i] += this.velocities[i];
+        }
+        const leftDeltas = new Float32Array(n);
+        const rightDeltas = new Float32Array(n);
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 0; i < n; i++) {
+            if (i > 0) {
+              leftDeltas[i] = this.spread * (this.heights[i] - this.heights[i - 1]);
+              this.heights[i - 1] += leftDeltas[i];
+            }
+            if (i < n - 1) {
+              rightDeltas[i] = this.spread * (this.heights[i] - this.heights[i + 1]);
+              this.heights[i + 1] += rightDeltas[i];
+            }
+          }
+        }
+      }
+      _draw() {
+        const { ctx, w, h, columns, heights, fillPct } = this;
+        if (w <= 0 || h <= 0) return;
+        ctx.clearRect(0, 0, w, h);
+        const fillW = Math.max(2, w * fillPct);
+        const colW = w / (columns - 1);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, fillW, h);
+        ctx.clip();
+
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i < columns; i++) {
+          ctx.lineTo(i * colW, h * 0.5 + heights[i]);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, 0, w, 0);
+        grad.addColorStop(0, '#ffd700');
+        grad.addColorStop(0.5, '#e8e6e1');
+        grad.addColorStop(1, '#b30000');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, h * 0.32, fillW, 1.4);
+        ctx.globalAlpha = 1;
+
+        ctx.restore();
+      }
+    }
+
+    const liquidBar = new LiquidBar(document.getElementById('liquidBarCanvas'));
+    liquidBar.start();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        liquidBar.stop();
+      } else {
+        liquidBar.start();
+      }
+    });
+
+    // Nur der channel.follow-Zweig aus goal.htmls handleTwitchNotification -
+    // kein Popup/Sound/Wanted-Level hier, nur der Fortschrittsbalken selbst.
+    function handleTwitchNotification(payload) {
+      const type = payload.subscription.type;
+      const event = payload.event;
+      if (type !== 'channel.follow') return;
+
+      const followerName = event.user_name || 'Zuschauer';
+      currentFollowers += 1;
+
+      if (currentFollowers >= targetFollowers) {
+        targetFollowers = calculateTarget(currentFollowers);
+        console.log('[Follower-Ziel] Meilenstein erreicht, neues Ziel:', targetFollowers);
+      }
+
+      updateUI();
+      console.log('[Follower-Ziel] Neuer Follower:', followerName, '-> Stand', currentFollowers, '/', targetFollowers);
+    }
+
+    // =====================================================================
+    // Twitch EventSub (natives WebSocket, 1:1 Verbindungs-/Reconnect-Logik
+    // aus overlay.html/hype-level.html/event-cards.html uebernommen) - nur
+    // fuer channel.follow, keine weiteren Subscriptions hier noetig
+    // (die Vercel-Function meldet ohnehin dieselben fuenf Subscriptions
+    // pro Session an, ungenutzte Notification-Typen werden hier einfach
+    // ignoriert).
+    // =====================================================================
+    const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function scheduleReconnect(reason) {
+      reconnectAttempts += 1;
+      const delay = Math.min(30000, 2000 * reconnectAttempts);
+      console.log('[EventSub] verbinde neu in ' + (delay / 1000) + 's (' + reason + ')');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => connectTwitchEventSub(), delay);
+    }
+
+    async function subscribeToTwitchEvents(sessionId) {
+      try {
+        const cleanUrl = VERCEL_URL.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/api/twitch-eventsub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (!data || !data.success) {
+          console.warn('[EventSub] Subscription fehlgeschlagen:', (data && data.message) || 'unbekannt');
+          return;
+        }
+        console.log('[EventSub] verbunden, Events angemeldet.');
+      } catch (e) {
+        console.warn('[EventSub] Fehler:', e.message || e);
+      }
+    }
+
+    function connectTwitchEventSub(url, isReconnectHandoff) {
+      url = url || TWITCH_EVENTSUB_URL;
+      const ws = new WebSocket(url);
+      let handoffInProgress = false;
+
+      ws.onopen = () => {};
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        const messageType = data.metadata && data.metadata.message_type;
+
+        if (messageType === 'session_welcome') {
+          reconnectAttempts = 0;
+          if (isReconnectHandoff) return;
+          subscribeToTwitchEvents(data.payload.session.id);
+          return;
+        }
+        if (messageType === 'session_keepalive') return;
+        if (messageType === 'notification') { handleTwitchNotification(data.payload); return; }
+        if (messageType === 'session_reconnect') {
+          handoffInProgress = true;
+          connectTwitchEventSub(data.payload.session.reconnect_url, true);
+          return;
+        }
+        if (messageType === 'revocation') {
+          console.warn('[EventSub] Subscription widerrufen:', data.payload.subscription.type);
+          return;
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = (event) => {
+        if (handoffInProgress) return;
+        scheduleReconnect(event.reason || `Code ${event.code}`);
+      };
+    }
+
+    // ---------- Test-Modus (?test=follow) ----------
+    // Erst NACH syncRealFollowerCount() ausgefuehrt (statt parallel), damit
+    // der Test immer auf dem final geladenen currentFollowers-Stand
+    // aufsetzt und nicht von der Ladereihenfolge des Netzwerk-Requests
+    // abhaengt.
+    function runTestMode() {
+      const testParam = params.get('test');
+      if (testParam !== 'follow') return;
+      console.log('[Test] ?test=follow erkannt -> simuliere channel.follow-Notification.');
+      handleTwitchNotification({ subscription: { type: 'channel.follow' }, event: { user_name: 'TestFollower' } });
+    }
+
+    connectTwitchEventSub();
+    syncRealFollowerCount().then(runTestMode);
+  </script>
+
+</body>
+</html>
