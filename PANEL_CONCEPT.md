@@ -149,6 +149,8 @@ Assets/Farbwerten wie das Overlay).
   weitere Accounts feststehen.
 - ~~**Sound-Alerts-Erweiterung deaktivieren?**~~ **Bestätigt (11.08.2026)** - DaN
   deaktiviert sie manuell im Twitch-Dashboard, siehe Tabelle oben.
-- **Panel-Bilder final produzieren**: Diese Datei liefert die Spezifikation: Text +
-  Farben + Layout stehen. Das tatsächliche Rendern der 5 PNGs ist ein separater
-  nächster Schritt (auf Wunsch).
+- ~~**Panel-Bilder final produzieren**~~ **Erledigt (11.08.2026)**: `assets/images/panels/panel-1-setup.png`
+  bis `panel-5-support.png`, 1:1 nach der Spec in Abschnitt 4 gerendert. Zusätzlich
+  produziert (siehe `CLAUDE.md` Offene Punkte #8/#9): `assets/images/offline-banner.png`
+  und `assets/images/profile-badge.png` im selben visuellen System. Noch offen:
+  manueller Upload aller 7 Bilder ins Twitch-Dashboard durch DaN.
