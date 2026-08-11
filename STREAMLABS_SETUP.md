@@ -46,7 +46,7 @@ Dieser Wert war der letzte, bei dem sowohl scharfe Darstellung als auch korrekte
 
 ## Empfohlenes Gameplay-Widget-Layout
 
-Das folgende Setup ist eine konkrete, live erprobte Komposition für die Rocket-League-Gameplay-Session. Basis: Gameplay-Capture (OBS/Streamlabs-Bildschirmfreigabe oder GeForce-NOW-App-Capture) als unterste Quelle, darüber `oldschool-master.html` im `?mode=gameplay` (transparente FX-Schicht), darüber fünf frei positionierbare Widget-Quellen. Die vorgeschlagenen Größen/Positionen sind Startwerte basierend auf bekannten Rocket-League-HUD-Kollisionszonen (In-Match-Chat oben links, Tor/Zeit-Anzeige oben Mitte, Boost oben rechts). **Wichtig**: Bei unterschiedlichen RL-Bildschirmen (Lobby-Menü, Pausenmenü, Nachspiel-Ergebnisliste) können Widgets trotzdem kollidieren — Live nachjustieren ist normal und nötig.
+Das folgende Setup ist eine konkrete Startempfehlung für die Rocket-League-Gameplay-Session — **noch nicht live in Streamlabs Mobile validiert** (wie jedes neue Layout in diesem Projekt), siehe Nachbesserungspfad unten. Basis: Gameplay-Capture (OBS/Streamlabs-Bildschirmfreigabe oder GeForce-NOW-App-Capture) als unterste Quelle, darüber `oldschool-master.html` im `?mode=gameplay` (transparente FX-Schicht), darüber fünf frei positionierbare Widget-Quellen. Die vorgeschlagenen Größen/Positionen sind Startwerte basierend auf bekannten Rocket-League-HUD-Kollisionszonen (In-Match-Chat oben links, Tor/Zeit-Anzeige oben Mitte, Boost oben rechts). **Wichtig**: Bei unterschiedlichen RL-Bildschirmen (Lobby-Menü, Pausenmenü, Nachspiel-Ergebnisliste) können Widgets trotzdem kollidieren — Live nachjustieren ist normal und nötig.
 
 **Quellen-Reihenfolge im Streamlabs-Szenen-Editor (von unten nach oben):**
 
