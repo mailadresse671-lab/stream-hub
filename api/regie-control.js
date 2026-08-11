@@ -1,5 +1,17 @@
 const COMMAND_TTL_MS = 5 * 60 * 1000;
+// scene.switch/scene.reload bleiben deutlich laenger gueltig als andere Aktionen:
+// ein Szenenwechsel-Befehl ist auch verspaetet abgeholt noch sinnvoll anwendbar
+// (kein zeitkritischer Ping wie z.B. ein kuenftiges system.ping), waehrend
+// oldschool-master.html im Hintergrund (GeForce NOW im Vordergrund) laut
+// Chromium-Timer-Drosselung teils minutenlang gar nicht pollt - siehe
+// STREAMLABS_SETUP.md Abschnitt "Fernsteuerung im Hintergrund (Regie-System)".
+const SCENE_SWITCH_TTL_MS = 30 * 60 * 1000;
+const LONG_TTL_ACTIONS = new Set(['scene.switch', 'scene.reload']);
 const REGIE_KEY = process.env.REGIE_CONTROL_KEY;
+
+function getCommandTtlMs(action) {
+  return LONG_TTL_ACTIONS.has(action) ? SCENE_SWITCH_TTL_MS : COMMAND_TTL_MS;
+}
 
 let state = {
   revision: 0,
@@ -30,7 +42,8 @@ function isAuthorized(req) {
 
 function getCurrentCommand(now) {
   if (!state.command) return null;
-  if ((now - state.command.issuedAt) > COMMAND_TTL_MS) {
+  const ttl = getCommandTtlMs(state.command.action);
+  if ((now - state.command.issuedAt) > ttl) {
     return null;
   }
   return state.command;
