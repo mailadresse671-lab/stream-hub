@@ -245,6 +245,21 @@
     fitStage();
     poll();
 
+    // Nach einer Zwangspause (z.B. GeForce NOW im Vordergrund, Chromium drosselt
+    // setTimeout-Timer in nicht sichtbaren Seiten) sofort pollen statt auf den
+    // naechsten regulaeren Tick zu warten - verkuerzt nur die Aufhol-Verzoegerung
+    // nach dem Zurueckwechseln zu Streamlabs, loest aber nicht das eigentliche
+    // Hintergrund-Problem selbst (siehe STREAMLABS_SETUP.md "Fernsteuerung im
+    // Hintergrund (Regie-System)").
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      poll();
+    });
+
     window.addEventListener('resize', fitStage);
     window.addEventListener('orientationchange', fitStage);
     if (window.visualViewport) {
