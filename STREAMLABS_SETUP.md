@@ -7,7 +7,7 @@ Die Werte hier sind das Ergebnis von (a) eigener Web-Recherche zu Browser-Source
 ## Zwei Arten von Quellen — unterschiedliche W/H-Logik
 
 - **Vollflächige Master-/Einzel-Szenen** (`overlay.html`, `goal.html`, `chat.html`, `start.html`, `in-game.html`, `index.html`, `branding.html`): randlos auf die gesamte Canvas ausgelegt, nutzen intern das `--vu`-Fluid-Unit-System. Hier gilt Punkt 2 der Checkliste unten wörtlich: **W/H = die volle Canvas-/Projekt-Auflösung.**
-- **Frei positionierbare Einzel-Widget-Quellen** (`avatar.html`, `rl-stats.html`, `status-ticker.html`, `event-cards.html`, `chat-vibes.html`, `hype-level.html`, `status-bar.html`): füllen nur die EIGENE Seite randlos aus, ohne festen Positions-Offset im Code — hier ist W/H bewusst NICHT die volle Canvas-Auflösung, sondern die Größe, die DU für dieses eine Widget auf dem Bildschirm haben willst (z. B. ein kleines 300×450-Rechteck für den Bären in einer freien Ecke). Position (TX/TY) frei nach Wunsch setzen. `Sc` bleibt trotzdem immer `1` (siehe unten) — die gewünschte Endgröße wird über W/H selbst gesteuert, nicht über einen nachtraeglichen Scale-Multiplikator.
+- **Frei positionierbare Einzel-Widget-Quellen** (`avatar.html`, `rl-stats.html`, `rl-daily.html`, `rl-rank-frame.html`, `status-ticker.html`, `event-cards.html`, `chat-vibes.html`, `hype-level.html`, `status-bar.html`, `follower-goal.html`): füllen nur die EIGENE Seite randlos aus, ohne festen Positions-Offset im Code — hier ist W/H bewusst NICHT die volle Canvas-Auflösung, sondern die Größe, die DU für dieses eine Widget auf dem Bildschirm haben willst (z. B. ein kleines 300×450-Rechteck für den Bären in einer freien Ecke). Position (TX/TY) frei nach Wunsch setzen. `Sc` bleibt trotzdem immer `1` (siehe unten) — die gewünschte Endgröße wird über W/H selbst gesteuert, nicht über einen nachtraeglichen Scale-Multiplikator.
 
 ## Checkliste: neue Browser-Quelle hinzufügen
 
@@ -44,6 +44,38 @@ In Streamlabs Mobile: Projekt-/Videoeinstellungen der aktuellen Szenensammlung �
 
 Dieser Wert war der letzte, bei dem sowohl scharfe Darstellung als auch korrekte Positionierung live bestätigt wurden. **Muss neu geprüft werden**, falls sich die Projekt-Canvas-Auflösung in Streamlabs Mobile jemals ändert (z. B. nach einem App-Update oder einer geänderten Projekteinstellung) — dann einfach den obigen Ablese-Schritt wiederholen, die restliche Checkliste bleibt unverändert gültig.
 
+## Empfohlenes Gameplay-Widget-Layout
+
+Das folgende Setup ist eine konkrete, live erprobte Komposition für die Rocket-League-Gameplay-Session. Basis: Gameplay-Capture (OBS/Streamlabs-Bildschirmfreigabe oder GeForce-NOW-App-Capture) als unterste Quelle, darüber `oldschool-master.html` im `?mode=gameplay` (transparente FX-Schicht), darüber fünf frei positionierbare Widget-Quellen. Die vorgeschlagenen Größen/Positionen sind Startwerte basierend auf bekannten Rocket-League-HUD-Kollisionszonen (In-Match-Chat oben links, Tor/Zeit-Anzeige oben Mitte, Boost oben rechts). **Wichtig**: Bei unterschiedlichen RL-Bildschirmen (Lobby-Menü, Pausenmenü, Nachspiel-Ergebnisliste) können Widgets trotzdem kollidieren — Live nachjustieren ist normal und nötig.
+
+**Quellen-Reihenfolge im Streamlabs-Szenen-Editor (von unten nach oben):**
+
+1. **Gameplay-Capture** (OBS Bildschirmfreigabe oder GeForce-NOW-App-Erfassung) — exakte Einrichtung hängt vom Gerät ab, hier nicht detailliert.
+2. **`oldschool-master.html?mode=gameplay`** (Master-Regie-iframe, transparent) — siehe Standard-Checkliste oben, W/H = Canvas-Auflösung, Sc=1, TX/TY=0.
+3. **Fünf Widget-Quellen** (Reihenfolge von unten nach oben, damit die oberen visuell vor den unteren sichtbar sind):
+
+| Quelle | URL | Empfohlene Größe (W×H) | Position Hinweis | Zweck |
+|---|---|---|---|---|
+| Bär | `avatar.html` | 200×288 | Unten mittig | Event-reaktiver Avatar, Idle-Wippen |
+| Follower-Ziel | `follower-goal.html` | 360×150 | Oben rechts, frei von Tor/Zeit | Fortschrittsbalken für Follower-Meilensteine |
+| Event-Karten | `event-cards.html` | 380×200 | Rechts, vertikal zentriert | Zuletzt Follower/Sub/Cheer |
+| Hype-Level | `hype-level.html` | 380×140 | Oben rechts oder unten rechts, Platz abhängig | 5-Sterne-Meter, Auto-Increment bei Subs |
+| RL-Rang-/Stats | `rl-stats.html` (alt) oder `rl-rank-frame.html?src=...` (neu, echtes Tracker.gg) | 380×180 (Stats) oder 450×150 (Rank-Frame) | Links, vertikal zentriert | Session/Tages-Stats oder echtes RL-Rang-HUD |
+
+**Konkrete Positions-Vorschläge** (TX/TY im Streamlabs Transform-Panel, basierend auf 2847×1732-Canvas):
+
+- **Bär**: TX ≈ 1300, TY ≈ 1450 (Bodenraum, horizontal mittig, frei von unteren Infotainment-Elementen wie Boost-Anzeige)
+- **Follower-Ziel**: TX ≈ 2350, TY ≈ 50 (oben rechts, Platz für RL-Tor-Zeit oben-Mitte)
+- **Event-Karten**: TX ≈ 2400, TY ≈ 600 (rechter Rand, vertikal zentriert, frei von Boost oben rechts)
+- **Hype-Level**: TX ≈ 50, TY ≈ 1550 (unten links) ODER TX ≈ 2400, TY ≈ 350 (oben rechts unter Follower-Ziel, Platz abhängig)
+- **RL-Stats**: TX ≈ 50, TY ≈ 700 (links, vertikal zentriert, frei von In-Match-Chat oben links)
+
+**Nachbesserungspfad:**
+1. Alle fünf Quellen mit den Startwerten hinzufügen.
+2. Im echten Rocket-League-Gameplay (Lobby, Match laufend, Nachspiel) prüfen, wo Überlappungen auftreten.
+3. Pro Überlappung die betroffene(n) Widget-Quelle(n) um ca. 100–200px verschieben (TX/TY-Wert im Transform-Panel anpassen).
+4. Für verschiedene RL-Bildschirme ggfs. VERSCHIEDENE Szenen-Layouts in Streamlabs erstellen (z.B. "Gameplay — Ingame" vs. "Gameplay — Lobby-Menü"), damit die Widgets je nach aktuellem Kontext nicht erneut verschoben werden müssen.
+
 ## Kurz-Troubleshooting
 
 | Symptom | Ursache | Fix |
@@ -54,6 +86,7 @@ Dieser Wert war der letzte, bei dem sowohl scharfe Darstellung als auch korrekte
 | HUD überlappt eigenes Rocket-League-Menü/HUD | Bekanntes, gezielt zu behebendes Layout-Problem im Code, kein Streamlabs-Einstellungsproblem | Screenshot schicken, Zone wird im jeweiligen `.html` gezielt verschoben |
 | Chat/Events reconnecten bei jedem Szenenwechsel neu | „Shutdown when not visible" oder „Refresh on active" steht auf AN | Beide auf AUS stellen (siehe Checkliste oben) |
 | Einzel-Widget-Quelle (Bär, RL-Stats, Hype-Level, ...) wirkt winzig/abgeschnitten statt einfach kleiner | War ein Code-Bug (behoben): der Inhalt skaliert jetzt mit W/H mit, statt bei zu kleinem Kasten abgeschnitten zu werden | Sollte seit der Runde-2-Fix-Version nicht mehr auftreten — falls doch, W/H probeweise größer setzen und Screenshot schicken |
+| Widget-Position passt nicht zu meinen RL-Bildschirmen | Rocket League hat je nach Bildschirm (Lobby, Menü, Ingame, Nachspiel) andere HUD-Layoutes. Proposierte Werte sind Startwerte | Nutze mehrere Szenen-Layouts in Streamlabs (eine pro RL-Kontext) oder verschiebe einzelne Widgets live nacheinander im Transform-Panel, bis alle frei bleiben |
 
 ## Quellen (Web-Recherche, 31.07.2026)
 
