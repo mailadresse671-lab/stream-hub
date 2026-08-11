@@ -21,7 +21,7 @@ Guss statt Kanalseite und Overlay in zwei verschiedenen Welten.
 | Live-Benachrichtigungstext endet mit einem verirrten `"` -Zeichen (Copy-Paste-Rest) | Tippfehler entfernen. |
 | **Keine Social-Links hinterlegt** (Twitch zeigt aktiv den Hinweis-Banner dazu an) | Neues Panel "Socials" mit Platzhalter-Struktur, bereit zum Befüllen sobald Handles feststehen. |
 | **Kein Support/Spendenbox-Panel** - nur das native Twitch-Goals-Widget | Neues Panel "Support", das Follow/Sub/Bits klar als Community-Aktion einordnet statt nur Zahlen zu zeigen. |
-| Erweiterung **"Sound Alerts"** ist aktiv | **Konfliktrisiko:** `goal.html` spielt eigene Alert-Sounds über die Twitch-EventSub-Anbindung ab. Läuft die Extension parallel, gibt's bei Follow/Sub/Bits/Raid möglicherweise doppelten Ton. Empfehlung: deaktivieren, sobald das Overlay live im Einsatz ist. |
+| Erweiterung **"Sound Alerts"** ist aktiv | **Konfliktrisiko:** `goal.html` spielt eigene Alert-Sounds über die Twitch-EventSub-Anbindung ab. Läuft die Extension parallel, gibt's bei Follow/Sub/Bits/Raid möglicherweise doppelten Ton. **Bestätigt (11.08.2026): DaN deaktiviert sie manuell im Twitch-Dashboard unter Erweiterungen** – das ist eine Live-Dashboard-Einstellung außerhalb dieses Repos, kann nicht per Code umgesetzt werden. |
 | Emotes (Rage, GG, Brille, Bombe, Birne, Dart) sind Twitch-Standardmotive ohne Markenbezug | **Bewusst zurückgestellt** - Stufe 2/3 sind erst ab Affiliate-Status nutzbar (aktuell 0/10 Abonnenten-Punkte). Redesign folgt, sobald freigeschaltet. |
 
 ---
@@ -76,12 +76,9 @@ kleinkriegen lässt.
 ### Panel 4 - "SOCIALS"
 ```
 📡 BLEIB DRAN – AUCH ABSEITS VOM STREAM:
-▸ Twitter/X: [dein Handle einfügen]
-▸ Instagram: [dein Handle einfügen]
-▸ TikTok: [dein Handle einfügen]
-▸ Discord: [dein Server-Invite einfügen]
-Momentan sind hier noch keine Links hinterlegt – sobald du deine Accounts
-nennst, baue ich sie direkt ein.
+▸ TikTok: @dangsxr1000
+Weitere Kanäle (Twitter/X, Instagram, Discord) kommen, sobald sie stehen –
+bis dahin ist TikTok die beste Anlaufstelle neben Twitch.
 ```
 
 ### Panel 5 - "SUPPORT"
@@ -146,11 +143,12 @@ Assets/Farbwerten wie das Overlay).
 
 ## 5. Offene Punkte (brauchen Input von DaN, nicht von mir lösbar)
 
-- **Social-Handles**: Twitter/X, Instagram, TikTok, Discord-Invite fehlen komplett -
-  Panel 4 kann erst final befüllt werden, sobald die echten Links feststehen.
-- **Sound-Alerts-Erweiterung deaktivieren?** Empfehlung siehe Tabelle oben - bitte
-  bestätigen, bevor sie abgeschaltet wird (nicht automatisch geändert, betrifft
-  Live-Dashboard-Einstellungen außerhalb dieses Repos).
+- **Social-Handles**: TikTok (`@dangsxr1000`) ist bestätigt und in Panel 4 eingetragen.
+  Twitter/X, Instagram, Discord-Invite bewusst zurückgestellt (DaN-Entscheidung
+  11.08.2026: "Nur TikTok + Twitch fürs Erste") - Panel 4 wird ergänzt, sobald
+  weitere Accounts feststehen.
+- ~~**Sound-Alerts-Erweiterung deaktivieren?**~~ **Bestätigt (11.08.2026)** - DaN
+  deaktiviert sie manuell im Twitch-Dashboard, siehe Tabelle oben.
 - **Panel-Bilder final produzieren**: Diese Datei liefert die Spezifikation: Text +
   Farben + Layout stehen. Das tatsächliche Rendern der 5 PNGs ist ein separater
   nächster Schritt (auf Wunsch).
