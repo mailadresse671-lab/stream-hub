@@ -1,0 +1,12 @@
+{
+  "name": "stream-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serverless APIs fuer die Streamlabs-Overlays von stream-hub (Vercel).",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "pusher": "^5.2.0"
+  }
+}

@@ -70,6 +70,16 @@
       text-transform: uppercase;
       margin-left: 4px;
     }
+    .transport {
+      color: #a8acb7;
+      font-weight: 600;
+      margin-left: 6px;
+      font-size: 11px;
+      letter-spacing: 0.3px;
+    }
+    .transport.live {
+      color: #bdf6ca;
+    }
     .dot {
       display: inline-block;
       width: 8px;
@@ -86,8 +96,13 @@
   <div id="stageViewport">
     <iframe id="stage" allow="autoplay"></iframe>
   </div>
-  <div id="hud"><span class="dot"></span><span class="state" id="state">Verbinde...</span> <span class="mode" id="mode">starting</span></div>
+  <div id="hud"><span class="dot"></span><span class="state" id="state">Verbinde...</span> <span class="mode" id="mode">starting</span><span class="transport" id="transport">Polling</span></div>
 
+  <!-- Lokal gehostetes Browser-Bundle statt CDN-Link, gleiches Muster wie
+       assets/js/tmi.min.js (siehe CLAUDE.md tmi.js-Historie) - Streamlabs-
+       Mobile-WebView-CDN-Zuverlaessigkeit war bereits mehrfach ein echtes
+       Problem in diesem Projekt. Setzt bei Erfolg window.Pusher. -->
+  <script src="/assets/js/pusher.min.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const apiUrl = params.get('regieApi') || '/api/regie-control';
@@ -104,6 +119,7 @@
     const stageViewport = document.getElementById('stageViewport');
     const stateEl = document.getElementById('state');
     const modeEl = document.getElementById('mode');
+    const transportEl = document.getElementById('transport');
 
     stage.style.width = stageWidth + 'px';
     stage.style.height = stageHeight + 'px';
@@ -156,6 +172,9 @@
     let since = 0;
     let failures = 0;
     let timer = null;
+    let lastAppliedCommandId = null;
+    let pusherInitialized = false;
+    let pusherClient = null;
 
     function buildSceneUrl(mode) {
       const raw = params.get(mode);
@@ -197,6 +216,14 @@
 
     function applyCommand(command) {
       if (!command || command.scene !== targetSceneName) return;
+      // scene.switch/scene.reload sind idempotent (dasselbe stage.src nochmal
+      // setzen ist harmlos) - dieser einfache Vergleich gegen die zuletzt
+      // angewandte command.id vermeidet trotzdem unnoetige Doppel-Anwendung,
+      // falls derselbe Befehl sowohl per Pusher als auch per nachfolgendem
+      // Poll ankommt (siehe CLAUDE.md "Fertig & gemerged", Pusher-Kurskorrektur).
+      if (command.id != null && command.id === lastAppliedCommandId) return;
+      lastAppliedCommandId = command.id;
+
       const action = command.action;
       const payload = command.payload || {};
 
@@ -212,6 +239,53 @@
       }
     }
 
+    function setTransport(mode) {
+      transportEl.textContent = mode === 'realtime' ? 'Live (Echtzeit)' : 'Live (Polling)';
+      transportEl.classList.toggle('live', mode === 'realtime');
+    }
+
+    // Echtzeit-Broadcast-Kanal (Kurskorrektur 11.08.2026, siehe CLAUDE.md
+    // "Fertig & gemerged"): ergaenzt das bestehende Polling, ersetzt es NICHT.
+    // Wird erst initialisiert, sobald ein Poll pusherKey/pusherCluster liefert
+    // (server-seitig nur gesetzt, wenn alle vier PUSHER_*-Env-Vars konfiguriert
+    // sind) - ohne Konfiguration bleibt die Seite bei reinem Polling, exakt wie
+    // vor dieser Aenderung.
+    function initPusherIfNeeded(data) {
+      if (pusherInitialized) return;
+      if (!data || !data.pusherKey || !data.pusherCluster) return;
+      if (typeof Pusher === 'undefined') {
+        console.warn('assets/js/pusher.min.js nicht geladen - bleibe bei reinem Polling.');
+        return;
+      }
+
+      pusherInitialized = true;
+      try {
+        pusherClient = new Pusher(data.pusherKey, { cluster: data.pusherCluster });
+        const channel = pusherClient.subscribe('regie-control');
+        channel.bind('command', function (command) {
+          applyCommand(command);
+        });
+        pusherClient.connection.bind('connected', function () {
+          setTransport('realtime');
+        });
+        pusherClient.connection.bind('unavailable', function () {
+          setTransport('polling');
+        });
+        pusherClient.connection.bind('failed', function () {
+          setTransport('polling');
+        });
+        pusherClient.connection.bind('disconnected', function () {
+          setTransport('polling');
+        });
+      } catch (err) {
+        // Darf die Seite nie mitreissen - Polling laeuft unveraendert als
+        // Fallback weiter, siehe STREAMLABS_SETUP.md "Fernsteuerung im
+        // Hintergrund (Regie-System)".
+        console.error('Pusher-Initialisierung fehlgeschlagen, bleibe bei reinem Polling:', err);
+        pusherClient = null;
+      }
+    }
+
     async function poll() {
       try {
         const url = apiUrl + '?since=' + encodeURIComponent(String(since)) + '&_=' + Date.now();
@@ -224,6 +298,8 @@
 
         failures = 0;
         since = Number.isFinite(Number(data.revision)) ? Number(data.revision) : since;
+
+        initPusherIfNeeded(data);
 
         if (data.changed && data.command) {
           applyCommand(data.command);
@@ -268,6 +344,9 @@
 
     window.addEventListener('beforeunload', function () {
       if (timer) clearTimeout(timer);
+      if (pusherClient) {
+        try { pusherClient.disconnect(); } catch (err) { /* egal, Seite verschwindet ohnehin */ }
+      }
     });
   </script>
 </body>

@@ -1,3 +1,52 @@
+import Pusher from 'pusher';
+
+// Echtzeit-Broadcast-Kanal (Kurskorrektur 11.08.2026, siehe CLAUDE.md "Fertig
+// & gemerged"): Chromium drosselt setTimeout-Polling in Hintergrund-Tabs,
+// macht aber eine dokumentierte Ausnahme fuer aktive WebSocket-Verbindungen -
+// siehe STREAMLABS_SETUP.md "Fernsteuerung im Hintergrund (Regie-System)".
+// Pusher Channels liefert diese WebSocket-Verbindung, ohne dass wir selbst
+// einen dauerhaften Server betreiben muessten (Vercel Serverless kann das
+// nicht). Rein additiv: das bestehende In-Memory-State/GET-Polling bleibt
+// unveraendert als Fallback/Backup-Sync bestehen, falls Pusher nicht
+// konfiguriert ist oder ein einzelner Trigger-Call fehlschlaegt.
+const PUSHER_APP_ID = process.env.PUSHER_APP_ID;
+const PUSHER_KEY = process.env.PUSHER_KEY;
+const PUSHER_SECRET = process.env.PUSHER_SECRET;
+const PUSHER_CLUSTER = process.env.PUSHER_CLUSTER;
+const PUSHER_CONFIGURED = Boolean(
+  PUSHER_APP_ID && PUSHER_KEY && PUSHER_SECRET && PUSHER_CLUSTER
+);
+
+let pusherClient = null;
+if (PUSHER_CONFIGURED) {
+  try {
+    pusherClient = new Pusher({
+      appId: PUSHER_APP_ID,
+      key: PUSHER_KEY,
+      secret: PUSHER_SECRET,
+      cluster: PUSHER_CLUSTER,
+      useTLS: true
+    });
+  } catch (err) {
+    // Guard-Klausel-Muster wie bei fehlendem TRACKER_API_KEY in api/stats.js:
+    // ein kaputter Pusher-Client darf die restliche Function nicht mitreissen.
+    console.error('Pusher-Client konnte nicht initialisiert werden:', err);
+    pusherClient = null;
+  }
+}
+
+async function broadcastCommand(command) {
+  if (!pusherClient) return;
+  try {
+    await pusherClient.trigger('regie-control', 'command', command);
+  } catch (err) {
+    // Broadcast ist ein Zusatzkanal, kein Ersatz fuer das GET-Polling - ein
+    // fehlgeschlagener Push darf die POST-Antwort nicht kaputt machen, das
+    // Polling holt den Befehl im schlimmsten Fall beim naechsten Tick nach.
+    console.error('Pusher-Broadcast fehlgeschlagen (Polling-Fallback bleibt aktiv):', err);
+  }
+}
+
 const COMMAND_TTL_MS = 5 * 60 * 1000;
 // scene.switch/scene.reload bleiben deutlich laenger gueltig als andere Aktionen:
 // ein Szenenwechsel-Befehl ist auch verspaetet abgeholt noch sinnvoll anwendbar
@@ -70,7 +119,14 @@ export default async function handler(req, res) {
       revision: state.revision,
       changed,
       updatedAt: state.updatedAt || null,
-      command
+      command,
+      // pusherKey/pusherCluster sind laut Pusher selbst zum Client-seitigen
+      // Exponieren gedacht (im Gegensatz zu PUSHER_SECRET) - erlaubt
+      // oldschool-master.html, sich selbst zu konfigurieren, ohne die Werte
+      // hart in die statische HTML-Datei zu backen. null, falls nicht (voll-
+      // staendig) konfiguriert - der Client faellt dann auf reines Polling zurueck.
+      pusherKey: PUSHER_CONFIGURED ? PUSHER_KEY : null,
+      pusherCluster: PUSHER_CONFIGURED ? PUSHER_CLUSTER : null
     });
   }
 
@@ -98,6 +154,10 @@ export default async function handler(req, res) {
       payload: body.payload && typeof body.payload === 'object' ? body.payload : {},
       issuedAt: now
     };
+
+    // Zusaetzlicher Push-Kanal, kein Ersatz fuer die obige In-Memory-State-
+    // Logik (die bleibt fuer das GET-Polling unveraendert bestehen).
+    await broadcastCommand(state.command);
 
     return res.status(200).json({
       success: true,
