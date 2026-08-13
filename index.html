@@ -165,43 +165,6 @@
     .val-win { color: var(--success); }
     .val-loss { color: var(--danger); }
     .val-rate { color: var(--warning); }
-
-    /* Rang/MMR-HUD - nur sichtbar, wenn api/stats.js verwertbare Rang-
-       Daten liefert (siehe fetchStats), sonst bleibt es einfach versteckt
-       statt kaputte Werte zu zeigen. */
-    .rank {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .rank-icon {
-      width: 28px;
-      height: 28px;
-      object-fit: contain;
-      flex-shrink: 0;
-    }
-
-    .rank-text {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.15;
-    }
-
-    .rank-tier {
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--neon-blue);
-      white-space: nowrap;
-    }
-
-    .rank-mmr {
-      font-size: 8.5px;
-      color: var(--text-muted);
-      font-variant-numeric: tabular-nums;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
   </style>
 </head>
 <body>
@@ -233,16 +196,6 @@
             <span class="label">Win Rate</span>
           </div>
         </div>
-
-        <div class="divider" id="rankDivider" style="display: none;"></div>
-
-        <div class="rank" id="rankBlock" style="display: none;">
-          <img class="rank-icon" id="rankIcon" src="" alt="" onerror="this.style.display='none';">
-          <div class="rank-text">
-            <span class="rank-tier" id="rankTier">-</span>
-            <span class="rank-mmr" id="rankMmr">-</span>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -271,25 +224,6 @@
       document.getElementById('winrate').innerText = rate + '%';
     }
 
-    function updateRankDisplay(rank) {
-      const divider = document.getElementById('rankDivider');
-      const block = document.getElementById('rankBlock');
-
-      if (!rank) {
-        divider.style.display = 'none';
-        block.style.display = 'none';
-        return;
-      }
-
-      document.getElementById('rankIcon').style.display = '';
-      document.getElementById('rankIcon').src = rank.tierIconUrl || '';
-      document.getElementById('rankIcon').alt = rank.tierName;
-      document.getElementById('rankTier').innerText = rank.tierName;
-      document.getElementById('rankMmr').innerText = rank.mmr != null ? `${rank.mmr} MMR` : rank.playlist;
-      divider.style.display = '';
-      block.style.display = '';
-    }
-
     function setStatus(status) {
       // status: 'live' | 'cached' | 'offline'
       const dot = document.getElementById('statusDot');
@@ -313,7 +247,6 @@
 
         if (data && data.success) {
           setStatus(data.stale ? 'cached' : 'live');
-          updateRankDisplay(data.rank);
 
           const currentWins = data.wins;
           const currentMatches = data.matches;
