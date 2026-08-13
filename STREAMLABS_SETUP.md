@@ -123,6 +123,8 @@ Der `#hud`-Status in `oldschool-master.html` zeigt jetzt zusätzlich **„Live (
 
 **Live-Test-Ergebnis (11.08.2026): Pusher verbindet, löst das Problem aber nicht.** DaN bestätigte per HUD-Anzeige und API-Abruf, dass die Pusher-Verbindung tatsächlich steht — die Fernsteuerung reagiert trotzdem nicht, solange GeForce NOW im Vordergrund läuft. Das spricht dafür, dass Android den **gesamten Streamlabs-App-Prozess** einfriert, nicht nur einzelne Seiten-Timer — davon wäre jede In-Page-Lösung gleichermaßen betroffen. Neue Recherche-Fragen an Cloud-Chris siehe `.claude/stream-setup.md`. Bis dahin bleibt als **praktische Zwischenlösung**: gewünschte Szene möglichst **vor** dem Wechsel ins Spiel schon über das Live Deck setzen, solange Streamlabs noch im Vordergrund ist.
 
+**Ergänzender Fund (13.08.2026)**: DaN fand über Samsungs Device-Care-„Verlauf der App-Probleme" eine dritte, unabhängige Überwachungsebene, die Streamlabs als „Hohe CPU-Nutzung" markiert (mit einem „App in tiefes Standby versetzen"-Button, bewusst NICHT antippen — würde die Lage verschlimmern). Samsungs Game Booster wurde als möglicher gezielterer Hebel geprüft, bietet aber keine Funktion, die einer Hintergrund-App wie Streamlabs das Weiterlaufen sichert. Beides ändert nichts am obigen Befund — volle Einordnung/Quellen in `.claude/stream-setup.md`, Abschnitt „Ergänzender Fund (13.08.2026): Samsungs „App-Probleme"-Überwachung + Game Booster geprüft".
+
 ## Kurz-Troubleshooting
 
 | Symptom | Ursache | Fix |
